@@ -1,12 +1,43 @@
 import React from "react";
+import { useForm } from "react-hook-form";
+
+const InputField = ({ label, name, type = "text", required, placeholder }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <input
+      type={type}
+      name={name}
+      placeholder={placeholder}
+      className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+      required={required}
+    />
+  </div>
+);
+const TextAreaField = ({ label, name, placeholder }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {label}
+    </label>
+    <textarea
+      name={name}
+      className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+      rows="3"
+      placeholder={placeholder}
+    ></textarea>
+  </div>
+);
 
 const TourForm = ({ id, onRemove }) => {
+  const { register, handleSubmit } = useForm();
+
   return (
     <div
-      className="bg-white rounded-lg shadow-md mb-4 overflow-hidden border border-green-300"
+      className="bg-white rounded-lg shadow-md border border-green-300 hover:shadow-lg transition-all duration-300"
       id={`tour-${id}`}
     >
-      <div className="bg-green-600 text-white px-4 py-2 flex justify-between items-center">
+      <div className="bg-gradient-to-r from-green-600 to-green-500 text-white px-4 py-2 flex justify-between items-center">
         <h3 className="text-lg font-medium">Tour Booking #{id}</h3>
         <button
           type="button"
@@ -17,137 +48,80 @@ const TourForm = ({ id, onRemove }) => {
         </button>
       </div>
 
-      <div className="p-4">
+      <form
+        onSubmit={handleSubmit((data) => console.log(data))}
+        className="p-4 grid gap-4"
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              ประเภท
-            </label>
-            <input
-              type="text"
-              name={`tour_${id}_type`}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              ส่งใคร
-            </label>
-            <input
-              type="text"
-              name={`tour_${id}_send_to`}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
-            />
-          </div>
+          <InputField
+            label="ประเภท"
+            name={`tour_${id}_type`}
+            placeholder="ระบุประเภททัวร์"
+          />
+          <InputField
+            label="วันที่"
+            name={`tour_${id}_date`}
+            type="date"
+            required
+          />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              รายละเอียด
-            </label>
-            <textarea
-              name={`tour_${id}_detail`}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
-              rows="3"
-            ></textarea>
-          </div>
+        <TextAreaField
+          label="รายละเอียด"
+          name={`tour_${id}_detail`}
+          type="textarea"
+          placeholder="รายละเอียดเพิ่มเติม"
+        />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              เวลารับ
-            </label>
-            <input
-              type="text"
-              name={`tour_${id}_pickup_time`}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              วันที่ <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              name={`tour_${id}_date`}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
-              required
-            />
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <InputField
+            label="เวลารับ"
+            name={`tour_${id}_pickup_time`}
+            placeholder="เวลารับ"
+          />
+          <InputField
+            label="โรงแรม"
+            name={`tour_${id}_hotel`}
+            placeholder="ชื่อโรงแรม"
+          />
+          <InputField
+            label="หมายเลขห้อง"
+            name={`tour_${id}_room_no`}
+            placeholder="เลขห้อง"
+          />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              โรงแรม
-            </label>
-            <input
-              type="text"
-              name={`tour_${id}_hotel`}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              หมายเลขห้อง
-            </label>
-            <input
-              type="text"
-              name={`tour_${id}_room_no`}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              เบอร์ติดต่อ
-            </label>
-            <input
-              type="text"
-              name={`tour_${id}_contact_no`}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
-            />
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <InputField
+            label="เบอร์ติดต่อ"
+            name={`tour_${id}_contact_no`}
+            placeholder="เบอร์โทรศัพท์"
+          />
+          <InputField
+            label="ส่งใคร"
+            name={`tour_${id}_send_to`}
+            placeholder="ชื่อผู้รับ"
+          />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              ราคาต้นทุน
-            </label>
-            <input
-              type="number"
-              name={`tour_${id}_cost_price`}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              ราคาขาย
-            </label>
-            <input
-              type="number"
-              name={`tour_${id}_selling_price`}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              หมายเหตุ
-            </label>
-            <input
-              type="text"
-              name={`tour_${id}_note`}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
-            />
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <InputField
+            label="ราคาต้นทุน"
+            name={`tour_${id}_cost_price`}
+            type="number"
+          />
+          <InputField
+            label="ราคาขาย"
+            name={`tour_${id}_selling_price`}
+            type="number"
+          />
+          <InputField
+            label="หมายเหตุ"
+            name={`tour_${id}_note`}
+            placeholder="หมายเหตุ"
+          />
         </div>
-      </div>
+      </form>
     </div>
   );
 };

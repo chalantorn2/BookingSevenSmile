@@ -18,17 +18,17 @@ const BookingForm = () => {
     lastName: "",
     pax: "",
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [status, setStatus] = useState({
+    loading: false,
+    message: "",
+    error: "",
+  });
 
-  // ฟังก์ชันสำหรับเลือก Order
   const handleOrderSelect = (orderKey, orderId) => {
     if (orderKey) {
       setCurrentOrderKey(orderKey);
       setCurrentOrderId(orderId);
       setIsBookingSectionVisible(true);
-      // โหลดข้อมูล Order
       loadOrderDetails(orderKey);
     } else {
       resetForm();
@@ -36,7 +36,6 @@ const BookingForm = () => {
     }
   };
 
-  // ฟังก์ชันสำหรับสร้าง Order ใหม่
   const handleCreateNewOrder = () => {
     resetForm();
     setCurrentOrderKey(null);
@@ -44,37 +43,30 @@ const BookingForm = () => {
     setIsBookingSectionVisible(true);
   };
 
-  // ฟังก์ชันสำหรับโหลดรายละเอียด Order
   const loadOrderDetails = async (orderKey) => {
     try {
-      setIsLoading(true);
+      setStatus({ ...status, loading: true, error: "" });
 
-      // ดึงข้อมูล order
-      const { data: orderData, error: orderError } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("id", orderKey)
-        .single();
+      // Fetch data in parallel
+      const [orderResponse, tourResponse, transferResponse] = await Promise.all(
+        [
+          supabase.from("orders").select("*").eq("id", orderKey).single(),
+          supabase.from("tour_bookings").select("*").eq("order_id", orderKey),
+          supabase
+            .from("transfer_bookings")
+            .select("*")
+            .eq("order_id", orderKey),
+        ]
+      );
 
-      if (orderError) throw orderError;
+      if (orderResponse.error) throw orderResponse.error;
+      if (tourResponse.error) throw tourResponse.error;
+      if (transferResponse.error) throw transferResponse.error;
 
-      // ดึงข้อมูล tour bookings
-      const { data: tourData, error: tourError } = await supabase
-        .from("tour_bookings")
-        .select("*")
-        .eq("order_id", orderKey);
+      const orderData = orderResponse.data;
+      const tourData = tourResponse.data;
+      const transferData = transferResponse.data;
 
-      if (tourError) throw tourError;
-
-      // ดึงข้อมูล transfer bookings
-      const { data: transferData, error: transferError } = await supabase
-        .from("transfer_bookings")
-        .select("*")
-        .eq("order_id", orderKey);
-
-      if (transferError) throw transferError;
-
-      // ตั้งค่าข้อมูลฟอร์มหลักจาก order
       setMainFormData({
         agent: orderData.agent_name || "",
         firstName: orderData.first_name || "",
@@ -87,90 +79,68 @@ const BookingForm = () => {
             : "",
       });
 
-      // สร้าง tour forms
-      const newTourForms = tourData.map((tour, index) => ({
-        id: index + 1,
-        data: tour,
-      }));
+      setTourForms(
+        tourData.map((tour, index) => ({
+          id: index + 1,
+          data: tour,
+        }))
+      );
 
-      // สร้าง transfer forms
-      const newTransferForms = transferData.map((transfer, index) => ({
-        id: index + 1,
-        data: transfer,
-      }));
-
-      setTourForms(newTourForms);
-      setTransferForms(newTransferForms);
+      setTransferForms(
+        transferData.map((transfer, index) => ({
+          id: index + 1,
+          data: transfer,
+        }))
+      );
     } catch (error) {
       console.error("Error loading order details:", error);
-      setErrorMessage("ไม่สามารถโหลดข้อมูล Order ได้");
+      setStatus({ ...status, error: "ไม่สามารถโหลดข้อมูล Order ได้" });
     } finally {
-      setIsLoading(false);
+      setStatus({ ...status, loading: false });
     }
   };
 
-  // ฟังก์ชันสำหรับล้างฟอร์ม
   const resetForm = () => {
-    setMainFormData({
-      agent: "",
-      firstName: "",
-      lastName: "",
-      pax: "",
-    });
+    setMainFormData({ agent: "", firstName: "", lastName: "", pax: "" });
     setTourForms([]);
     setTransferForms([]);
-    setSuccessMessage("");
-    setErrorMessage("");
+    setStatus({ loading: false, message: "", error: "" });
   };
 
-  // ฟังก์ชันสำหรับเพิ่มฟอร์มทัวร์
   const handleAddTourForm = () => {
     const nextId =
       tourForms.length > 0
         ? Math.max(...tourForms.map((form) => form.id)) + 1
         : 1;
-
     setTourForms([...tourForms, { id: nextId }]);
   };
 
-  // ฟังก์ชันสำหรับเพิ่มฟอร์มรถรับส่ง
   const handleAddTransferForm = () => {
     const nextId =
       transferForms.length > 0
         ? Math.max(...transferForms.map((form) => form.id)) + 1
         : 1;
-
     setTransferForms([...transferForms, { id: nextId }]);
   };
 
-  // ฟังก์ชันสำหรับลบฟอร์มทัวร์
   const handleRemoveTourForm = (id) => {
     setTourForms(tourForms.filter((form) => form.id !== id));
   };
 
-  // ฟังก์ชันสำหรับลบฟอร์มรถรับส่ง
   const handleRemoveTransferForm = (id) => {
     setTransferForms(transferForms.filter((form) => form.id !== id));
   };
 
-  // ฟังก์ชันสำหรับการเปลี่ยนแปลงในฟอร์มหลัก
   const handleMainFormChange = (e) => {
     const { name, value } = e.target;
-    setMainFormData({
-      ...mainFormData,
-      [name]: value,
-    });
+    setMainFormData({ ...mainFormData, [name]: value });
   };
 
-  // ฟังก์ชันสำหรับส่งฟอร์ม
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
-    setSuccessMessage("");
-    setErrorMessage("");
+    setStatus({ loading: true, message: "", error: "" });
 
     try {
-      // ตรวจสอบข้อมูลที่จำเป็น
       if (!mainFormData.agent) {
         throw new Error(
           "กรุณากรอก Agent ก่อน เพื่อใช้เป็น prefix ของ Order ID"
@@ -183,89 +153,68 @@ const BookingForm = () => {
         );
       }
 
-      // ถ้าไม่มี currentOrderKey ให้สร้าง Order ใหม่
       let referenceId = currentOrderId;
       let orderKey = currentOrderKey;
 
+      // Create new order if needed
       if (!orderKey) {
-        // สร้าง Order Reference ID (เลขอ้างอิง)
         referenceId = await generateOrderID(mainFormData.agent);
 
-        // สร้าง Order ใหม่
         const { data: newOrder, error: orderError } = await supabase
           .from("orders")
           .insert({
             first_name: mainFormData.firstName,
             last_name: mainFormData.lastName,
             agent_name: mainFormData.agent,
-            reference_id: referenceId, // เก็บเลขอ้างอิงในคอลัมน์ reference_id
+            reference_id: referenceId,
           })
           .select()
           .single();
 
         if (orderError) throw orderError;
 
-        orderKey = newOrder.id; // id จะเป็นตัวเลขที่ถูกสร้างโดยอัตโนมัติ
+        orderKey = newOrder.id;
         setCurrentOrderKey(orderKey);
         setCurrentOrderId(referenceId);
       }
 
-      // รวบรวมวันที่ทั้งหมดเพื่อหาวันเริ่มต้นและวันสิ้นสุด
-      let allDates = [];
-
-      // บันทึกการจองทัวร์
-      const tourBookingIds = [];
+      // Collect all dates for start/end date calculation
+      const allDates = [];
       const formElements = document.forms[0].elements;
 
+      // Process tour bookings
+      const tourBookings = [];
       for (const tourForm of tourForms) {
         const formId = tourForm.id;
-
-        // สร้าง Booking ID
         const bookingId = await generateBookingID("tour");
 
-        // ดึงข้อมูลจากฟอร์ม
         const tourDate = formElements[`tour_${formId}_date`].value;
         if (tourDate) allDates.push(tourDate);
 
-        // สร้างข้อมูลการจองทัวร์
-        const tourData = {
-          order_id: orderKey, // เชื่อมโยงกับ id ของตาราง orders
+        tourBookings.push({
+          order_id: orderKey,
           tour_date: tourDate,
           tour_detail: formElements[`tour_${formId}_detail`].value,
           pax: parseInt(mainFormData.pax) || 0,
           cost_price: formElements[`tour_${formId}_cost_price`].value || null,
           selling_price:
             formElements[`tour_${formId}_selling_price`].value || null,
-          status: "pending", // เปลี่ยนจาก 'รอดำเนินการ' เป็น 'pending'
+          status: "pending",
           note: formElements[`tour_${formId}_note`].value,
-        };
-
-        // บันทึกลงฐานข้อมูล
-        const { error: tourError } = await supabase
-          .from("tour_bookings")
-          .insert(tourData);
-
-        if (tourError) throw tourError;
-
-        tourBookingIds.push(bookingId);
+        });
       }
 
-      // บันทึกการจองรถรับส่ง
-      const transferBookingIds = [];
-
+      // Process transfer bookings
+      const transferBookings = [];
       for (const transferForm of transferForms) {
         const formId = transferForm.id;
-
-        // สร้าง Booking ID
         const bookingId = await generateBookingID("transfer");
 
-        // ดึงข้อมูลจากฟอร์ม
         const transferDate = formElements[`transfer_${formId}_date`].value;
         if (transferDate) allDates.push(transferDate);
 
-        // สร้างข้อมูลการจองรถรับส่ง
-        const transferData = {
-          order_id: orderKey, // เชื่อมโยงกับ id ของตาราง orders
+        transferBookings.push({
+          order_id: orderKey,
           transfer_date: transferDate,
           transfer_time: formElements[`transfer_${formId}_pickup_time`].value,
           pickup_location:
@@ -279,61 +228,78 @@ const BookingForm = () => {
           selling_price:
             formElements[`transfer_${formId}_selling_price`].value || null,
           transfer_detail: formElements[`transfer_${formId}_detail`].value,
-          status: "pending", // เปลี่ยนจาก 'รอดำเนินการ' เป็น 'pending'
+          status: "pending",
           note: formElements[`transfer_${formId}_note`].value,
-        };
-
-        // บันทึกลงฐานข้อมูล
-        const { error: transferError } = await supabase
-          .from("transfer_bookings")
-          .insert(transferData);
-
-        if (transferError) throw transferError;
-
-        transferBookingIds.push(bookingId);
+        });
       }
 
-      // อัปเดตวันที่เริ่มต้นและสิ้นสุดใน Order
+      // Bulk insert tour bookings if any
+      if (tourBookings.length > 0) {
+        const { error: tourError } = await supabase
+          .from("tour_bookings")
+          .insert(tourBookings);
+
+        if (tourError) throw tourError;
+      }
+
+      // Bulk insert transfer bookings if any
+      if (transferBookings.length > 0) {
+        const { error: transferError } = await supabase
+          .from("transfer_bookings")
+          .insert(transferBookings);
+
+        if (transferError) throw transferError;
+      }
+
+      // Update start/end dates on the order
       if (allDates.length > 0) {
         allDates.sort();
-        const startDate = allDates[0];
-        const endDate = allDates[allDates.length - 1];
-
         const { error: updateError } = await supabase
           .from("orders")
-          .update({ start_date: startDate, end_date: endDate })
+          .update({
+            start_date: allDates[0],
+            end_date: allDates[allDates.length - 1],
+          })
           .eq("id", orderKey);
 
         if (updateError) throw updateError;
       }
 
-      // แสดงข้อความสำเร็จ
+      // Success message
       let message = "บันทึกข้อมูลสำเร็จ!\n";
-      if (tourBookingIds.length > 0) {
-        message += `Tour Bookings: ${tourBookingIds.length}\n`;
-      }
-      if (transferBookingIds.length > 0) {
-        message += `Transfer Bookings: ${transferBookingIds.length}\n`;
-      }
+      if (tourBookings.length > 0)
+        message += `Tour Bookings: ${tourBookings.length}\n`;
+      if (transferBookings.length > 0)
+        message += `Transfer Bookings: ${transferBookings.length}\n`;
 
-      setSuccessMessage(message);
+      setStatus({ loading: false, message, error: "" });
       resetForm();
       setIsBookingSectionVisible(false);
     } catch (error) {
       console.error("Error submitting form:", error);
-      setErrorMessage(`เกิดข้อผิดพลาดในการบันทึกข้อมูล: ${error.message}`);
-    } finally {
-      setIsLoading(false);
+      setStatus({
+        loading: false,
+        message: "",
+        error: `เกิดข้อผิดพลาด: ${error.message}`,
+      });
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-2">Seven Smile Booking</h1>
-        <p className="text-gray-600 mb-6">กรุณาเลือกฟอร์มที่ต้องการกรอก</p>
+    <div className="container mx-auto px-4 py-6 bg-gray-50 min-h-screen">
+      <div className="text-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          Seven Smile Booking
+        </h1>
+        <p className="text-gray-600 mb-4">กรุณาเลือกฟอร์มที่ต้องการกรอก</p>
 
-        <div className="flex justify-center gap-4 mb-8">
+        <div className="flex justify-center gap-4 mb-6">
+          <a
+            href="/"
+            className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 transition"
+          >
+            หน้าหลัก
+          </a>
           <a
             href="/view-bookings"
             className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition"
@@ -349,30 +315,32 @@ const BookingForm = () => {
         </div>
       </div>
 
-      {/* Order Selector */}
       <OrderSelector
         onOrderSelect={handleOrderSelect}
         onCreateNewOrder={handleCreateNewOrder}
       />
 
-      {/* Success/Error Messages */}
-      {successMessage && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-          <p>{successMessage}</p>
+      {status.message && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 shadow-sm">
+          <p>{status.message}</p>
         </div>
       )}
 
-      {errorMessage && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          <p>{errorMessage}</p>
+      {status.error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 shadow-sm">
+          <p>{status.error}</p>
         </div>
       )}
 
-      {/* Booking Form Section */}
       {isBookingSectionVisible && (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
-          <div className="bg-gray-800 text-white p-4 text-center">
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-8 transition-all duration-300">
+          <div className="bg-gradient-to-r from-gray-800 to-gray-700 text-white p-4 text-center">
             <h2 className="text-xl font-semibold">ข้อมูลหลักของ Booking</h2>
+            {currentOrderId && (
+              <p className="text-gray-200 text-sm mt-1">
+                Order ID: {currentOrderId}
+              </p>
+            )}
           </div>
 
           <div className="p-6">
@@ -383,7 +351,7 @@ const BookingForm = () => {
                     htmlFor="agent"
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
-                    Agent
+                    Agent <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -391,7 +359,7 @@ const BookingForm = () => {
                     name="agent"
                     value={mainFormData.agent}
                     onChange={handleMainFormChange}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                     placeholder="ชื่อ Agent"
                     required
                   />
@@ -402,7 +370,7 @@ const BookingForm = () => {
                     htmlFor="firstName"
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
-                    First Name
+                    First Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -410,7 +378,7 @@ const BookingForm = () => {
                     name="firstName"
                     value={mainFormData.firstName}
                     onChange={handleMainFormChange}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                     placeholder="ชื่อลูกค้า"
                     required
                   />
@@ -421,7 +389,7 @@ const BookingForm = () => {
                     htmlFor="lastName"
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
-                    Last Name
+                    Last Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -429,7 +397,7 @@ const BookingForm = () => {
                     name="lastName"
                     value={mainFormData.lastName}
                     onChange={handleMainFormChange}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                     placeholder="นามสกุลลูกค้า"
                     required
                   />
@@ -440,7 +408,7 @@ const BookingForm = () => {
                     htmlFor="pax"
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
-                    Pax
+                    Pax <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -448,28 +416,56 @@ const BookingForm = () => {
                     name="pax"
                     value={mainFormData.pax}
                     onChange={handleMainFormChange}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                     placeholder="จำนวนคน"
                     required
                   />
                 </div>
               </div>
 
-              <div className="flex justify-center space-x-4 mb-6">
+              <div className="flex flex-wrap justify-center gap-4 mb-6">
                 <button
                   type="button"
                   onClick={handleAddTourForm}
-                  className="px-4 py-2 border border-green-500 text-green-500 rounded-md hover:bg-green-500 hover:text-white transition"
+                  className="px-6 py-2 border-2 border-green-500 text-green-600 font-medium rounded-md hover:bg-green-500 hover:text-white transition flex items-center gap-2"
                 >
-                  Add Tour
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  เพิ่มทัวร์
                 </button>
 
                 <button
                   type="button"
                   onClick={handleAddTransferForm}
-                  className="px-4 py-2 border border-blue-500 text-blue-500 rounded-md hover:bg-blue-500 hover:text-white transition"
+                  className="px-6 py-2 border-2 border-blue-500 text-blue-600 font-medium rounded-md hover:bg-blue-500 hover:text-white transition flex items-center gap-2"
                 >
-                  Add Transfer
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  เพิ่มรถรับส่ง
                 </button>
               </div>
 
@@ -480,8 +476,8 @@ const BookingForm = () => {
                     transferCount={transferForms.length}
                   />
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
+                  <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="space-y-4">
                       {tourForms.map((form) => (
                         <TourForm
                           key={form.id}
@@ -491,7 +487,7 @@ const BookingForm = () => {
                       ))}
                     </div>
 
-                    <div>
+                    <div className="space-y-4">
                       {transferForms.map((form) => (
                         <TransferForm
                           key={form.id}
@@ -502,13 +498,55 @@ const BookingForm = () => {
                     </div>
                   </div>
 
-                  <div className="text-center">
+                  <div className="text-center mt-8">
                     <button
                       type="submit"
-                      disabled={isLoading}
-                      className="px-6 py-3 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition disabled:opacity-50"
+                      disabled={status.loading}
+                      className="px-8 py-3 bg-yellow-500 text-white font-medium rounded-md hover:bg-yellow-600 transition disabled:opacity-50 shadow-md"
                     >
-                      {isLoading ? "กำลังบันทึก..." : "บันทึกข้อมูล"}
+                      {status.loading ? (
+                        <div className="flex items-center gap-2">
+                          <svg
+                            className="animate-spin h-5 w-5 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          กำลังบันทึก...
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                          บันทึกข้อมูล
+                        </div>
+                      )}
                     </button>
                   </div>
                 </>
