@@ -12,6 +12,7 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@supabase/supabase-js": "^2.49.1",
+
     "@tailwindcss/vite": "^4.0.12",
     "date-fns": "^4.1.0",
     "firebase": "^11.4.0",

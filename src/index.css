@@ -1,3 +1,9 @@
-@tailwind base;
+@import "tailwindcss";
+/* @tailwind base;
 @tailwind components;
-@tailwind utilities;
+@tailwind utilities; */
+
+/* กำหนดให้ใช้ฟอนต์ Kanit เป็นค่าเริ่มต้น */
+body {
+  font-family: "Kanit", sans-serif;
+}
