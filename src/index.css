@@ -2,7 +2,7 @@
 /* @tailwind base;
 @tailwind components;
 @tailwind utilities; */
-
+@import url("https://fonts.googleapis.com/css2?family=Kanit:wght@400;700&display=swap");
 /* กำหนดให้ใช้ฟอนต์ Kanit เป็นค่าเริ่มต้น */
 body {
   font-family: "Kanit", sans-serif;
