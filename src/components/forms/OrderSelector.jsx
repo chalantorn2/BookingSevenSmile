@@ -11,6 +11,8 @@ const OrderSelector = ({ onOrderSelect, onCreateNewOrder }) => {
     fetchOrders();
   }, []);
 
+  // src/components/common/forms/OrderSelector.jsx
+  // แก้ไขส่วน fetchOrders function
   const fetchOrders = async () => {
     try {
       setIsLoading(true);
@@ -26,38 +28,63 @@ const OrderSelector = ({ onOrderSelect, onCreateNewOrder }) => {
         console.error("ไม่สามารถเชื่อมต่อกับ Supabase:", connectionError);
         throw connectionError;
       }
-      const { data, error } = await supabase.from("orders").select("*");
+
+      // ดึงข้อมูล orders พื้นฐาน
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      console.log("ดึงข้อมูลสำเร็จ:", data);
+      // ในกรณีที่มีข้อมูลมาก อาจดึงเฉพาะ orders ล่าสุด เช่น 50 รายการ
+      const recentOrders = data.slice(0, 50);
 
-      // แปลงข้อมูลให้อยู่ในรูปแบบที่เหมาะสมสำหรับ Select component
-      const formattedOrders = data.map((order) => {
-        // หาชื่อลูกค้าจาก booking แรกที่พบ (ไม่ว่าจะเป็น tour หรือ transfer)
-        let firstName = "",
-          lastName = "";
+      // สร้าง array สำหรับเก็บ promises ของการนับ bookings
+      const countPromises = recentOrders.map((order) => {
+        return Promise.all([
+          // นับจำนวน tour bookings
+          supabase
+            .from("tour_bookings")
+            .select("id", { count: "exact" })
+            .eq("order_id", order.id)
+            .then(({ count, error }) => (error ? 0 : count)),
 
-        if (order.tour_bookings && order.tour_bookings.length > 0) {
-          firstName = order.tour_bookings[0].first_name;
-          lastName = order.tour_bookings[0].last_name;
-        } else if (
-          order.transfer_bookings &&
-          order.transfer_bookings.length > 0
-        ) {
-          firstName = order.transfer_bookings[0].first_name;
-          lastName = order.transfer_bookings[0].last_name;
+          // นับจำนวน transfer bookings
+          supabase
+            .from("transfer_bookings")
+            .select("id", { count: "exact" })
+            .eq("order_id", order.id)
+            .then(({ count, error }) => (error ? 0 : count)),
+        ]);
+      });
+
+      // รอให้ทุก promise ทำงานเสร็จ
+      const countResults = await Promise.all(countPromises);
+
+      // สร้าง array ข้อมูลสำหรับ dropdown
+      const formattedOrders = recentOrders.map((order, index) => {
+        const [tourCount, transferCount] = countResults[index];
+        const refId = order.reference_id || `Order #${order.id}`;
+        const customerName = `${order.first_name || ""} ${
+          order.last_name || ""
+        }`.trim();
+
+        let label = refId;
+        if (customerName) {
+          label = `${customerName} - ${refId}`;
         }
 
-        const label =
-          firstName || lastName
-            ? `${firstName} ${lastName} (${order.order_id})`
-            : order.order_id;
+        if (tourCount > 0 || transferCount > 0) {
+          label += ` (${tourCount} ทัวร์, ${transferCount} รถรับส่ง)`;
+        }
 
         return {
           value: order.id,
           label: label,
-          orderId: order.order_id,
+          orderId: order.reference_id,
+          tourCount: tourCount,
+          transferCount: transferCount,
         };
       });
 
@@ -69,21 +96,21 @@ const OrderSelector = ({ onOrderSelect, onCreateNewOrder }) => {
       setIsLoading(false);
     }
   };
-
+  // แก้ไขส่วน handleOrderChange
   const handleOrderChange = (selectedOption) => {
     if (selectedOption) {
-      onOrderSelect(selectedOption.value, selectedOption.orderId);
+      onOrderSelect(selectedOption.value, selectedOption.orderId, {
+        tourCount: selectedOption.tourCount || 0,
+        transferCount: selectedOption.transferCount || 0,
+      });
     } else {
-      onOrderSelect(null, null);
+      onOrderSelect(null, null, null);
     }
   };
 
   return (
     <div className="mb-8">
       <div className="text-center mb-4">
-        <label htmlFor="orderSelect" className="block text-lg font-bold mb-2">
-          เลือก Order
-        </label>
         <div className="flex flex-col md:flex-row items-center justify-center gap-4">
           <div className="w-full md:w-1/2">
             <Select

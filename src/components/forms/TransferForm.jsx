@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 const InputField = ({ label, name, type = "text", required, placeholder }) => (
@@ -10,7 +10,7 @@ const InputField = ({ label, name, type = "text", required, placeholder }) => (
       type={type}
       name={name}
       placeholder={placeholder}
-      className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+      className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
       required={required}
     />
   </div>
@@ -23,15 +23,31 @@ const TextAreaField = ({ label, name, placeholder }) => (
     </label>
     <textarea
       name={name}
-      className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+      className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
       rows="3"
       placeholder={placeholder}
     ></textarea>
   </div>
 );
+const TransferForm = ({ id, onRemove, data }) => {
+  const { register, setValue } = useForm();
 
-const TransferForm = ({ id, onRemove }) => {
-  const { register, handleSubmit } = useForm();
+  // ใช้ useEffect เพื่อตั้งค่าข้อมูลเริ่มต้น
+  useEffect(() => {
+    if (data) {
+      // ตั้งค่าข้อมูลสำหรับฟิลด์ต่างๆ
+      setValue(`transfer_${id}_date`, data.transfer_date || "");
+      setValue(`transfer_${id}_pickup_time`, data.transfer_time || "");
+      setValue(`transfer_${id}_pickup_location`, data.pickup_location || "");
+      setValue(`transfer_${id}_drop_location`, data.drop_location || "");
+      setValue(`transfer_${id}_driver_name`, data.driver_name || "");
+      setValue(`transfer_${id}_license_plate`, data.license_plate || "");
+      setValue(`transfer_${id}_detail`, data.transfer_detail || "");
+      setValue(`transfer_${id}_cost_price`, data.cost_price || "");
+      setValue(`transfer_${id}_selling_price`, data.selling_price || "");
+      setValue(`transfer_${id}_note`, data.note || "");
+    }
+  }, [data, id, setValue]);
 
   return (
     <div className="bg-white rounded-lg shadow-md border border-blue-300 hover:shadow-lg transition-all duration-300">
@@ -46,10 +62,7 @@ const TransferForm = ({ id, onRemove }) => {
         </button>
       </div>
 
-      <form
-        onSubmit={handleSubmit((data) => console.log(data))}
-        className="p-4 grid gap-4"
-      >
+      <div className="p-4 grid gap-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <InputField
             label="ประเภท"
@@ -136,7 +149,7 @@ const TransferForm = ({ id, onRemove }) => {
             placeholder="หมายเหตุ"
           />
         </div>
-      </form>
+      </div>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 const InputField = ({ label, name, type = "text", required, placeholder }) => (
@@ -10,7 +10,7 @@ const InputField = ({ label, name, type = "text", required, placeholder }) => (
       type={type}
       name={name}
       placeholder={placeholder}
-      className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+      className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
       required={required}
     />
   </div>
@@ -22,15 +22,29 @@ const TextAreaField = ({ label, name, placeholder }) => (
     </label>
     <textarea
       name={name}
-      className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+      className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
       rows="3"
       placeholder={placeholder}
     ></textarea>
   </div>
 );
-
-const TourForm = ({ id, onRemove }) => {
-  const { register, handleSubmit } = useForm();
+const TourForm = ({ id, onRemove, data }) => {
+  const { register, setValue } = useForm();
+  useEffect(() => {
+    if (data) {
+      // ตั้งค่าข้อมูลสำหรับฟิลด์ต่างๆ
+      setValue(`tour_${id}_date`, data.tour_date || "");
+      setValue(`tour_${id}_detail`, data.tour_detail || "");
+      setValue(`tour_${id}_pickup_time`, data.pickup_time || "");
+      setValue(`tour_${id}_hotel`, data.hotel || "");
+      setValue(`tour_${id}_room_no`, data.room_no || "");
+      setValue(`tour_${id}_contact_no`, data.contact_no || "");
+      setValue(`tour_${id}_send_to`, data.send_to || "");
+      setValue(`tour_${id}_cost_price`, data.cost_price || "");
+      setValue(`tour_${id}_selling_price`, data.selling_price || "");
+      setValue(`tour_${id}_note`, data.note || "");
+    }
+  }, [data, id, setValue]);
 
   return (
     <div
@@ -48,11 +62,8 @@ const TourForm = ({ id, onRemove }) => {
         </button>
       </div>
 
-      <form
-        onSubmit={handleSubmit((data) => console.log(data))}
-        className="p-4 grid gap-4"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="p-4 grid gap-4">
+        <div className="grid  grid-cols-1 md:grid-cols-2 gap-4">
           <InputField
             label="ประเภท"
             name={`tour_${id}_type`}
@@ -121,7 +132,7 @@ const TourForm = ({ id, onRemove }) => {
             placeholder="หมายเหตุ"
           />
         </div>
-      </form>
+      </div>
     </div>
   );
 };

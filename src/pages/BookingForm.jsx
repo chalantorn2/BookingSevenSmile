@@ -23,16 +23,21 @@ const BookingForm = () => {
     message: "",
     error: "",
   });
+  const [bookingCounts, setBookingCounts] = useState(null);
 
-  const handleOrderSelect = (orderKey, orderId) => {
+  const handleOrderSelect = (orderKey, orderId, counts) => {
     if (orderKey) {
       setCurrentOrderKey(orderKey);
       setCurrentOrderId(orderId);
+      setBookingCounts(counts);
       setIsBookingSectionVisible(true);
-      loadOrderDetails(orderKey);
+
+      // ดึงข้อมูลพื้นฐานของ Order
+      loadOrderBasicDetails(orderKey);
     } else {
       resetForm();
       setIsBookingSectionVisible(false);
+      setBookingCounts(null);
     }
   };
 
@@ -42,56 +47,78 @@ const BookingForm = () => {
     setCurrentOrderId(null);
     setIsBookingSectionVisible(true);
   };
+  const processOrderData = (orderData) => {
+    setMainFormData({
+      agent: orderData.agent_name || "",
+      firstName: orderData.first_name || "",
+      lastName: orderData.last_name || "",
+      pax: "",
+    });
 
-  const loadOrderDetails = async (orderKey) => {
+    // จัดการข้อมูล Tour Bookings
+    if (orderData.tour_bookings && orderData.tour_bookings.length > 0) {
+      const formattedTours = orderData.tour_bookings.map((tour, index) => ({
+        id: index + 1,
+        data: tour,
+      }));
+      setTourForms(formattedTours);
+
+      // ตั้งค่า pax จาก tour แรกถ้ามี
+      if (formattedTours[0].data.pax) {
+        setMainFormData((prev) => ({
+          ...prev,
+          pax: formattedTours[0].data.pax,
+        }));
+      }
+    } else {
+      setTourForms([]);
+    }
+
+    // จัดการข้อมูล Transfer Bookings
+    if (orderData.transfer_bookings && orderData.transfer_bookings.length > 0) {
+      const formattedTransfers = orderData.transfer_bookings.map(
+        (transfer, index) => ({
+          id: index + 1,
+          data: transfer,
+        })
+      );
+      setTransferForms(formattedTransfers);
+
+      // ตั้งค่า pax จาก transfer แรกถ้ายังไม่มีค่า pax จาก tour
+      if (!mainFormData.pax && formattedTransfers[0].data.pax) {
+        setMainFormData((prev) => ({
+          ...prev,
+          pax: formattedTransfers[0].data.pax,
+        }));
+      }
+    } else {
+      setTransferForms([]);
+    }
+  };
+
+  const loadOrderBasicDetails = async (orderKey) => {
     try {
       setStatus({ ...status, loading: true, error: "" });
 
-      // Fetch data in parallel
-      const [orderResponse, tourResponse, transferResponse] = await Promise.all(
-        [
-          supabase.from("orders").select("*").eq("id", orderKey).single(),
-          supabase.from("tour_bookings").select("*").eq("order_id", orderKey),
-          supabase
-            .from("transfer_bookings")
-            .select("*")
-            .eq("order_id", orderKey),
-        ]
-      );
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("id", orderKey)
+        .single();
 
-      if (orderResponse.error) throw orderResponse.error;
-      if (tourResponse.error) throw tourResponse.error;
-      if (transferResponse.error) throw transferResponse.error;
+      if (error) throw error;
 
-      const orderData = orderResponse.data;
-      const tourData = tourResponse.data;
-      const transferData = transferResponse.data;
-
+      // ตั้งค่าข้อมูลพื้นฐาน
       setMainFormData({
-        agent: orderData.agent_name || "",
-        firstName: orderData.first_name || "",
-        lastName: orderData.last_name || "",
-        pax:
-          tourData.length > 0
-            ? tourData[0].pax
-            : transferData.length > 0
-            ? transferData[0].pax
-            : "",
+        agent: data.agent_name || "",
+        firstName: data.first_name || "",
+        lastName: data.last_name || "",
+        pax: "", // ผู้ใช้กรอกเอง
       });
 
-      setTourForms(
-        tourData.map((tour, index) => ({
-          id: index + 1,
-          data: tour,
-        }))
-      );
-
-      setTransferForms(
-        transferData.map((transfer, index) => ({
-          id: index + 1,
-          data: transfer,
-        }))
-      );
+      // ไม่ดึงข้อมูล bookings
+      setTourForms([]);
+      setTransferForms([]);
     } catch (error) {
       console.error("Error loading order details:", error);
       setStatus({ ...status, error: "ไม่สามารถโหลดข้อมูล Order ได้" });
@@ -315,10 +342,17 @@ const BookingForm = () => {
         </div>
       </div>
 
-      <OrderSelector
-        onOrderSelect={handleOrderSelect}
-        onCreateNewOrder={handleCreateNewOrder}
-      />
+      <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <h2 className="text-xl font-bold text-center mb-4">เลือก Order</h2>
+        <div className="flex flex-col md:flex-row items-center justify-center gap-4">
+          <div className="w-full md:w-2/3">
+            <OrderSelector
+              onOrderSelect={handleOrderSelect}
+              onCreateNewOrder={handleCreateNewOrder}
+            />
+          </div>
+        </div>
+      </div>
 
       {status.message && (
         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 shadow-sm">
@@ -343,6 +377,24 @@ const BookingForm = () => {
             )}
           </div>
 
+          {/* แสดงข้อมูลจำนวน bookings */}
+          {bookingCounts && (
+            <div className="bg-gray-100 p-3 border-b border-gray-200">
+              <p className="text-center text-gray-700">
+                Order นี้มี{" "}
+                <span className="font-bold text-green-600">
+                  {bookingCounts.tourCount} ทัวร์
+                </span>{" "}
+                และ
+                <span className="font-bold text-blue-600">
+                  {" "}
+                  {bookingCounts.transferCount} รถรับส่ง
+                </span>{" "}
+                อยู่แล้ว
+              </p>
+            </div>
+          )}
+
           <div className="p-6">
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -359,7 +411,7 @@ const BookingForm = () => {
                     name="agent"
                     value={mainFormData.agent}
                     onChange={handleMainFormChange}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                     placeholder="ชื่อ Agent"
                     required
                   />
@@ -378,7 +430,7 @@ const BookingForm = () => {
                     name="firstName"
                     value={mainFormData.firstName}
                     onChange={handleMainFormChange}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                     placeholder="ชื่อลูกค้า"
                     required
                   />
@@ -397,7 +449,7 @@ const BookingForm = () => {
                     name="lastName"
                     value={mainFormData.lastName}
                     onChange={handleMainFormChange}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                     placeholder="นามสกุลลูกค้า"
                     required
                   />
@@ -406,7 +458,7 @@ const BookingForm = () => {
                 <div>
                   <label
                     htmlFor="pax"
-                    className="block text-sm font-medium text-gray-700 mb-1"
+                    className="block  text-sm font-medium text-gray-700 mb-1"
                   >
                     Pax <span className="text-red-500">*</span>
                   </label>
@@ -416,7 +468,7 @@ const BookingForm = () => {
                     name="pax"
                     value={mainFormData.pax}
                     onChange={handleMainFormChange}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                     placeholder="จำนวนคน"
                     required
                   />
@@ -482,6 +534,7 @@ const BookingForm = () => {
                         <TourForm
                           key={form.id}
                           id={form.id}
+                          data={form.data}
                           onRemove={handleRemoveTourForm}
                         />
                       ))}
@@ -492,6 +545,7 @@ const BookingForm = () => {
                         <TransferForm
                           key={form.id}
                           id={form.id}
+                          data={form.data}
                           onRemove={handleRemoveTransferForm}
                         />
                       ))}
