@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import {
-  fetchInformationByCategory,
-  addInformation,
-} from "../../services/informationService";
+import { useInformation } from "../../contexts/InformationContext";
 
 const TourForm = ({ id, onRemove, data }) => {
   const { register, setValue } = useForm();
-  const [tourTypes, setTourTypes] = useState([]);
-  const [tourRecipients, setTourRecipients] = useState([]);
-  const [hotels, setHotels] = useState([]);
+
+  // ใช้ context แทนการเรียก API โดยตรง
+  const { tourTypes, tourRecipients, hotels, addNewInformation, loading } =
+    useInformation();
 
   // สถานะสำหรับการเพิ่มข้อมูลใหม่
   const [newTourType, setNewTourType] = useState("");
@@ -20,21 +18,6 @@ const TourForm = ({ id, onRemove, data }) => {
   const [isAddingNewRecipient, setIsAddingNewRecipient] = useState(false);
 
   useEffect(() => {
-    // ดึงข้อมูลประเภททัวร์
-    fetchInformationByCategory("tour_type").then(({ data }) => {
-      if (data) setTourTypes(data);
-    });
-
-    // ดึงข้อมูลส่งใคร (Tour)
-    fetchInformationByCategory("tour_recipient").then(({ data }) => {
-      if (data) setTourRecipients(data);
-    });
-
-    // ดึงข้อมูลโรงแรม
-    fetchInformationByCategory("hotel").then(({ data }) => {
-      if (data) setHotels(data);
-    });
-
     // ตั้งค่าข้อมูลเริ่มต้น
     if (data) {
       setValue(`tour_${id}_date`, data.tour_date || "");
@@ -82,6 +65,42 @@ const TourForm = ({ id, onRemove, data }) => {
       ></textarea>
     </div>
   );
+
+  // ฟังก์ชันเพิ่มประเภททัวร์ใหม่
+  const handleAddNewTourType = async () => {
+    if (newTourType.trim()) {
+      const addedData = await addNewInformation("tour_type", newTourType);
+      if (addedData) {
+        setValue(`tour_${id}_type`, addedData.value);
+      }
+    }
+    setIsAddingNewTourType(false);
+    setNewTourType("");
+  };
+
+  // ฟังก์ชันเพิ่มโรงแรมใหม่
+  const handleAddNewHotel = async () => {
+    if (newHotel.trim()) {
+      const addedData = await addNewInformation("hotel", newHotel);
+      if (addedData) {
+        setValue(`tour_${id}_hotel`, addedData.value);
+      }
+    }
+    setIsAddingNewHotel(false);
+    setNewHotel("");
+  };
+
+  // ฟังก์ชันเพิ่มผู้รับใหม่
+  const handleAddNewRecipient = async () => {
+    if (newRecipient.trim()) {
+      const addedData = await addNewInformation("tour_recipient", newRecipient);
+      if (addedData) {
+        setValue(`tour_${id}_send_to`, addedData.value);
+      }
+    }
+    setIsAddingNewRecipient(false);
+    setNewRecipient("");
+  };
 
   return (
     <div
@@ -137,21 +156,7 @@ const TourForm = ({ id, onRemove, data }) => {
                 />
                 <button
                   type="button"
-                  onClick={() => {
-                    if (newTourType.trim()) {
-                      addInformation({
-                        category: "tour_type",
-                        value: newTourType.trim(),
-                        active: true,
-                      }).then(({ data }) => {
-                        if (data) {
-                          setTourTypes([...tourTypes, data]);
-                          setValue(`tour_${id}_type`, data.value);
-                        }
-                      });
-                    }
-                    setIsAddingNewTourType(false);
-                  }}
+                  onClick={handleAddNewTourType}
                   className="px-3 py-1 bg-green-500 text-white rounded-md"
                 >
                   เพิ่ม
@@ -202,21 +207,7 @@ const TourForm = ({ id, onRemove, data }) => {
                 />
                 <button
                   type="button"
-                  onClick={() => {
-                    if (newRecipient.trim()) {
-                      addInformation({
-                        category: "tour_recipient",
-                        value: newRecipient.trim(),
-                        active: true,
-                      }).then(({ data }) => {
-                        if (data) {
-                          setTourRecipients([...tourRecipients, data]);
-                          setValue(`tour_${id}_send_to`, data.value);
-                        }
-                      });
-                    }
-                    setIsAddingNewRecipient(false);
-                  }}
+                  onClick={handleAddNewRecipient}
                   className="px-3 py-1 bg-green-500 text-white rounded-md"
                 >
                   เพิ่ม
@@ -282,21 +273,7 @@ const TourForm = ({ id, onRemove, data }) => {
                 />
                 <button
                   type="button"
-                  onClick={() => {
-                    if (newHotel.trim()) {
-                      addInformation({
-                        category: "hotel",
-                        value: newHotel.trim(),
-                        active: true,
-                      }).then(({ data }) => {
-                        if (data) {
-                          setHotels([...hotels, data]);
-                          setValue(`tour_${id}_hotel`, data.value);
-                        }
-                      });
-                    }
-                    setIsAddingNewHotel(false);
-                  }}
+                  onClick={handleAddNewHotel}
                   className="px-3 py-1 bg-green-500 text-white rounded-md"
                 >
                   เพิ่ม

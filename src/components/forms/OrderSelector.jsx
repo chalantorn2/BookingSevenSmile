@@ -1,24 +1,20 @@
 import React, { useState, useEffect } from "react";
 import supabase from "../../config/supabaseClient";
 import Select from "react-select";
-import { fetchInformationByCategory } from "../../services/informationService";
+import { useInformation } from "../../contexts/InformationContext";
 
 const OrderSelector = ({ onOrderSelect, onCreateNewOrder }) => {
   const [orders, setOrders] = useState([]);
-  const [agents, setAgents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // ใช้ agents จาก Context
+  const { agents } = useInformation();
+
   useEffect(() => {
     fetchOrders();
-
-    // ดึงข้อมูล Agent สำหรับใช้ในฟอร์ม
-    fetchInformationByCategory("agent").then(({ data }) => {
-      if (data) setAgents(data);
-    });
   }, []);
-  // src/components/common/forms/OrderSelector.jsx
-  // แก้ไขส่วน fetchOrders function
+
   const fetchOrders = async () => {
     try {
       setIsLoading(true);
@@ -102,7 +98,7 @@ const OrderSelector = ({ onOrderSelect, onCreateNewOrder }) => {
       setIsLoading(false);
     }
   };
-  // แก้ไขส่วน handleOrderChange
+
   const handleOrderChange = (selectedOption) => {
     if (selectedOption) {
       onOrderSelect(selectedOption.value, selectedOption.orderId, {

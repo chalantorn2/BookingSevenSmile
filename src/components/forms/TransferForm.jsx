@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import {
-  fetchInformationByCategory,
-  addInformation,
-} from "../../services/informationService";
+import { useInformation } from "../../contexts/InformationContext";
 
 const TransferForm = ({ id, onRemove, data }) => {
   const { register, setValue } = useForm();
-  const [transferTypes, setTransferTypes] = useState([]);
-  const [transferRecipients, setTransferRecipients] = useState([]);
-  const [pickupLocations, setPickupLocations] = useState([]);
-  const [dropLocations, setDropLocations] = useState([]);
 
-  // สถานะสำหรับการ*เพิ่มข้อมูลใหม่*
+  // ใช้ context แทนการเรียก API โดยตรง
+  const {
+    transferTypes,
+    transferRecipients,
+    pickupLocations,
+    dropLocations,
+    addNewInformation,
+    loading,
+  } = useInformation();
+
+  // สถานะสำหรับการเพิ่มข้อมูลใหม่
   const [newTransferType, setNewTransferType] = useState("");
   const [isAddingNewTransferType, setIsAddingNewTransferType] = useState(false);
   const [newPickupLocation, setNewPickupLocation] = useState("");
@@ -24,26 +27,6 @@ const TransferForm = ({ id, onRemove, data }) => {
   const [isAddingNewRecipient, setIsAddingNewRecipient] = useState(false);
 
   useEffect(() => {
-    // ดึงข้อมูลประเภทรถรับส่ง
-    fetchInformationByCategory("transfer_type").then(({ data }) => {
-      if (data) setTransferTypes(data);
-    });
-
-    // ดึงข้อมูลส่งใคร (Transfer)
-    fetchInformationByCategory("transfer_recipient").then(({ data }) => {
-      if (data) setTransferRecipients(data);
-    });
-
-    // ดึงข้อมูลสถานที่รับ
-    fetchInformationByCategory("pickup_location").then(({ data }) => {
-      if (data) setPickupLocations(data);
-    });
-
-    // ดึงข้อมูลสถานที่ส่ง
-    fetchInformationByCategory("drop_location").then(({ data }) => {
-      if (data) setDropLocations(data);
-    });
-
     // ตั้งค่าข้อมูลเริ่มต้น
     if (data) {
       setValue(`transfer_${id}_date`, data.transfer_date || "");
@@ -94,6 +77,66 @@ const TransferForm = ({ id, onRemove, data }) => {
       ></textarea>
     </div>
   );
+
+  // ฟังก์ชันเพิ่มประเภทรถรับส่งใหม่
+  const handleAddNewTransferType = async () => {
+    if (newTransferType.trim()) {
+      const addedData = await addNewInformation(
+        "transfer_type",
+        newTransferType
+      );
+      if (addedData) {
+        setValue(`transfer_${id}_type`, addedData.value);
+      }
+    }
+    setIsAddingNewTransferType(false);
+    setNewTransferType("");
+  };
+
+  // ฟังก์ชันเพิ่มสถานที่รับใหม่
+  const handleAddNewPickupLocation = async () => {
+    if (newPickupLocation.trim()) {
+      const addedData = await addNewInformation(
+        "pickup_location",
+        newPickupLocation
+      );
+      if (addedData) {
+        setValue(`transfer_${id}_pickup_location`, addedData.value);
+      }
+    }
+    setIsAddingNewPickupLocation(false);
+    setNewPickupLocation("");
+  };
+
+  // ฟังก์ชันเพิ่มสถานที่ส่งใหม่
+  const handleAddNewDropLocation = async () => {
+    if (newDropLocation.trim()) {
+      const addedData = await addNewInformation(
+        "drop_location",
+        newDropLocation
+      );
+      if (addedData) {
+        setValue(`transfer_${id}_drop_location`, addedData.value);
+      }
+    }
+    setIsAddingNewDropLocation(false);
+    setNewDropLocation("");
+  };
+
+  // ฟังก์ชันเพิ่มผู้รับใหม่
+  const handleAddNewRecipient = async () => {
+    if (newRecipient.trim()) {
+      const addedData = await addNewInformation(
+        "transfer_recipient",
+        newRecipient
+      );
+      if (addedData) {
+        setValue(`transfer_${id}_send_to`, addedData.value);
+      }
+    }
+    setIsAddingNewRecipient(false);
+    setNewRecipient("");
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-md border border-blue-300 hover:shadow-lg transition-all duration-300">
@@ -148,21 +191,7 @@ const TransferForm = ({ id, onRemove, data }) => {
                 />
                 <button
                   type="button"
-                  onClick={() => {
-                    if (newTransferType.trim()) {
-                      addInformation({
-                        category: "transfer_type",
-                        value: newTransferType.trim(),
-                        active: true,
-                      }).then(({ data }) => {
-                        if (data) {
-                          setTransferTypes([...transferTypes, data]);
-                          setValue(`transfer_${id}_type`, data.value);
-                        }
-                      });
-                    }
-                    setIsAddingNewTransferType(false);
-                  }}
+                  onClick={handleAddNewTransferType}
                   className="px-3 py-1 bg-blue-500 text-white rounded-md"
                 >
                   เพิ่ม
@@ -213,21 +242,7 @@ const TransferForm = ({ id, onRemove, data }) => {
                 />
                 <button
                   type="button"
-                  onClick={() => {
-                    if (newRecipient.trim()) {
-                      addInformation({
-                        category: "transfer_recipient",
-                        value: newRecipient.trim(),
-                        active: true,
-                      }).then(({ data }) => {
-                        if (data) {
-                          setTransferRecipients([...transferRecipients, data]);
-                          setValue(`transfer_${id}_send_to`, data.value);
-                        }
-                      });
-                    }
-                    setIsAddingNewRecipient(false);
-                  }}
+                  onClick={handleAddNewRecipient}
                   className="px-3 py-1 bg-blue-500 text-white rounded-md"
                 >
                   เพิ่ม
@@ -261,7 +276,6 @@ const TransferForm = ({ id, onRemove, data }) => {
             name={`transfer_${id}_flight`}
             placeholder="เที่ยวบิน"
           />
-
           <InputField
             label="เวลาบิน"
             name={`transfer_${id}_time`}
@@ -306,24 +320,7 @@ const TransferForm = ({ id, onRemove, data }) => {
                 />
                 <button
                   type="button"
-                  onClick={() => {
-                    if (newPickupLocation.trim()) {
-                      addInformation({
-                        category: "pickup_location",
-                        value: newPickupLocation.trim(),
-                        active: true,
-                      }).then(({ data }) => {
-                        if (data) {
-                          setPickupLocations([...pickupLocations, data]);
-                          setValue(
-                            `transfer_${id}_pickup_location`,
-                            data.value
-                          );
-                        }
-                      });
-                    }
-                    setIsAddingNewPickupLocation(false);
-                  }}
+                  onClick={handleAddNewPickupLocation}
                   className="px-3 py-1 bg-blue-500 text-white rounded-md"
                 >
                   เพิ่ม
@@ -374,21 +371,7 @@ const TransferForm = ({ id, onRemove, data }) => {
                 />
                 <button
                   type="button"
-                  onClick={() => {
-                    if (newDropLocation.trim()) {
-                      addInformation({
-                        category: "drop_location",
-                        value: newDropLocation.trim(),
-                        active: true,
-                      }).then(({ data }) => {
-                        if (data) {
-                          setDropLocations([...dropLocations, data]);
-                          setValue(`transfer_${id}_drop_location`, data.value);
-                        }
-                      });
-                    }
-                    setIsAddingNewDropLocation(false);
-                  }}
+                  onClick={handleAddNewDropLocation}
                   className="px-3 py-1 bg-blue-500 text-white rounded-md"
                 >
                   เพิ่ม
@@ -408,6 +391,19 @@ const TransferForm = ({ id, onRemove, data }) => {
             name={`transfer_${id}_date`}
             type="date"
             required
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <InputField
+            label="รุ่นรถ"
+            name={`transfer_${id}_car_model`}
+            placeholder="รุ่นรถ"
+          />
+          <InputField
+            label="เบอร์โทรศัพท์"
+            name={`transfer_${id}_phone_number`}
+            placeholder="เบอร์โทรศัพท์"
           />
         </div>
       </div>
