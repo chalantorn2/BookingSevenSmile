@@ -5,6 +5,7 @@ import TourForm from "../components/forms/TourForm";
 import TransferForm from "../components/forms/TransferForm";
 import BookingCounter from "../components/ui/BookingCounter";
 import { generateOrderID, generateBookingID } from "../utils/idGenerator";
+import { fetchInformationByCategory } from "../services/informationService";
 
 const BookingForm = () => {
   const [currentOrderId, setCurrentOrderId] = useState(null);
@@ -18,12 +19,20 @@ const BookingForm = () => {
     lastName: "",
     pax: "",
   });
+  const [agents, setAgents] = useState([]);
   const [status, setStatus] = useState({
     loading: false,
     message: "",
     error: "",
   });
   const [bookingCounts, setBookingCounts] = useState(null);
+
+  useEffect(() => {
+    // ดึงข้อมูล Agent สำหรับใช้ในฟอร์ม
+    fetchInformationByCategory("agent").then(({ data }) => {
+      if (data) setAgents(data);
+    });
+  }, []);
 
   const handleOrderSelect = (orderKey, orderId, counts) => {
     if (orderKey) {
@@ -223,11 +232,13 @@ const BookingForm = () => {
           tour_date: tourDate,
           tour_detail: formElements[`tour_${formId}_detail`].value,
           pax: parseInt(mainFormData.pax) || 0,
-          cost_price: formElements[`tour_${formId}_cost_price`].value || null,
-          selling_price:
-            formElements[`tour_${formId}_selling_price`].value || null,
           status: "pending",
-          note: formElements[`tour_${formId}_note`].value,
+          tour_type: formElements[`tour_${formId}_type`].value,
+          tour_hotel: formElements[`tour_${formId}_hotel`].value,
+          tour_room_no: formElements[`tour_${formId}_room_no`].value,
+          tour_pickup_time: formElements[`tour_${formId}_pickup_time`].value,
+          tour_contact_no: formElements[`tour_${formId}_contact_no`].value,
+          send_to: formElements[`tour_${formId}_send_to`].value,
         });
       }
 
@@ -247,19 +258,16 @@ const BookingForm = () => {
           pickup_location:
             formElements[`transfer_${formId}_pickup_location`].value,
           drop_location: formElements[`transfer_${formId}_drop_location`].value,
-          driver_name: formElements[`transfer_${formId}_driver_name`].value,
-          license_plate: formElements[`transfer_${formId}_license_plate`].value,
           pax: parseInt(mainFormData.pax) || 0,
-          cost_price:
-            formElements[`transfer_${formId}_cost_price`].value || null,
-          selling_price:
-            formElements[`transfer_${formId}_selling_price`].value || null,
           transfer_detail: formElements[`transfer_${formId}_detail`].value,
           status: "pending",
-          note: formElements[`transfer_${formId}_note`].value,
+          transfer_type: formElements[`transfer_${formId}_type`].value,
+          send_to: formElements[`transfer_${formId}_send_to`].value,
+          transfer_flight: formElements[`transfer_${formId}_flight`].value,
+          car_model: formElements[`transfer_${formId}_car_model`].value,
+          phone_number: formElements[`transfer_${formId}_phone_number`].value,
         });
       }
-
       // Bulk insert tour bookings if any
       if (tourBookings.length > 0) {
         const { error: tourError } = await supabase
@@ -394,7 +402,6 @@ const BookingForm = () => {
               </p>
             </div>
           )}
-
           <div className="p-6">
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -405,16 +412,21 @@ const BookingForm = () => {
                   >
                     Agent <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     id="agent"
                     name="agent"
                     value={mainFormData.agent}
                     onChange={handleMainFormChange}
                     className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                    placeholder="ชื่อ Agent"
                     required
-                  />
+                  >
+                    <option value="">-- เลือก Agent --</option>
+                    {agents.map((agent) => (
+                      <option key={agent.id} value={agent.value}>
+                        {agent.value}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

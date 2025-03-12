@@ -8,6 +8,7 @@ import {
   FileText,
   CreditCard,
   PieChart,
+  Database,
 } from "lucide-react";
 
 const Sidebar = () => {
@@ -16,11 +17,31 @@ const Sidebar = () => {
 
   const navItems = [
     { path: "/", label: "Home", icon: <Home size={20} /> },
-    { path: "/dashboard", label: "Dashboard", icon: <BarChart2 size={20} /> },
-    { path: "/orders", label: "Orders", icon: <Calendar size={20} /> },
     { path: "/booking-form", label: "Bookings", icon: <Truck size={20} /> },
-    { path: "/invoices", label: "Invoice", icon: <FileText size={20} /> },
-    { path: "/payments", label: "Payment", icon: <CreditCard size={20} /> },
+    { path: "/orders", label: "Orders", icon: <Calendar size={20} /> },
+    {
+      path: "/dashboard",
+      label: "Dashboard",
+      icon: <BarChart2 size={20} />,
+      disabled: true,
+    },
+    {
+      path: "/invoices",
+      label: "Invoice",
+      icon: <FileText size={20} />,
+      disabled: true,
+    },
+    {
+      path: "/payments",
+      label: "Payment",
+      icon: <CreditCard size={20} />,
+      disabled: true,
+    },
+    {
+      path: "/information",
+      label: "Information",
+      icon: <Database size={20} />,
+    },
     {
       path: "/reports",
       label: "Report",
@@ -36,7 +57,7 @@ const Sidebar = () => {
   return (
     <div
       className={`h-screen bg-blue-500 text-white flex flex-col transition-all duration-300 ${
-        collapsed ? "w-20" : "w-64"
+        collapsed ? "w-15" : "w-64"
       }`}
     >
       {/* Sidebar Header */}

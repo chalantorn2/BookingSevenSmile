@@ -100,6 +100,8 @@ const BookingDetailModal = ({
   };
 
   // Define field groups based on booking type
+  // แก้ไขส่วน getFieldGroups ในไฟล์ BookingDetailModal.jsx
+
   const getFieldGroups = () => {
     if (bookingType === "tour") {
       return [
@@ -134,14 +136,6 @@ const BookingDetailModal = ({
             { name: "tour_room_no", label: "หมายเลขห้อง" },
             { name: "tour_contact_no", label: "เบอร์ติดต่อ" },
             { name: "send_to", label: "ส่งใคร" },
-          ],
-        },
-        {
-          title: "ราคาและหมายเหตุ",
-          fields: [
-            { name: "cost_price", label: "ราคาต้นทุน", type: "number" },
-            { name: "selling_price", label: "ราคาขาย", type: "number" },
-            { name: "note", label: "หมายเหตุ", type: "textarea" },
           ],
         },
       ];
@@ -184,18 +178,8 @@ const BookingDetailModal = ({
           title: "ข้อมูลเพิ่มเติม",
           className: showAdditionalFields ? "" : "hidden",
           fields: [
-            { name: "driver_name", label: "ชื่อคนขับ" },
-            { name: "license_plate", label: "ทะเบียนรถ" },
             { name: "car_model", label: "รุ่นรถ" },
             { name: "phone_number", label: "เบอร์โทร" },
-          ],
-        },
-        {
-          title: "ราคาและหมายเหตุ",
-          fields: [
-            { name: "cost_price", label: "ราคาต้นทุน", type: "number" },
-            { name: "selling_price", label: "ราคาขาย", type: "number" },
-            { name: "note", label: "หมายเหตุ", type: "textarea" },
           ],
         },
       ];

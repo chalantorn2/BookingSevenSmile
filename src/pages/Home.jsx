@@ -170,76 +170,12 @@ const Home = () => {
           onDateSelect={handleDateChange}
         />
 
-        {/* ปุ่มลัดด้านบน */}
-        <div className="flex justify-end mb-4 gap-2">
-          <a
-            href="/booking-form"
-            className="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors"
-          >
-            <Plus size={18} className="mr-2" />
-            สร้างการจองใหม่
-          </a>
-
-          <button
-            className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
-            onClick={handleExport}
-          >
-            <Printer size={18} className="mr-2" />
-            พิมพ์ตารางจอง
-          </button>
-        </div>
-
-        {/* กล่องแสดงข้อมูลสรุป */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow-sm p-4 flex items-center">
-            <div className="rounded-full bg-blue-100 p-3 mr-3">
-              <Users size={20} className="text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">จำนวนการจองวันนี้</p>
-              <p className="text-xl font-bold">
-                {tourBookings.length + transferBookings.length}
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm p-4 flex items-center">
-            <div className="rounded-full bg-green-100 p-3 mr-3">
-              <MapPin size={20} className="text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">จำนวนทัวร์</p>
-              <p className="text-xl font-bold">{tourBookings.length}</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm p-4 flex items-center">
-            <div className="rounded-full bg-purple-100 p-3 mr-3">
-              <Car size={20} className="text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">จำนวนรถรับส่ง</p>
-              <p className="text-xl font-bold">{transferBookings.length}</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm p-4 flex items-center">
-            <div className="rounded-full bg-yellow-100 p-3 mr-3">
-              <UserCheck size={20} className="text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">จำนวนคนทั้งหมด</p>
-              <p className="text-xl font-bold">{totalPax}</p>
-            </div>
-          </div>
-        </div>
-
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div id="captureArea">
             <div className="p-4">
               {/* ส่วนแสดงวันที่และตัวกรองสถานะ */}
               <div className="flex flex-col sm:flex-row justify-between items-center mb-6 bg-white rounded-lg p-4 border border-gray-100">
-                <h2 className="text-2xl font-bold text-red-600 mb-2 sm:mb-0">
+                <h2 className="text-3xl font-bold text-red-600 mb-2 sm:mb-0">
                   {formattedDate}
                 </h2>
 
@@ -308,7 +244,7 @@ const Home = () => {
                         ทัวร์ ({filteredTourBookings.length})
                       </h3>
                       <a
-                        href="/booking-form?type=tour"
+                        href="/booking-form"
                         className="bg-white bg-opacity-20 text-black hover:bg-opacity-30 px-3 py-1 rounded-full text-sm flex items-center transition-colors"
                       >
                         <Plus size={16} className="mr-1" />
@@ -335,7 +271,7 @@ const Home = () => {
                         รถรับส่ง ({filteredTransferBookings.length})
                       </h3>
                       <a
-                        href="/booking-form?type=transfer"
+                        href="/booking-form"
                         className="bg-white bg-opacity-20 hover:bg-opacity-30 text-black px-3 py-1 rounded-full text-sm flex items-center transition-colors"
                       >
                         <Plus size={16} className="mr-1" />
