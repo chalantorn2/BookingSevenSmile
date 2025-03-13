@@ -4,7 +4,7 @@ import {
   Home,
   BarChart2,
   Calendar,
-  Truck,
+  ClipboardPlus,
   FileText,
   CreditCard,
   PieChart,
@@ -17,7 +17,11 @@ const Sidebar = () => {
 
   const navItems = [
     { path: "/", label: "Home", icon: <Home size={20} /> },
-    { path: "/booking-form", label: "Bookings", icon: <Truck size={20} /> },
+    {
+      path: "/booking-form",
+      label: "Bookings",
+      icon: <ClipboardPlus size={20} />,
+    },
     { path: "/orders", label: "Orders", icon: <Calendar size={20} /> },
     {
       path: "/dashboard",

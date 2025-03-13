@@ -28,7 +28,7 @@ const TransferForm = ({ id, onRemove, data }) => {
         transfer_type: data.transfer_type || "",
         send_to: data.send_to || "",
         transfer_flight: data.transfer_flight || "",
-        car_model: data.car_model || "",
+        transfer_ftime: data.transfer_ftime || "",
       });
     }
   }, [data]);
@@ -203,11 +203,11 @@ const TransferForm = ({ id, onRemove, data }) => {
             placeholder="เที่ยวบิน"
           />
           <InputField
-            label="รุ่นรถ"
-            name={`${fieldNamePrefix}car_model`}
-            value={formData.car_model}
-            onChange={(value) => handleValueChange("car_model", value)}
-            placeholder="รุ่นรถ"
+            label="เวลาบิน"
+            name={`${fieldNamePrefix}ftime`}
+            value={formData.transfer_ftime}
+            onChange={(value) => handleValueChange("transfer_ftime", value)}
+            placeholder="เวลาบิน"
           />
         </div>
 

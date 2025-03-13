@@ -30,16 +30,26 @@ const BookingForm = () => {
     error: "",
   });
   const [bookingCounts, setBookingCounts] = useState(null);
-
-  const handleOrderSelect = (orderKey, orderId, counts) => {
+  const orderSelectorRef = useRef(null);
+  const handleOrderSelect = (orderKey, orderId, counts, orderData) => {
     if (orderKey) {
       setCurrentOrderKey(orderKey);
       setCurrentOrderId(orderId);
       setBookingCounts(counts);
       setIsBookingSectionVisible(true);
 
-      // ดึงข้อมูลพื้นฐานของ Order
-      loadOrderBasicDetails(orderKey);
+      // ถ้ามีข้อมูล orderData ที่ส่งมาจาก OrderSelector
+      if (orderData) {
+        setMainFormData({
+          agent: orderData.agent_name || "",
+          firstName: orderData.first_name || "",
+          lastName: orderData.last_name || "",
+          pax: orderData.pax || "", // ตั้งค่า pax จาก orderData
+        });
+      } else {
+        // ถ้าไม่มีให้ดึงข้อมูลพื้นฐานของ Order
+        loadOrderBasicDetails(orderKey);
+      }
     } else {
       resetForm();
       setIsBookingSectionVisible(false);
@@ -159,7 +169,7 @@ const BookingForm = () => {
         agent: data.agent_name || "",
         firstName: data.first_name || "",
         lastName: data.last_name || "",
-        pax: "", // ผู้ใช้กรอกเอง
+        pax: data.pax || "", // ตรวจสอบว่ามีการดึงค่า pax มาจาก order
       });
 
       setTourForms([]);
@@ -171,7 +181,6 @@ const BookingForm = () => {
       setStatus({ ...status, loading: false });
     }
   };
-
   const resetForm = () => {
     setMainFormData({ agent: "", firstName: "", lastName: "", pax: "" });
     setTourForms([]);
@@ -247,8 +256,6 @@ const BookingForm = () => {
 
       // Create new order if needed
       if (!orderKey) {
-        referenceId = await generateOrderID(mainFormData.agent);
-
         const { data: newOrder, error: orderError } = await supabase
           .from("orders")
           .insert({
@@ -256,6 +263,7 @@ const BookingForm = () => {
             last_name: mainFormData.lastName,
             agent_name: mainFormData.agent,
             reference_id: referenceId,
+            pax: parseInt(mainFormData.pax) || 0, // เพิ่มการบันทึก pax ในตาราง orders
           })
           .select()
           .single();
@@ -271,79 +279,53 @@ const BookingForm = () => {
       const allDates = [];
       const formElements = document.forms[0].elements;
 
-      // Process tour bookings
       const tourBookings = [];
       for (const tourForm of tourForms) {
         const formId = tourForm.id;
-        const tourDate = formElements[`tour_${formId}_date`]?.value;
+        const bookingId = await generateBookingID("tour");
+        const tourDate = formElements[`tour_${formId}_date`].value;
         if (tourDate) allDates.push(tourDate);
 
-        // ตรวจสอบว่า element มีอยู่จริงก่อนอ่านค่า value
-        const tourBooking = {
+        tourBookings.push({
           order_id: orderKey,
-          tour_date: tourDate || null,
-          tour_detail: formElements[`tour_${formId}_detail`]?.value || "",
-          pax: parseInt(mainFormData.pax) || 0,
+          tour_date: tourDate,
+          tour_detail: formElements[`tour_${formId}_detail`].value,
+          // ไม่ใส่ pax ที่นี่อีกต่อไป
           status: "pending",
-          tour_type: formElements[`tour_${formId}_type`]?.value || "",
-          tour_hotel: formElements[`tour_${formId}_hotel`]?.value || "",
-          tour_room_no: formElements[`tour_${formId}_room_no`]?.value || "",
-          tour_pickup_time:
-            formElements[`tour_${formId}_pickup_time`]?.value || "",
-          send_to: formElements[`tour_${formId}_send_to`]?.value || "",
-        };
-
-        // เพิ่ม tour_contact_no เมื่อมีการส่งไปเท่านั้น (ไม่ได้มีในทุก schema)
-        const contactNo = formElements[`tour_${formId}_contact_no`]?.value;
-        if (contactNo) {
-          tourBooking.tour_contact_no = contactNo;
-        }
-
-        tourBookings.push(tourBooking);
+          tour_type: formElements[`tour_${formId}_type`].value,
+          tour_hotel: formElements[`tour_${formId}_hotel`].value,
+          tour_room_no: formElements[`tour_${formId}_room_no`].value,
+          tour_pickup_time: formElements[`tour_${formId}_pickup_time`].value,
+          tour_contact_no: formElements[`tour_${formId}_contact_no`].value,
+          send_to: formElements[`tour_${formId}_send_to`].value,
+        });
       }
-
       // Process transfer bookings
       const transferBookings = [];
       for (const transferForm of transferForms) {
         const formId = transferForm.id;
-        const transferDate = formElements[`transfer_${formId}_date`]?.value;
+        const bookingId = await generateBookingID("transfer");
+        const transferDate = formElements[`transfer_${formId}_date`].value;
         if (transferDate) allDates.push(transferDate);
 
-        const transferBooking = {
+        transferBookings.push({
           order_id: orderKey,
-          transfer_date: transferDate || null,
-          transfer_time:
-            formElements[`transfer_${formId}_pickup_time`]?.value || "",
+          transfer_date: transferDate,
+          transfer_time: formElements[`transfer_${formId}_pickup_time`].value,
           pickup_location:
-            formElements[`transfer_${formId}_pickup_location`]?.value || "",
-          drop_location:
-            formElements[`transfer_${formId}_drop_location`]?.value || "",
-          pax: parseInt(mainFormData.pax) || 0,
-          transfer_detail:
-            formElements[`transfer_${formId}_detail`]?.value || "",
+            formElements[`transfer_${formId}_pickup_location`].value,
+          drop_location: formElements[`transfer_${formId}_drop_location`].value,
+          // ไม่ใส่ pax ที่นี่อีกต่อไป
+          transfer_detail: formElements[`transfer_${formId}_detail`].value,
           status: "pending",
-          transfer_type: formElements[`transfer_${formId}_type`]?.value || "",
-          send_to: formElements[`transfer_${formId}_send_to`]?.value || "",
-        };
-
-        // เพิ่มฟิลด์เหล่านี้เมื่อมีการส่งค่าเท่านั้น
-        const transferFlight = formElements[`transfer_${formId}_flight`]?.value;
-        if (transferFlight) {
-          transferBooking.transfer_flight = transferFlight;
-        }
-
-        const carModel = formElements[`transfer_${formId}_car_model`]?.value;
-        if (carModel) {
-          transferBooking.car_model = carModel;
-        }
-
-        const phoneNumber =
-          formElements[`transfer_${formId}_phone_number`]?.value;
-        if (phoneNumber) {
-          transferBooking.phone_number = phoneNumber;
-        }
-
-        transferBookings.push(transferBooking);
+          transfer_type: formElements[`transfer_${formId}_type`].value,
+          send_to: formElements[`transfer_${formId}_send_to`].value,
+          transfer_flight: formElements[`transfer_${formId}_flight`].value,
+          transfer_ftime:
+            formElements[`transfer_${formId}_transfer_ftime`].value,
+          car_model: formElements[`transfer_${formId}_car_model`].value,
+          phone_number: formElements[`transfer_${formId}_phone_number`].value,
+        });
       }
 
       // Bulk insert tour bookings if any
@@ -388,6 +370,11 @@ const BookingForm = () => {
       setStatus({ loading: false, message, error: "" });
       resetForm();
       setIsBookingSectionVisible(false);
+      if (orderSelectorRef.current) {
+        setTimeout(() => {
+          orderSelectorRef.current.refreshOrders();
+        }, 500); // รออีกนิดหนึ่งเพื่อให้ข้อมูลในฐานข้อมูลอัปเดต
+      }
     } catch (error) {
       console.error("Error submitting form:", error);
       setStatus({
@@ -433,6 +420,7 @@ const BookingForm = () => {
         <div className="flex flex-col md:flex-row items-center justify-center gap-4">
           <div className="w-full md:w-2/3">
             <OrderSelector
+              ref={orderSelectorRef}
               onOrderSelect={handleOrderSelect}
               onCreateNewOrder={handleCreateNewOrder}
             />
@@ -539,7 +527,7 @@ const BookingForm = () => {
                 <div>
                   <label
                     htmlFor="pax"
-                    className="block  text-sm font-medium text-gray-700 mb-1"
+                    className="block text-sm font-medium text-gray-700 mb-1"
                   >
                     Pax <span className="text-red-500">*</span>
                   </label>

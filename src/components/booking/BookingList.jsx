@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
+  console.log(`${type} bookings:`, bookings);
   if (isLoading) {
     return (
       <div className="text-center py-4">
@@ -72,6 +73,15 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
         const lastName = booking.orders?.last_name || "";
         const customerName = `${firstName} ${lastName}`.trim() || "ไม่มีชื่อ";
 
+        // ตรวจสอบการเข้าถึงข้อมูล pax และแสดงในค่าที่ปลอดภัย
+        let paxDisplay = "-";
+        if (booking.orders && booking.orders.pax) {
+          paxDisplay = booking.orders.pax;
+        } else if (booking.pax) {
+          // ถ้าไม่มีใน orders ให้ใช้จาก booking โดยตรงเป็น fallback
+          paxDisplay = booking.pax;
+        }
+
         return (
           <div
             key={booking.id}
@@ -86,7 +96,7 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                 <div className="font-medium flex items-center gap-1">
                   <User size={16} className="text-gray-500" />
                   <span>
-                    {index + 1}. {customerName} | {booking.pax || "-"} คน
+                    {index + 1}. {customerName} | {paxDisplay} คน
                   </span>
                 </div>
                 <button

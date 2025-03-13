@@ -1,9 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, {
+  useState,
+  useEffect,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
 import supabase from "../../config/supabaseClient";
 import Select from "react-select";
 import { useInformation } from "../../contexts/InformationContext";
 
-const OrderSelector = ({ onOrderSelect, onCreateNewOrder }) => {
+const OrderSelector = forwardRef(({ onOrderSelect, onCreateNewOrder }, ref) => {
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -74,11 +79,7 @@ const OrderSelector = ({ onOrderSelect, onCreateNewOrder }) => {
 
         let label = refId;
         if (customerName) {
-          label = `${customerName} - ${refId}`;
-        }
-
-        if (tourCount > 0 || transferCount > 0) {
-          label += ` (${tourCount} ทัวร์, ${transferCount} รถรับส่ง)`;
+          label = `${customerName} `;
         }
 
         return {
@@ -99,12 +100,27 @@ const OrderSelector = ({ onOrderSelect, onCreateNewOrder }) => {
     }
   };
 
+  // เพิ่มการเปิดให้เรียกใช้ฟังก์ชันจากภายนอกได้
+  useImperativeHandle(ref, () => ({
+    refreshOrders: fetchOrders,
+  }));
+
   const handleOrderChange = (selectedOption) => {
     if (selectedOption) {
-      onOrderSelect(selectedOption.value, selectedOption.orderId, {
-        tourCount: selectedOption.tourCount || 0,
-        transferCount: selectedOption.transferCount || 0,
-      });
+      // หาข้อมูล order ที่สมบูรณ์จากข้อมูลที่ดึงมา
+      const selectedOrder = orders.find(
+        (order) => order.id === selectedOption.value
+      );
+
+      onOrderSelect(
+        selectedOption.value,
+        selectedOption.orderId,
+        {
+          tourCount: selectedOption.tourCount || 0,
+          transferCount: selectedOption.transferCount || 0,
+        },
+        selectedOrder // ส่งข้อมูล order ทั้งหมด
+      );
     } else {
       onOrderSelect(null, null, null);
     }
@@ -139,6 +155,6 @@ const OrderSelector = ({ onOrderSelect, onCreateNewOrder }) => {
       </div>
     </div>
   );
-};
+});
 
 export default OrderSelector;

@@ -171,7 +171,7 @@ const TourForm = ({ id, onRemove, data }) => {
           placeholder="รายละเอียดเพิ่มเติม"
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <InputField
             label="เวลารับ"
             name={`${fieldNamePrefix}pickup_time`}
@@ -193,6 +193,9 @@ const TourForm = ({ id, onRemove, data }) => {
               id={`${fieldNamePrefix}hotel`}
             />
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <InputField
             label="หมายเลขห้อง"
             name={`${fieldNamePrefix}room_no`}
@@ -200,9 +203,6 @@ const TourForm = ({ id, onRemove, data }) => {
             onChange={(value) => handleValueChange("tour_room_no", value)}
             placeholder="เลขห้อง"
           />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <InputField
             label="เบอร์ติดต่อ"
             name={`${fieldNamePrefix}contact_no`}

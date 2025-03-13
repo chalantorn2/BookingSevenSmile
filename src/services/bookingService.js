@@ -6,6 +6,7 @@ import { format } from "date-fns";
  * @param {string} date - วันที่ในรูปแบบ 'YYYY-MM-DD'
  * @returns {Promise<{tourBookings: Array, transferBookings: Array, error: string|null}>}
  */
+// bookingService.js
 export const fetchBookingsByDate = async (date) => {
   try {
     // ดึงข้อมูลการจองทัวร์
@@ -14,7 +15,7 @@ export const fetchBookingsByDate = async (date) => {
       .select(
         `
         *,
-        orders(id, first_name, last_name, agent_name, reference_id)
+        orders(id, first_name, last_name, agent_name, reference_id, pax)
       `
       )
       .eq("tour_date", date);
@@ -27,7 +28,7 @@ export const fetchBookingsByDate = async (date) => {
       .select(
         `
         *,
-        orders(id, first_name, last_name, agent_name, reference_id)
+        orders(id, first_name, last_name, agent_name, reference_id, pax)
       `
       )
       .eq("transfer_date", date);

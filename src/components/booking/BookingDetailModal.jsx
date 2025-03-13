@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, Save, Trash2 } from "lucide-react";
+import supabase from "../../config/supabaseClient";
 
 const BookingDetailModal = ({
   booking,
@@ -12,6 +13,7 @@ const BookingDetailModal = ({
   const [statusMessage, setStatusMessage] = useState({ type: "", message: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAdditionalFields, setShowAdditionalFields] = useState(false);
+  const [orderData, setOrderData] = useState(null);
 
   useEffect(() => {
     if (booking) {
@@ -22,8 +24,31 @@ const BookingDetailModal = ({
       setShowAdditionalFields(
         ["booked", "in_progress", "completed"].includes(status)
       );
+
+      // ดึงข้อมูล order ถ้ายังไม่มี
+      if (booking.order_id && (!booking.orders || !booking.orders.pax)) {
+        fetchOrderData(booking.order_id);
+      } else if (booking.orders) {
+        setOrderData(booking.orders);
+      }
     }
   }, [booking]);
+
+  const fetchOrderData = async (orderId) => {
+    try {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("id", orderId)
+        .single();
+
+      if (error) throw error;
+
+      setOrderData(data);
+    } catch (error) {
+      console.error("Error fetching order data:", error);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -103,6 +128,7 @@ const BookingDetailModal = ({
   // แก้ไขส่วน getFieldGroups ในไฟล์ BookingDetailModal.jsx
 
   const getFieldGroups = () => {
+    const paxValue = orderData ? orderData.pax : booking.orders?.pax || "";
     if (bookingType === "tour") {
       return [
         {
@@ -110,6 +136,14 @@ const BookingDetailModal = ({
           fields: [
             { name: "id", label: "รหัสการจอง", readOnly: true },
             { name: "order_id", label: "รหัส Order", readOnly: true },
+            // เพิ่มฟิลด์แสดง pax จาก order แบบ readOnly
+            {
+              name: "order_pax",
+              label: "จำนวนคน",
+              type: "number",
+              value: paxValue,
+              readOnly: true,
+            },
             {
               name: "status",
               label: "สถานะ",
@@ -146,6 +180,14 @@ const BookingDetailModal = ({
           fields: [
             { name: "id", label: "รหัสการจอง", readOnly: true },
             { name: "order_id", label: "รหัส Order", readOnly: true },
+            // เพิ่มฟิลด์แสดง pax จาก order แบบ readOnly
+            {
+              name: "order_pax",
+              label: "จำนวนคน",
+              type: "number",
+              value: paxValue,
+              readOnly: true,
+            },
             {
               name: "status",
               label: "สถานะ",
@@ -194,7 +236,10 @@ const BookingDetailModal = ({
       type = "text",
       readOnly = false,
       options = [],
+      value, // เพิ่ม parameter นี้เพื่อรองรับการกำหนดค่า
     } = field;
+
+    const fieldValue = value !== undefined ? value : formData[name] || "";
 
     switch (type) {
       case "textarea":
@@ -202,7 +247,7 @@ const BookingDetailModal = ({
           <textarea
             name={name}
             id={`field-${name}`}
-            value={formData[name] || ""}
+            value={fieldValue}
             onChange={handleChange}
             readOnly={readOnly}
             className={`w-full rounded-md ${
@@ -218,7 +263,7 @@ const BookingDetailModal = ({
           <select
             name={name}
             id={`field-${name}`}
-            value={formData[name] || ""}
+            value={fieldValue}
             onChange={handleChange}
             disabled={readOnly}
             className={`w-full rounded-md ${
@@ -240,7 +285,7 @@ const BookingDetailModal = ({
             type={type}
             name={name}
             id={`field-${name}`}
-            value={formData[name] || ""}
+            value={fieldValue}
             onChange={handleChange}
             readOnly={readOnly}
             className={`w-full rounded-md ${

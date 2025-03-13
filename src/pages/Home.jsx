@@ -37,6 +37,7 @@ const Home = () => {
     fetchBookings(queryDate);
   }, [queryDate]);
 
+  // Home.jsx
   const fetchBookings = async (date) => {
     setIsLoading(true);
     setError(null);
@@ -45,7 +46,7 @@ const Home = () => {
       // Fetch tour bookings
       const { data: tourData, error: tourError } = await supabase
         .from("tour_bookings")
-        .select("*, orders(first_name, last_name)")
+        .select("*, orders(first_name, last_name, pax)") // เพิ่ม pax ที่นี่
         .eq("tour_date", date);
 
       if (tourError) throw tourError;
@@ -53,7 +54,7 @@ const Home = () => {
       // Fetch transfer bookings
       const { data: transferData, error: transferError } = await supabase
         .from("transfer_bookings")
-        .select("*, orders(first_name, last_name)")
+        .select("*, orders(first_name, last_name, pax)") // เพิ่ม pax ที่นี่
         .eq("transfer_date", date);
 
       if (transferError) throw transferError;
