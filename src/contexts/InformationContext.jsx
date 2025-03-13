@@ -20,9 +20,10 @@ export const InformationProvider = ({ children }) => {
   const [tourRecipients, setTourRecipients] = useState([]);
   const [transferTypes, setTransferTypes] = useState([]);
   const [transferRecipients, setTransferRecipients] = useState([]);
-  const [hotels, setHotels] = useState([]);
-  const [pickupLocations, setPickupLocations] = useState([]);
-  const [dropLocations, setDropLocations] = useState([]);
+
+  // แทนที่จะแยกเป็น 3 state เราใช้ places state เดียว
+  const [places, setPlaces] = useState([]);
+
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,9 +42,8 @@ export const InformationProvider = ({ children }) => {
         { category: "tour_recipient", setter: setTourRecipients },
         { category: "transfer_type", setter: setTransferTypes },
         { category: "transfer_recipient", setter: setTransferRecipients },
-        { category: "hotel", setter: setHotels },
-        { category: "pickup_location", setter: setPickupLocations },
-        { category: "drop_location", setter: setDropLocations },
+        // โหลดข้อมูลสถานที่ทั้งหมดเข้า places
+        { category: "place", setter: setPlaces },
       ];
 
       // ดึงข้อมูลทุกประเภทแบบขนาน
@@ -55,6 +55,36 @@ export const InformationProvider = ({ children }) => {
           }
         })
       );
+
+      // ดึงข้อมูลจากหมวดหมู่เก่า (hotel, pickup_location, drop_location)
+      // และเพิ่มเข้าไปใน places (ช่วงเปลี่ยนผ่าน)
+      const legacyCategories = ["hotel", "pickup_location", "drop_location"];
+      const legacyPlaces = [];
+
+      await Promise.all(
+        legacyCategories.map(async (category) => {
+          const { data } = await fetchInformationByCategory(category);
+          if (data && data.length > 0) {
+            legacyPlaces.push(...data);
+          }
+        })
+      );
+
+      // รวมและขจัดข้อมูลซ้ำ
+      if (legacyPlaces.length > 0) {
+        // อาจมีข้อมูลซ้ำกัน ให้ใช้ Set เพื่อกรองค่าที่ซ้ำกัน (ตามชื่อ value)
+        const uniqueValues = new Set();
+        const uniquePlaces = [];
+
+        [...places, ...legacyPlaces].forEach((place) => {
+          if (!uniqueValues.has(place.value)) {
+            uniqueValues.add(place.value);
+            uniquePlaces.push(place);
+          }
+        });
+
+        setPlaces(uniquePlaces);
+      }
     } catch (error) {
       console.error("Error loading information:", error);
     } finally {
@@ -65,8 +95,16 @@ export const InformationProvider = ({ children }) => {
   // ฟังก์ชันเพิ่มข้อมูลใหม่
   const addNewInformation = async (category, value, description = "") => {
     try {
+      // แปลงหมวดหมู่เก่าให้เป็น "place"
+      const actualCategory =
+        category === "hotel" ||
+        category === "pickup_location" ||
+        category === "drop_location"
+          ? "place"
+          : category;
+
       const { data, error } = await addInformation({
-        category,
+        category: actualCategory,
         value: value.trim(),
         description,
         active: true,
@@ -76,7 +114,7 @@ export const InformationProvider = ({ children }) => {
       if (!data) throw new Error("Failed to add new information");
 
       // อัปเดตสถานะตามหมวดหมู่
-      switch (category) {
+      switch (actualCategory) {
         case "agent":
           setAgents((prev) => [...prev, data]);
           break;
@@ -92,14 +130,8 @@ export const InformationProvider = ({ children }) => {
         case "transfer_recipient":
           setTransferRecipients((prev) => [...prev, data]);
           break;
-        case "hotel":
-          setHotels((prev) => [...prev, data]);
-          break;
-        case "pickup_location":
-          setPickupLocations((prev) => [...prev, data]);
-          break;
-        case "drop_location":
-          setDropLocations((prev) => [...prev, data]);
+        case "place":
+          setPlaces((prev) => [...prev, data]);
           break;
         default:
           break;
@@ -119,9 +151,11 @@ export const InformationProvider = ({ children }) => {
     tourRecipients,
     transferTypes,
     transferRecipients,
-    hotels,
-    pickupLocations,
-    dropLocations,
+    places,
+    // อ้างอิงจากข้อมูลเดิมมาหาข้อมูลใหม่ (เพื่อความเข้ากันได้กับโค้ดเดิม)
+    hotels: places,
+    pickupLocations: places,
+    dropLocations: places,
     agents,
     loading,
 

@@ -223,7 +223,7 @@ const BookingForm = () => {
       for (const tourForm of tourForms) {
         const formId = tourForm.id;
         const bookingId = await generateBookingID("tour");
-
+        const tourId = await generateBookingID("tour");
         const tourDate = formElements[`tour_${formId}_date`].value;
         if (tourDate) allDates.push(tourDate);
 
@@ -247,7 +247,7 @@ const BookingForm = () => {
       for (const transferForm of transferForms) {
         const formId = transferForm.id;
         const bookingId = await generateBookingID("transfer");
-
+        const transferId = await generateBookingID("transfer");
         const transferDate = formElements[`transfer_${formId}_date`].value;
         if (transferDate) allDates.push(transferDate);
 

@@ -16,9 +16,8 @@ const Information = () => {
     { id: "transfer_recipient", label: "ส่งใคร (Transfer)" },
     { id: "tour_type", label: "ประเภททัวร์" },
     { id: "transfer_type", label: "ประเภทรถรับส่ง" },
-    { id: "hotel", label: "โรงแรม" },
-    { id: "pickup_location", label: "สถานที่รับ" },
-    { id: "drop_location", label: "สถานที่ส่ง" },
+    // รวม hotel, pickup_location, drop_location เป็น place
+    { id: "place", label: "สถานที่ (โรงแรม/จุดรับ/จุดส่ง)" },
   ]);
 
   const [selectedCategory, setSelectedCategory] = useState("agent");
@@ -28,6 +27,7 @@ const Information = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [newItem, setNewItem] = useState({ value: "", description: "" });
   const [addingNew, setAddingNew] = useState(false);
+  const [showMigrationButton, setShowMigrationButton] = useState(true);
 
   // Load data on component mount and when selected category changes
   useEffect(() => {
@@ -137,6 +137,67 @@ const Information = () => {
     }
   };
 
+  // ฟังก์ชันย้ายข้อมูลจากหมวดหมู่เก่า (hotel, pickup_location, drop_location) ไปยัง place
+  const handleMigrateLegacyLocations = async () => {
+    if (
+      !window.confirm(
+        "ยืนยันการย้ายข้อมูลจากหมวดหมู่เก่า (โรงแรม/จุดรับ/จุดส่ง) ไปยังหมวดหมู่ 'สถานที่' ใหม่?\n\nหมายเหตุ: ควรทำเพียงครั้งเดียวเท่านั้น"
+      )
+    ) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const legacyCategories = ["hotel", "pickup_location", "drop_location"];
+      let migratedCount = 0;
+      const uniqueValues = new Set();
+
+      // ดึงข้อมูล place ที่มีอยู่แล้ว เพื่อไม่ให้เพิ่มซ้ำ
+      const { data: existingPlaces } = await fetchInformationByCategory(
+        "place"
+      );
+      existingPlaces?.forEach((place) => uniqueValues.add(place.value));
+
+      // ดึงและย้ายข้อมูลจากหมวดหมู่เก่า
+      for (const category of legacyCategories) {
+        const { data } = await fetchInformationByCategory(category);
+
+        if (data?.length) {
+          for (const item of data) {
+            // ข้ามถ้ามีข้อมูลซ้ำ
+            if (uniqueValues.has(item.value)) continue;
+
+            uniqueValues.add(item.value);
+
+            // เพิ่มข้อมูลในหมวดหมู่ใหม่
+            await addInformation({
+              category: "place",
+              value: item.value,
+              description: item.description || `จาก ${category}`,
+              active: true,
+            });
+
+            migratedCount++;
+          }
+        }
+      }
+
+      alert(`ย้ายข้อมูลเรียบร้อยแล้ว ${migratedCount} รายการ`);
+      setShowMigrationButton(false);
+
+      // ถ้าปัจจุบันเลือกหมวดหมู่ place ให้โหลดข้อมูลใหม่
+      if (selectedCategory === "place") {
+        loadInformationData();
+      }
+    } catch (error) {
+      console.error("Error migrating data:", error);
+      alert(`เกิดข้อผิดพลาดในการย้ายข้อมูล: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="text-center mb-6">
@@ -167,6 +228,26 @@ const Information = () => {
                 </li>
               ))}
             </ul>
+
+            {/* ปุ่มย้ายข้อมูล (แสดงเฉพาะเมื่อต้องการเท่านั้น) */}
+            {showMigrationButton && (
+              <div className="mt-8 p-4 bg-yellow-50 border border-yellow-300 rounded-md">
+                <h3 className="text-sm font-medium text-yellow-800 mb-2">
+                  ย้ายข้อมูลเก่า
+                </h3>
+                <p className="text-xs mb-2 text-yellow-700">
+                  ย้ายข้อมูลจากหมวดหมู่เก่า (โรงแรม/จุดรับ/จุดส่ง) ไปยังหมวดหมู่
+                  'สถานที่' ใหม่
+                </p>
+                <button
+                  onClick={handleMigrateLegacyLocations}
+                  className="w-full text-sm px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md"
+                  disabled={loading}
+                >
+                  {loading ? "กำลังย้ายข้อมูล..." : "ย้ายข้อมูลตอนนี้"}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Content */}

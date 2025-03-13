@@ -1,21 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useInformation } from "../../contexts/InformationContext";
+import AutocompleteInput from "../common/AutocompleteInput";
 
 const TourForm = ({ id, onRemove, data }) => {
-  const { register, setValue } = useForm();
+  const { register, setValue, getValues } = useForm();
 
   // ใช้ context แทนการเรียก API โดยตรง
-  const { tourTypes, tourRecipients, hotels, addNewInformation, loading } =
+  const { tourTypes, tourRecipients, places, addNewInformation, loading } =
     useInformation();
-
-  // สถานะสำหรับการเพิ่มข้อมูลใหม่
-  const [newTourType, setNewTourType] = useState("");
-  const [isAddingNewTourType, setIsAddingNewTourType] = useState(false);
-  const [newHotel, setNewHotel] = useState("");
-  const [isAddingNewHotel, setIsAddingNewHotel] = useState(false);
-  const [newRecipient, setNewRecipient] = useState("");
-  const [isAddingNewRecipient, setIsAddingNewRecipient] = useState(false);
 
   useEffect(() => {
     // ตั้งค่าข้อมูลเริ่มต้น
@@ -66,40 +59,40 @@ const TourForm = ({ id, onRemove, data }) => {
     </div>
   );
 
-  // ฟังก์ชันเพิ่มประเภททัวร์ใหม่
-  const handleAddNewTourType = async () => {
-    if (newTourType.trim()) {
-      const addedData = await addNewInformation("tour_type", newTourType);
-      if (addedData) {
-        setValue(`tour_${id}_type`, addedData.value);
-      }
+  // ฟังก์ชันเพิ่มข้อมูลใหม่
+  const handleAddNewTourType = async (newValue) => {
+    try {
+      const result = await addNewInformation("tour_type", newValue);
+      return result;
+    } catch (error) {
+      console.error("Error adding new tour type:", error);
+      return null;
     }
-    setIsAddingNewTourType(false);
-    setNewTourType("");
   };
 
-  // ฟังก์ชันเพิ่มโรงแรมใหม่
-  const handleAddNewHotel = async () => {
-    if (newHotel.trim()) {
-      const addedData = await addNewInformation("hotel", newHotel);
-      if (addedData) {
-        setValue(`tour_${id}_hotel`, addedData.value);
-      }
+  const handleAddNewPlace = async (newValue) => {
+    try {
+      const result = await addNewInformation("place", newValue);
+      return result;
+    } catch (error) {
+      console.error("Error adding new place:", error);
+      return null;
     }
-    setIsAddingNewHotel(false);
-    setNewHotel("");
   };
 
-  // ฟังก์ชันเพิ่มผู้รับใหม่
-  const handleAddNewRecipient = async () => {
-    if (newRecipient.trim()) {
-      const addedData = await addNewInformation("tour_recipient", newRecipient);
-      if (addedData) {
-        setValue(`tour_${id}_send_to`, addedData.value);
-      }
+  const handleAddNewRecipient = async (newValue) => {
+    try {
+      const result = await addNewInformation("tour_recipient", newValue);
+      return result;
+    } catch (error) {
+      console.error("Error adding new recipient:", error);
+      return null;
     }
-    setIsAddingNewRecipient(false);
-    setNewRecipient("");
+  };
+
+  // ฟังก์ชันจัดการการเปลี่ยนแปลงค่า
+  const handleInputChange = (fieldName, value) => {
+    setValue(fieldName, value);
   };
 
   return (
@@ -124,103 +117,31 @@ const TourForm = ({ id, onRemove, data }) => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               ประเภท
             </label>
-            {!isAddingNewTourType ? (
-              <select
-                name={`tour_${id}_type`}
-                className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
-                onChange={(e) => {
-                  if (e.target.value === "add_new") {
-                    setIsAddingNewTourType(true);
-                  }
-                }}
-              >
-                <option value=""> เลือกประเภท </option>
-                {tourTypes.map((type) => (
-                  <option key={type.id} value={type.value}>
-                    {type.value}
-                  </option>
-                ))}
-                <option value="add_new" className="text-gray-600 italic">
-                  {" "}
-                  *เพิ่มข้อมูลใหม่*{" "}
-                </option>
-              </select>
-            ) : (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newTourType}
-                  onChange={(e) => setNewTourType(e.target.value)}
-                  className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200"
-                  placeholder="ประเภททัวร์ใหม่"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddNewTourType}
-                  className="px-3 py-1 bg-green-500 text-white rounded-md"
-                >
-                  เพิ่ม
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsAddingNewTourType(false)}
-                  className="px-3 py-1 bg-gray-300 text-gray-700 rounded-md"
-                >
-                  ยกเลิก
-                </button>
-              </div>
-            )}
+            <AutocompleteInput
+              options={tourTypes}
+              value={getValues(`tour_${id}_type`) || ""}
+              onChange={(value) => handleInputChange(`tour_${id}_type`, value)}
+              placeholder="เลือกหรือพิมพ์ประเภททัวร์"
+              onAddNew={handleAddNewTourType}
+              name={`tour_${id}_type`}
+              id={`tour_${id}_type`}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               ส่งใคร
             </label>
-            {!isAddingNewRecipient ? (
-              <select
-                name={`tour_${id}_send_to`}
-                className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
-                onChange={(e) => {
-                  if (e.target.value === "add_new") {
-                    setIsAddingNewRecipient(true);
-                  }
-                }}
-              >
-                <option value=""> เลือกผู้รับ </option>
-                {tourRecipients.map((recipient) => (
-                  <option key={recipient.id} value={recipient.value}>
-                    {recipient.value}
-                  </option>
-                ))}
-                <option value="add_new" className="text-gray-600 italic">
-                  {" "}
-                  *เพิ่มข้อมูลใหม่*{" "}
-                </option>
-              </select>
-            ) : (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newRecipient}
-                  onChange={(e) => setNewRecipient(e.target.value)}
-                  className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200"
-                  placeholder="ผู้รับใหม่"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddNewRecipient}
-                  className="px-3 py-1 bg-green-500 text-white rounded-md"
-                >
-                  เพิ่ม
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsAddingNewRecipient(false)}
-                  className="px-3 py-1 bg-gray-300 text-gray-700 rounded-md"
-                >
-                  ยกเลิก
-                </button>
-              </div>
-            )}
+            <AutocompleteInput
+              options={tourRecipients}
+              value={getValues(`tour_${id}_send_to`) || ""}
+              onChange={(value) =>
+                handleInputChange(`tour_${id}_send_to`, value)
+              }
+              placeholder="เลือกหรือพิมพ์ผู้รับ"
+              onAddNew={handleAddNewRecipient}
+              name={`tour_${id}_send_to`}
+              id={`tour_${id}_send_to`}
+            />
           </div>
         </div>
 
@@ -241,52 +162,15 @@ const TourForm = ({ id, onRemove, data }) => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               โรงแรม
             </label>
-            {!isAddingNewHotel ? (
-              <select
-                name={`tour_${id}_hotel`}
-                className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
-                onChange={(e) => {
-                  if (e.target.value === "add_new") {
-                    setIsAddingNewHotel(true);
-                  }
-                }}
-              >
-                <option value=""> เลือกโรงแรม </option>
-                {hotels.map((hotel) => (
-                  <option key={hotel.id} value={hotel.value}>
-                    {hotel.value}
-                  </option>
-                ))}
-                <option value="add_new" className="text-gray-600 italic">
-                  {" "}
-                  *เพิ่มข้อมูลใหม่*{" "}
-                </option>
-              </select>
-            ) : (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newHotel}
-                  onChange={(e) => setNewHotel(e.target.value)}
-                  className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200"
-                  placeholder="ชื่อโรงแรมใหม่"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddNewHotel}
-                  className="px-3 py-1 bg-green-500 text-white rounded-md"
-                >
-                  เพิ่ม
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsAddingNewHotel(false)}
-                  className="px-3 py-1 bg-gray-300 text-gray-700 rounded-md"
-                >
-                  ยกเลิก
-                </button>
-              </div>
-            )}
+            <AutocompleteInput
+              options={places}
+              value={getValues(`tour_${id}_hotel`) || ""}
+              onChange={(value) => handleInputChange(`tour_${id}_hotel`, value)}
+              placeholder="เลือกหรือพิมพ์ชื่อโรงแรม"
+              onAddNew={handleAddNewPlace}
+              name={`tour_${id}_hotel`}
+              id={`tour_${id}_hotel`}
+            />
           </div>
           <InputField
             label="หมายเลขห้อง"
