@@ -4,11 +4,12 @@ import {
   Eye,
   Clock,
   CalendarCheck,
-  Map,
+  MapPin,
   Plane,
   User,
   Hotel,
   FileText,
+  BedDouble,
 } from "lucide-react";
 
 const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
@@ -93,8 +94,8 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
           >
             <div className="p-3">
               <div className="flex justify-between items-start mb-2">
-                <div className="font-medium flex items-center gap-1">
-                  <User size={16} className="text-gray-500" />
+                <div className="font-medium text-lg flex items-center gap-1">
+                  <User size={18} className="text-gray-500" />
                   <span>
                     {index + 1}. {customerName} | {paxDisplay} คน
                   </span>
@@ -112,48 +113,48 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
               </div>
               <div className="flex flex-wrap gap-2 mb-2 text-xs">
                 <span
-                  className={`inline-flex items-center px-2 py-1 rounded ${
+                  className={`inline-flex items-center px-2 py-1 font-medium text-base rounded ${
                     type === "tour"
                       ? "bg-green-100 text-green-800"
                       : "bg-blue-100 text-blue-800"
                   }`}
                 >
-                  <Clock size={14} className="mr-1" />
+                  <Clock size={16} className="mr-1 " />
                   {type === "tour"
                     ? booking.tour_pickup_time || "-"
                     : booking.transfer_time || "-"}
                 </span>
 
                 <span
-                  className={`inline-flex items-center px-2 py-1 rounded ${
+                  className={`inline-flex items-center px-2 py-1 font-medium text-base rounded ${
                     type === "tour"
                       ? "bg-green-50 text-green-700"
                       : "bg-blue-50 text-blue-700"
                   }`}
                 >
-                  <CalendarCheck size={14} className="mr-1" />
+                  <CalendarCheck size={16} className="mr-1" />
                   {type === "tour"
                     ? format(new Date(booking.tour_date), "dd/MM/yyyy")
                     : format(new Date(booking.transfer_date), "dd/MM/yyyy")}
                 </span>
               </div>
               <div className="text-sm text-gray-700">
-                <div className="mb-1">
-                  <span className="font-medium">{booking.send_to || "-"}</span>
-                </div>
-
                 {type === "tour" ? (
                   <>
-                    <div className="flex flex-wrap gap-x-4 text-xs text-gray-600 mb-1">
+                    <div className="flex flex-wrap gap-x-4 text-base text-gray-800 mb-1">
                       <div className="flex items-center">
-                        <Hotel size={14} className="mr-1" />
+                        <span className="font-medium mr-2">
+                          {booking.send_to || "-"}
+                        </span>{" "}
+                        <Hotel size={16} className="mr-1" />
                         <span>โรงแรม: {booking.tour_hotel || "-"}</span>
+                        <BedDouble size={16} className="ml-2 mr-1" />
+                        {booking.tour_room_no && (
+                          <div className="flex  items-center">
+                            <span>ห้อง: {booking.tour_room_no}</span>
+                          </div>
+                        )}
                       </div>
-                      {booking.tour_room_no && (
-                        <div className="flex items-center">
-                          <span>ห้อง: {booking.tour_room_no}</span>
-                        </div>
-                      )}
                     </div>
                     <div className="flex flex-wrap gap-x-4 text-xs text-gray-600">
                       <div className="flex items-center">
@@ -164,13 +165,14 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                   </>
                 ) : (
                   <>
-                    <div className="flex flex-wrap gap-x-4 text-xs text-gray-600 mb-1">
+                    <div className="flex flex-wrap gap-x-4 text-base text-gray-800 mb-1">
                       <div className="flex items-center">
-                        <Map size={14} className="mr-1" />
+                        <span className="font-medium mr-2">
+                          {booking.send_to || "-"}
+                        </span>
+                        <MapPin size={14} className="mr-1" />
                         <span>รับจาก: {booking.pickup_location || "-"}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Map size={14} className="mr-1" />
+                        <MapPin size={14} className="ml-2 mr-1" />
                         <span>ส่งที่: {booking.drop_location || "-"}</span>
                       </div>
                     </div>

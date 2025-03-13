@@ -471,27 +471,6 @@ const BookingForm = () => {
           Seven Smile Booking
         </h1>
         <p className="text-gray-600 mb-4">กรุณาเลือกฟอร์มที่ต้องการกรอก</p>
-
-        <div className="flex justify-center gap-4 mb-6">
-          <a
-            href="/"
-            className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 transition"
-          >
-            หน้าหลัก
-          </a>
-          <a
-            href="/view-bookings"
-            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition"
-          >
-            ดูรายการจอง
-          </a>
-          <a
-            href="/view-orders"
-            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition"
-          >
-            ดูรายการ Order
-          </a>
-        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-lg p-6 mb-8">

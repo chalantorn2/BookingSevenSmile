@@ -6,67 +6,67 @@ import {
   subMonths,
   startOfMonth,
   endOfMonth,
+  eachDayOfInterval,
   isSameDay,
+  isSameMonth,
+  startOfWeek,
+  endOfWeek,
 } from "date-fns";
+import { th } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 
 const CalendarHighlight = ({ selectedDate, onDateSelect }) => {
-  const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
-  const [daysInMonth, setDaysInMonth] = useState([]);
-  const [bookedDates, setBookedDates] = useState({
-    tour: new Set(),
-    transfer: new Set(),
-    both: new Set(),
+  const [currentMonth, setCurrentMonth] = useState(selectedDate);
+  const [calendarDays, setCalendarDays] = useState([]);
+  const [bookingData, setBookingData] = useState({
+    tourDates: new Set(),
+    transferDates: new Set(),
+    bothDates: new Set(),
   });
   const [isLoading, setIsLoading] = useState(false);
+  // วันในสัปดาห์ภาษาไทย
+  const weekDays = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 
   useEffect(() => {
-    updateCalendar(currentMonth);
+    generateCalendarDays(currentMonth);
+    fetchBookedDates(currentMonth);
   }, [currentMonth]);
 
-  // เมื่อ selectedDate เปลี่ยน ต้องการให้อัพเดท currentMonth ด้วย
+  // เมื่อ selectedDate เปลี่ยน ให้อัพเดทเดือนปัจจุบันด้วย
   useEffect(() => {
-    // อัพเดท currentMonth เฉพาะเมื่อ selectedDate เปลี่ยนเดือน
-    const selectedMonth = selectedDate.getMonth();
-    const selectedYear = selectedDate.getFullYear();
-    const currentMonthDate = currentMonth.getMonth();
-    const currentMonthYear = currentMonth.getFullYear();
-
-    if (
-      selectedMonth !== currentMonthDate ||
-      selectedYear !== currentMonthYear
-    ) {
-      setCurrentMonth(new Date(selectedDate));
+    // เปลี่ยนเฉพาะเมื่อเดือนไม่ตรงกัน เพื่อป้องกันการรีเรนเดอร์ที่ไม่จำเป็น
+    if (!isSameMonth(selectedDate, currentMonth)) {
+      setCurrentMonth(selectedDate);
     }
   }, [selectedDate]);
 
-  const updateCalendar = async (date) => {
-    setIsLoading(true);
-    const year = date.getFullYear();
-    const month = date.getMonth();
+  // สร้างวันที่ในปฏิทิน
+  const generateCalendarDays = (date) => {
+    const monthStart = startOfMonth(date);
+    const monthEnd = endOfMonth(date);
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 0 });
+    const endDate = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
-    // สร้างวันในเดือน
-    const firstDay = startOfMonth(date);
-    const lastDay = endOfMonth(date);
-    const daysCount = lastDay.getDate();
-
-    // สร้างอาร์เรย์ของวันในเดือน
-    const days = Array.from({ length: daysCount }, (_, i) => i + 1);
-    setDaysInMonth(days);
-
-    // ดึงข้อมูลวันที่มีการจอง
-    await fetchBookedDates(year, month);
-    setIsLoading(false);
+    const days = eachDayOfInterval({ start: startDate, end: endDate });
+    setCalendarDays(days);
   };
 
-  const fetchBookedDates = async (year, month) => {
-    const monthStr = String(month + 1).padStart(2, "0");
-    const startDate = `${year}-${monthStr}-01`;
-    const endDate = `${year}-${monthStr}-${new Date(
-      year,
-      month + 1,
-      0
-    ).getDate()}`;
+  // เลื่อนไปเดือนก่อนหน้า
+  const prevMonth = () => {
+    setCurrentMonth(subMonths(currentMonth, 1));
+  };
+
+  // เลื่อนไปเดือนถัดไป
+  const nextMonth = () => {
+    setCurrentMonth(addMonths(currentMonth, 1));
+  };
+
+  // ดึงข้อมูลวันที่มีการจอง
+  const fetchBookedDates = async (date) => {
+    setIsLoading(true);
+    const monthStr = format(date, "yyyy-MM");
+    const startDate = `${monthStr}-01`;
+    const endDate = format(endOfMonth(date), "yyyy-MM-dd");
 
     try {
       // ดึงข้อมูลทัวร์
@@ -87,160 +87,212 @@ const CalendarHighlight = ({ selectedDate, onDateSelect }) => {
 
       if (transferError) throw transferError;
 
-      // แยกเก็บวันที่ตามประเภทการจอง
-      const tourSet = new Set();
-      const transferSet = new Set();
-      const bothSet = new Set();
+      // แยกเก็บวันที่สำหรับทัวร์และรถรับส่ง
+      const tourDates = new Set();
+      const transferDates = new Set();
+      const bothDates = new Set();
 
-      // Process tour dates
       tourData.forEach((booking) => {
         if (booking.tour_date) {
-          tourSet.add(booking.tour_date);
+          tourDates.add(booking.tour_date);
         }
       });
 
-      // Process transfer dates and check for overlaps
       transferData.forEach((booking) => {
         if (booking.transfer_date) {
-          if (tourSet.has(booking.transfer_date)) {
-            // วันนี้มีทั้ง tour และ transfer
-            bothSet.add(booking.transfer_date);
-            tourSet.delete(booking.transfer_date); // ลบออกจาก tourSet เพราะจะแสดงใน bothSet แทน
+          // ตรวจสอบว่าวันนี้มีทัวร์ด้วยหรือไม่
+          if (tourDates.has(booking.transfer_date)) {
+            bothDates.add(booking.transfer_date);
+            // ลบออกจาก tourDates เพราะจะไปอยู่ใน bothDates แทน
+            tourDates.delete(booking.transfer_date);
           } else {
-            transferSet.add(booking.transfer_date);
+            transferDates.add(booking.transfer_date);
           }
         }
       });
 
-      setBookedDates({
-        tour: tourSet,
-        transfer: transferSet,
-        both: bothSet,
+      setBookingData({
+        tourDates,
+        transferDates,
+        bothDates,
       });
     } catch (error) {
       console.error("Error fetching booked dates:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const prevMonth = () => {
-    setCurrentMonth(subMonths(currentMonth, 1));
-  };
-
-  const nextMonth = () => {
-    setCurrentMonth(addMonths(currentMonth, 1));
-  };
-
-  const handleDayClick = (day) => {
-    const newDate = new Date(currentMonth);
-    newDate.setDate(day);
-    onDateSelect(newDate);
-  };
-
-  // เช็คประเภทของการจองในแต่ละวัน
-  const getDateBookingType = (day) => {
-    const dateStr = format(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day),
-      "yyyy-MM-dd"
-    );
-
-    if (bookedDates.both.has(dateStr)) return "both";
-    if (bookedDates.tour.has(dateStr)) return "tour";
-    if (bookedDates.transfer.has(dateStr)) return "transfer";
+  const getBookingType = (day) => {
+    const dateStr = format(day, "yyyy-MM-dd");
+    if (bookingData.bothDates.has(dateStr)) return "both";
+    if (bookingData.tourDates.has(dateStr)) return "tour";
+    if (bookingData.transferDates.has(dateStr)) return "transfer";
     return null;
   };
 
-  const isSelected = (day) => {
-    return isSameDay(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day),
-      selectedDate
-    );
+  // ตรวจสอบว่าวันที่นั้นมีการจองหรือไม่
+  const isDateBooked = (day) => {
+    return getBookingType(day) !== null;
   };
 
-  // กำหนด style ตามประเภทการจองและการเลือก
-  const getDayStyle = (day) => {
-    const bookingType = getDateBookingType(day);
-    const isCurrentDaySelected = isSelected(day);
-
-    let baseClasses =
-      "inline-flex items-center justify-center w-10 h-10 font-medium cursor-pointer text-center transition-colors duration-300 rounded-md m-1 ";
-
-    // สำหรับวันที่เลือก
-    if (isCurrentDaySelected) {
-      return baseClasses + "border-2 border-blue-800 shadow-md font-bold";
-    }
-
-    // สำหรับวันที่มีการจอง
-    switch (bookingType) {
-      case "both":
-        return baseClasses + "bg-purple-500 text-white hover:bg-purple-600";
-      case "tour":
-        return baseClasses + "bg-green-500 text-white hover:bg-green-600";
-      case "transfer":
-        return baseClasses + "bg-blue-500 text-white hover:bg-blue-600";
-      default:
-        return baseClasses + "bg-white text-black hover:bg-gray-100";
-    }
+  // ตรวจสอบว่าเป็นวันที่เลือกหรือไม่
+  const isSelectedDay = (day) => {
+    return isSameDay(day, selectedDate);
   };
+
+  // ตรวจสอบว่าเป็นวันนี้หรือไม่
+  const isToday = (day) => {
+    return isSameDay(day, new Date());
+  };
+
+  // ตรวจสอบว่าอยู่ในเดือนที่แสดงอยู่หรือไม่
+  const isCurrentMonth = (day) => {
+    return isSameMonth(day, currentMonth);
+  };
+  const renderLegend = () => (
+    <div className="px-4 py-2 text-xs text-gray-500 flex gap-4 justify-center border-b flex-wrap">
+      <div className="flex items-center">
+        <div className="w-3 h-3 rounded-full bg-blue-500 mr-1"></div>
+        <span>วันที่เลือก</span>
+      </div>
+      <div className="flex items-center">
+        <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div>
+        <span>มีทัวร์</span>
+      </div>
+      <div className="flex items-center">
+        <div className="w-3 h-3 rounded-full bg-blue-300 mr-1"></div>
+        <span>มีรถรับส่ง</span>
+      </div>
+      <div className="flex items-center">
+        <div className="w-3 h-3 rounded-full bg-purple-500 mr-1"></div>
+        <span>มีทั้งทัวร์และรถรับส่ง</span>
+      </div>
+      <div className="flex items-center">
+        <div className="w-3 h-3 rounded-full bg-gray-300 mr-1"></div>
+        <span>วันนี้</span>
+      </div>
+    </div>
+  );
+
+  // ปรับปรุงการเรนเดอร์วันที่
+  const renderCalendarDays = () => (
+    <div className="grid grid-cols-7 gap-1">
+      {calendarDays.map((day, i) => {
+        const bookingType = getBookingType(day);
+        const selected = isSelectedDay(day);
+        const today = isToday(day);
+        const inCurrentMonth = isCurrentMonth(day);
+
+        // กำหนดสีตามประเภทการจอง
+        let bookingStyle = "";
+        if (!selected && bookingType) {
+          if (bookingType === "tour") {
+            bookingStyle = "bg-green-100 text-green-800 hover:bg-green-200";
+          } else if (bookingType === "transfer") {
+            bookingStyle = "bg-blue-100 text-blue-800 hover:bg-blue-200";
+          } else if (bookingType === "both") {
+            bookingStyle = "bg-purple-100 text-purple-800 hover:bg-purple-200";
+          }
+        }
+
+        return (
+          <button
+            key={i}
+            onClick={() => onDateSelect(day)}
+            disabled={!inCurrentMonth}
+            className={`
+              h-10 w-full rounded-md flex items-center justify-center relative
+              ${
+                !inCurrentMonth
+                  ? "text-gray-300 cursor-default"
+                  : "hover:bg-blue-50 cursor-pointer"
+              }
+              ${
+                selected
+                  ? "bg-blue-500 text-white hover:bg-blue-600 font-bold"
+                  : ""
+              }
+              ${today && !selected ? "border-2 border-gray-300 font-bold" : ""}
+              ${bookingStyle}
+              transition-colors duration-200
+            `}
+            aria-label={format(day, "d MMMM yyyy", { locale: th })}
+          >
+            <span>{format(day, "d")}</span>
+            {bookingType && !selected && (
+              <span
+                className={`absolute bottom-1 w-1.5 h-1.5 rounded-full 
+                ${
+                  bookingType === "tour"
+                    ? "bg-green-600"
+                    : bookingType === "transfer"
+                    ? "bg-blue-600"
+                    : "bg-purple-600"
+                }`}
+              ></span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-      <div className="flex justify-between items-center mb-4">
+    <div className="bg-white rounded-lg shadow-md mb-6 overflow-hidden">
+      {/* ส่วนหัวปฏิทิน */}
+      <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 flex justify-between items-center">
         <button
           onClick={prevMonth}
-          className="p-2 rounded-full text-gray-600 hover:bg-gray-100 transition-colors"
+          className="p-1 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors"
           aria-label="เดือนก่อนหน้า"
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={24} />
         </button>
 
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Calendar size={18} />
-          {format(currentMonth, "MMMM yyyy")}
+        <h2 className="text-xl font-bold flex items-center">
+          <Calendar size={22} className="mr-2" />
+          {format(currentMonth, "MMMM yyyy", { locale: th })}
         </h2>
 
         <button
           onClick={nextMonth}
-          className="p-2 rounded-full text-gray-600 hover:bg-gray-100 transition-colors"
+          className="p-1 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors"
           aria-label="เดือนถัดไป"
         >
-          <ChevronRight size={20} />
+          <ChevronRight size={24} />
         </button>
       </div>
 
-      {/* แสดงคำอธิบายสี */}
-      <div className="flex flex-wrap justify-center items-center gap-3 py-2 mb-4 border-y border-gray-200">
-        <div className="flex items-center">
-          <div className="w-3 h-3 rounded-full mr-1 bg-green-500"></div>
-          <span className="text-sm text-gray-600">ทัวร์</span>
-        </div>
-        <div className="flex items-center">
-          <div className="w-3 h-3 rounded-full mr-1 bg-blue-500"></div>
-          <span className="text-sm text-gray-600">รถรับส่ง</span>
-        </div>
-        <div className="flex items-center">
-          <div className="w-3 h-3 rounded-full mr-1 bg-purple-500"></div>
-          <span className="text-sm text-gray-600">ทั้งสองรายการ</span>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="text-center py-6">
-          <div className="inline-block animate-spin rounded-full h-6 w-6 border-4 border-solid border-blue-500 border-r-transparent"></div>
-          <p className="mt-2 text-gray-600">กำลังโหลดข้อมูล...</p>
-        </div>
-      ) : (
-        <div className="flex justify-center items-center flex-wrap gap-1">
-          {daysInMonth.map((day) => (
-            <div
-              key={day}
-              onClick={() => handleDayClick(day)}
-              className={getDayStyle(day)}
-            >
+      {renderLegend()}
+      {/* ตารางปฏิทิน */}
+      <div className="p-4">
+        {/* วันในสัปดาห์ */}
+        <div className="grid grid-cols-7 mb-2">
+          {weekDays.map((day, index) => (
+            <div key={index} className="text-center font-medium text-gray-500">
               {day}
             </div>
           ))}
         </div>
-      )}
+
+        {/* วันที่ */}
+        {isLoading ? (
+          <div className="py-8 flex justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        ) : (
+          renderCalendarDays()
+        )}
+      </div>
+
+      {/* วันที่เลือกปัจจุบัน */}
+      <div className="bg-gray-50 p-3 border-t text-center">
+        <span className="font-medium">วันที่เลือก: </span>
+        <span className="text-blue-600 font-bold">
+          {format(selectedDate, "d MMMM yyyy", { locale: th })}
+        </span>
+      </div>
     </div>
   );
 };

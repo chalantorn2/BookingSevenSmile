@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { X, Save, Trash2 } from "lucide-react";
+import {
+  X,
+  Save,
+  Trash2,
+  User,
+  Calendar,
+  Clock,
+  Package,
+  FileText,
+} from "lucide-react";
 import supabase from "../../config/supabaseClient";
+import { formatDate } from "../../utils/dateUtils";
 
 const BookingDetailModal = ({
   booking,
@@ -15,25 +25,40 @@ const BookingDetailModal = ({
   const [showAdditionalFields, setShowAdditionalFields] = useState(false);
   const [orderData, setOrderData] = useState(null);
 
+  // เพิ่ม Effect สำหรับการกดปุ่ม ESC
+  useEffect(() => {
+    const handleEscKeyPress = (e) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleEscKeyPress);
+
+    return () => {
+      window.removeEventListener("keydown", handleEscKeyPress);
+    };
+  }, [onClose]);
+
   useEffect(() => {
     if (booking) {
+      // ตั้งค่าข้อมูลฟอร์มจาก booking
       setFormData({ ...booking });
 
-      // Check if we should show additional fields based on status
+      // ตรวจสอบว่าควรแสดงฟิลด์เพิ่มเติมหรือไม่ตามสถานะ
       const status = booking.status || "pending";
       setShowAdditionalFields(
         ["booked", "in_progress", "completed"].includes(status)
       );
 
-      // ดึงข้อมูล order ถ้ายังไม่มี
-      if (booking.order_id && (!booking.orders || !booking.orders.pax)) {
+      // ดึงข้อมูล order เพื่อแสดงเป็นข้อมูลเพิ่มเติมเท่านั้น
+      if (booking.order_id) {
         fetchOrderData(booking.order_id);
-      } else if (booking.orders) {
-        setOrderData(booking.orders);
       }
     }
   }, [booking]);
 
+  // ดึงข้อมูล order จาก Supabase
   const fetchOrderData = async (orderId) => {
     try {
       const { data, error } = await supabase
@@ -50,11 +75,12 @@ const BookingDetailModal = ({
     }
   };
 
+  // จัดการเมื่อค่าในฟอร์มเปลี่ยนแปลง
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
 
-    // Toggle additional fields visibility for transfer bookings
+    // เปิด/ปิดฟิลด์เพิ่มเติมสำหรับ transfer bookings ตามสถานะ
     if (name === "status" && bookingType === "transfer") {
       setShowAdditionalFields(
         ["booked", "in_progress", "completed"].includes(value)
@@ -62,18 +88,22 @@ const BookingDetailModal = ({
     }
   };
 
+  // จัดการการส่งฟอร์ม
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setStatusMessage({ type: "info", message: "กำลังบันทึกข้อมูล..." });
 
     try {
-      const result = await onSave(formData);
+      // สร้างข้อมูลใหม่โดยไม่รวมฟิลด์ orders (ถ้ามี)
+      const { orders, ...bookingDataToSave } = formData;
+      // เรียกใช้ onSave ที่ส่งมาจาก prop
+      const result = await onSave(bookingDataToSave);
 
       if (result.success) {
         setStatusMessage({ type: "success", message: "บันทึกข้อมูลสำเร็จ" });
 
-        // Close the modal after success message
+        // ปิด modal หลังจากบันทึกสำเร็จ
         setTimeout(() => {
           onClose();
         }, 1500);
@@ -95,6 +125,7 @@ const BookingDetailModal = ({
     }
   };
 
+  // จัดการการลบข้อมูล
   const handleDelete = async () => {
     if (window.confirm("คุณต้องการลบรายการนี้ใช่หรือไม่?")) {
       try {
@@ -103,7 +134,7 @@ const BookingDetailModal = ({
         if (result.success) {
           setStatusMessage({ type: "success", message: "ลบข้อมูลสำเร็จ" });
 
-          // Close the modal after success message
+          // ปิด modal หลังจากลบสำเร็จ
           setTimeout(() => {
             onClose();
           }, 1500);
@@ -124,25 +155,56 @@ const BookingDetailModal = ({
     }
   };
 
-  // Define field groups based on booking type
-  // แก้ไขส่วน getFieldGroups ในไฟล์ BookingDetailModal.jsx
+  // แสดงข้อมูล Order (แสดงเป็นข้อมูลเพิ่มเติม ไม่สามารถแก้ไขได้)
+  const renderOrderInfo = () => {
+    if (!orderData) return null;
 
+    return (
+      <div className="bg-gray-50 border border-gray-200 rounded-md p-4 mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="text-lg font-medium flex items-center">
+            <User size={18} className="mr-2 text-gray-600" />
+            ข้อมูล Order
+          </h4>
+          <span className="text-sm text-gray-500">
+            (ข้อมูลนี้ไม่สามารถแก้ไขได้ใน modal นี้)
+          </span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <p className="text-sm text-gray-600">รหัส Order:</p>
+            <p className="font-medium">
+              {orderData.reference_id || `#${orderData.id}`}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">ชื่อลูกค้า:</p>
+            <p className="font-medium">
+              {orderData.first_name} {orderData.last_name}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Agent:</p>
+            <p className="font-medium">{orderData.agent_name || "-"}</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // กำหนดกลุ่มฟิลด์สำหรับแสดงตามประเภทของ booking
   const getFieldGroups = () => {
-    const paxValue = orderData ? orderData.pax : booking.orders?.pax || "";
     if (bookingType === "tour") {
       return [
         {
           title: "ข้อมูลหลัก",
+          icon: <Calendar size={18} className="mr-2 text-green-600" />,
           fields: [
-            { name: "id", label: "รหัสการจอง", readOnly: true },
-            { name: "order_id", label: "รหัส Order", readOnly: true },
-            // เพิ่มฟิลด์แสดง pax จาก order แบบ readOnly
             {
-              name: "order_pax",
-              label: "จำนวนคน",
-              type: "number",
-              value: paxValue,
+              name: "reference_id",
+              label: "รหัสการจอง",
               readOnly: true,
+              value: booking.reference_id || `#${booking.id}`,
             },
             {
               name: "status",
@@ -162,6 +224,7 @@ const BookingDetailModal = ({
         },
         {
           title: "รายละเอียดทัวร์",
+          icon: <Package size={18} className="mr-2 text-green-600" />,
           fields: [
             { name: "tour_type", label: "ประเภททัวร์" },
             { name: "tour_detail", label: "รายละเอียด", type: "textarea" },
@@ -170,6 +233,14 @@ const BookingDetailModal = ({
             { name: "tour_room_no", label: "หมายเลขห้อง" },
             { name: "tour_contact_no", label: "เบอร์ติดต่อ" },
             { name: "send_to", label: "ส่งใคร" },
+          ],
+        },
+        {
+          title: "ราคาและหมายเหตุ",
+          icon: <FileText size={18} className="mr-2 text-green-600" />,
+          fields: [
+            { name: "cost_price", label: "ราคาต้นทุน", type: "number" },
+            { name: "selling_price", label: "ราคาขาย", type: "number" },
             { name: "note", label: "หมายเหตุ", type: "textarea" },
           ],
         },
@@ -178,16 +249,13 @@ const BookingDetailModal = ({
       return [
         {
           title: "ข้อมูลหลัก",
+          icon: <Calendar size={18} className="mr-2 text-blue-600" />,
           fields: [
-            { name: "id", label: "รหัสการจอง", readOnly: true },
-            { name: "order_id", label: "รหัส Order", readOnly: true },
-            // เพิ่มฟิลด์แสดง pax จาก order แบบ readOnly
             {
-              name: "order_pax",
-              label: "จำนวนคน",
-              type: "number",
-              value: paxValue,
+              name: "reference_id",
+              label: "รหัสการจอง",
               readOnly: true,
+              value: booking.reference_id || `#${booking.id}`,
             },
             {
               name: "status",
@@ -207,6 +275,7 @@ const BookingDetailModal = ({
         },
         {
           title: "รายละเอียดการรับส่ง",
+          icon: <Clock size={18} className="mr-2 text-blue-600" />,
           fields: [
             { name: "transfer_type", label: "ประเภทการรับส่ง" },
             { name: "transfer_detail", label: "รายละเอียด", type: "textarea" },
@@ -215,22 +284,33 @@ const BookingDetailModal = ({
             { name: "drop_location", label: "สถานที่ส่ง" },
             { name: "transfer_flight", label: "เที่ยวบิน" },
             { name: "send_to", label: "ส่งใคร" },
-            { name: "note", label: "หมายเหตุ", type: "textarea" },
           ],
         },
         {
-          title: "ข้อมูลเพิ่มเติม",
+          title: "ข้อมูลคนขับ",
+          icon: <User size={18} className="mr-2 text-blue-600" />,
           className: showAdditionalFields ? "" : "hidden",
           fields: [
+            { name: "driver_name", label: "ชื่อคนขับ" },
+            { name: "license_plate", label: "ทะเบียนรถ" },
             { name: "car_model", label: "รุ่นรถ" },
             { name: "phone_number", label: "เบอร์โทร" },
+          ],
+        },
+        {
+          title: "ราคาและหมายเหตุ",
+          icon: <FileText size={18} className="mr-2 text-blue-600" />,
+          fields: [
+            { name: "cost_price", label: "ราคาต้นทุน", type: "number" },
+            { name: "selling_price", label: "ราคาขาย", type: "number" },
+            { name: "note", label: "หมายเหตุ", type: "textarea" },
           ],
         },
       ];
     }
   };
 
-  // Render form field based on type
+  // สร้าง form field ตามประเภท
   const renderField = (field) => {
     const {
       name,
@@ -238,10 +318,11 @@ const BookingDetailModal = ({
       type = "text",
       readOnly = false,
       options = [],
-      value, // เพิ่ม parameter นี้เพื่อรองรับการกำหนดค่า
+      value: explicitValue,
     } = field;
 
-    const fieldValue = value !== undefined ? value : formData[name] || "";
+    const fieldValue =
+      explicitValue !== undefined ? explicitValue : formData[name] || "";
 
     switch (type) {
       case "textarea":
@@ -300,19 +381,60 @@ const BookingDetailModal = ({
     }
   };
 
+  // ฟังก์ชันแปลงสถานะเป็นภาษาไทย
+  const getStatusText = (status) => {
+    const statusMap = {
+      pending: "รอดำเนินการ",
+      booked: "จองแล้ว",
+      in_progress: "ดำเนินการอยู่",
+      completed: "เสร็จสมบูรณ์",
+      cancelled: "ยกเลิก",
+    };
+    return statusMap[status] || status;
+  };
+
+  // ฟังก์ชันสร้างสี badge ตามสถานะ
+  const getStatusBadgeClass = (status) => {
+    switch (status) {
+      case "pending":
+        return "bg-gray-100 text-gray-800";
+      case "booked":
+        return "bg-blue-100 text-blue-800";
+      case "in_progress":
+        return "bg-yellow-100 text-yellow-800";
+      case "completed":
+        return "bg-green-100 text-green-800";
+      case "cancelled":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 overflow-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 overflow-auto backdrop-blur-sm bg-white bg-opacity-30 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-auto">
         <div
           className={`px-4 py-3 border-b flex justify-between items-center ${
             bookingType === "tour" ? "bg-green-600" : "bg-blue-600"
           } text-white rounded-t-lg`}
         >
-          <h3 className="text-xl font-semibold">
-            {bookingType === "tour"
-              ? "รายละเอียดการจองทัวร์"
-              : "รายละเอียดการจองรถรับส่ง"}
-          </h3>
+          <div>
+            <h3 className="text-xl font-semibold">
+              {bookingType === "tour"
+                ? "รายละเอียดการจองทัวร์"
+                : "รายละเอียดการจองรถรับส่ง"}
+            </h3>
+            {booking.status && (
+              <span
+                className={`text-xs px-2 py-1 rounded-full ${getStatusBadgeClass(
+                  booking.status
+                )}`}
+              >
+                {getStatusText(booking.status)}
+              </span>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="p-1 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors"
@@ -322,27 +444,35 @@ const BookingDetailModal = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6">
+          {/* แสดงข้อมูล Order (เป็นข้อมูลเพิ่มเติม ไม่สามารถแก้ไขได้) */}
+          {renderOrderInfo()}
+
+          {/* แสดงฟิลด์ต่างๆ ของ Booking ที่สามารถแก้ไขได้ */}
           {getFieldGroups().map((group, groupIndex) => (
             <div key={groupIndex} className={`mb-6 ${group.className || ""}`}>
-              <h4 className="text-lg font-medium mb-3 pb-2 border-b border-gray-200">
+              <h4 className="text-lg font-medium mb-3 pb-2 border-b border-gray-200 flex items-center">
+                {group.icon}
                 {group.title}
               </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2  gap-4">
                 {group.fields.map((field) => (
-                  <div key={field.name} className="mb-3">
+                  <div key={field.name} className="mb-3  ">
                     <label
                       htmlFor={`field-${field.name}`}
-                      className="block text-sm font-medium text-gray-700 mb-1"
+                      className="block text-sm  font-medium text-gray-700 mb-1"
                     >
                       {field.label}
                     </label>
-                    {renderField(field)}
+                    <div className="border rounded-md border-gray-300">
+                      {renderField(field)}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           ))}
 
+          {/* แสดงข้อความสถานะ */}
           {statusMessage.message && (
             <div
               className={`p-3 rounded mb-4 ${
@@ -357,6 +487,7 @@ const BookingDetailModal = ({
             </div>
           )}
 
+          {/* ปุ่มดำเนินการ */}
           <div className="flex justify-between mt-6">
             <button
               type="button"
