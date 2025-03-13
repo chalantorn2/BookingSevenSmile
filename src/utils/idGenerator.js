@@ -1,21 +1,21 @@
 import supabase from "../config/supabaseClient";
 
 /**
- * สร้าง Order ID ในรูปแบบ AGENT-YYMMDD-XXX
+ * สร้าง Order ID ในรูปแบบ AGENT-YYYY-MM-XXXX
  * @param {string} agent ชื่อ agent ที่จะใช้เป็น prefix
  * @returns {Promise<string>} Order ID ที่สร้างขึ้น
  */
 export async function generateOrderID(agent = "SEVEN") {
   try {
-    // รูปแบบ: AGENT-YYMMDD-XXX
+    // รูปแบบ: AGENT-YYYY-MM-XXXX
     const today = new Date();
-    const yy = today.getFullYear().toString().slice(-2);
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const dd = String(today.getDate()).padStart(2, "0");
-    const monthKey = `${yy}${mm}`;
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1; // JavaScript month is 0-indexed
+    const monthKey = `${year}-${month}`;
 
     // ปรับชื่อ agent ให้ปลอดภัยสำหรับใช้ใน ID
-    const safeAgent = agent.replace(/\//g, "-");
+    // แทนที่ space ด้วย underscore
+    const safeAgent = agent.replace(/\s+/g, "_");
 
     // ใช้ Supabase ในการ query sequence ล่าสุด
     const { data: sequenceData, error } = await supabase
@@ -32,6 +32,7 @@ export async function generateOrderID(agent = "SEVEN") {
         const { data: newSequence, error: insertError } = await supabase
           .from("sequences")
           .insert({ key: `order_${monthKey}`, value: 1 })
+          .select()
           .single();
 
         if (insertError) throw insertError;
@@ -50,7 +51,8 @@ export async function generateOrderID(agent = "SEVEN") {
       if (updateError) throw updateError;
     }
 
-    return `${safeAgent}-${yy}${mm}${dd}-${String(sequence).padStart(3, "0")}`;
+    // สร้าง reference_id ในรูปแบบใหม่: AGENT-YYYY-MM-XXXX
+    return `${safeAgent}-${year}-${month}-${String(sequence).padStart(4, "0")}`;
   } catch (error) {
     console.error("Error generating order ID:", error);
     throw error;
@@ -58,7 +60,7 @@ export async function generateOrderID(agent = "SEVEN") {
 }
 
 /**
- * สร้าง Booking ID สำหรับ tour หรือ transfer ในรูปแบบ T-YYYY-M-XXXX หรือ Tr-YYYY-M-XXXX
+ * สร้าง Booking ID สำหรับ tour หรือ transfer
  * @param {string} type ประเภทของ booking ('tour' หรือ 'transfer')
  * @returns {Promise<string>} Booking ID ที่สร้างขึ้น
  */
@@ -66,10 +68,12 @@ export async function generateBookingID(type) {
   try {
     const today = new Date();
     const year = today.getFullYear();
-    const month = today.getMonth() + 1; // เดือนเริ่มจาก 0
+    const month = today.getMonth() + 1; // JavaScript month is 0-indexed
+    const monthKey = `${year}-${month}`;
 
-    // สร้าง key สำหรับเก็บในฐานข้อมูล
-    const sequenceKey = `booking_${year}_${month}`;
+    // กำหนด prefix ตามประเภท
+    const prefix = type.toLowerCase() === "tour" ? "T" : "Tr";
+    const sequenceKey = `booking_${monthKey}`; // ใช้ sequence ร่วมกันระหว่าง tour และ transfer
 
     // ใช้ Supabase ในการ query sequence ล่าสุด
     const { data: sequenceData, error } = await supabase
@@ -86,6 +90,7 @@ export async function generateBookingID(type) {
         const { data: newSequence, error: insertError } = await supabase
           .from("sequences")
           .insert({ key: sequenceKey, value: 1 })
+          .select()
           .single();
 
         if (insertError) throw insertError;
@@ -104,10 +109,7 @@ export async function generateBookingID(type) {
       if (updateError) throw updateError;
     }
 
-    // สร้าง prefix ตามประเภท
-    const prefix = type.toLowerCase() === "tour" ? "T" : "Tr";
-
-    // สร้าง ID ในรูปแบบ T-YYYY-M-XXXX หรือ Tr-YYYY-M-XXXX
+    // สร้าง reference_id ในรูปแบบใหม่: PREFIX-YYYY-MM-XXXX
     return `${prefix}-${year}-${month}-${String(sequence).padStart(4, "0")}`;
   } catch (error) {
     console.error(`Error generating ${type} booking ID:`, error);

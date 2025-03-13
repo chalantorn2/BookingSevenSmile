@@ -170,6 +170,7 @@ const BookingDetailModal = ({
             { name: "tour_room_no", label: "หมายเลขห้อง" },
             { name: "tour_contact_no", label: "เบอร์ติดต่อ" },
             { name: "send_to", label: "ส่งใคร" },
+            { name: "note", label: "หมายเหตุ", type: "textarea" },
           ],
         },
       ];
@@ -214,6 +215,7 @@ const BookingDetailModal = ({
             { name: "drop_location", label: "สถานที่ส่ง" },
             { name: "transfer_flight", label: "เที่ยวบิน" },
             { name: "send_to", label: "ส่งใคร" },
+            { name: "note", label: "หมายเหตุ", type: "textarea" },
           ],
         },
         {

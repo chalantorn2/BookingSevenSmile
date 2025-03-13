@@ -110,7 +110,6 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                   <Eye size={18} />
                 </button>
               </div>
-
               <div className="flex flex-wrap gap-2 mb-2 text-xs">
                 <span
                   className={`inline-flex items-center px-2 py-1 rounded ${
@@ -138,7 +137,6 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                     : format(new Date(booking.transfer_date), "dd/MM/yyyy")}
                 </span>
               </div>
-
               <div className="text-sm text-gray-700">
                 <div className="mb-1">
                   <span className="font-medium">{booking.send_to || "-"}</span>
@@ -195,7 +193,11 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
               </div>
 
               <div className="flex justify-between items-center mt-2 text-xs">
-                <div className="text-gray-500">ID: {booking.id || "-"}</div>
+                <div className="text-gray-500">
+                  {booking.reference_id
+                    ? booking.reference_id
+                    : `ID: ${booking.id || "-"}`}
+                </div>
                 <div
                   className={`px-2 py-1 rounded-full ${getStatusColor(
                     booking.status

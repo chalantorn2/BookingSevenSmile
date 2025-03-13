@@ -256,6 +256,7 @@ const BookingForm = () => {
 
       // Create new order if needed
       if (!orderKey) {
+        referenceId = await generateOrderID(mainFormData.agent);
         const { data: newOrder, error: orderError } = await supabase
           .from("orders")
           .insert({
@@ -263,7 +264,7 @@ const BookingForm = () => {
             last_name: mainFormData.lastName,
             agent_name: mainFormData.agent,
             reference_id: referenceId,
-            pax: parseInt(mainFormData.pax) || 0, // เพิ่มการบันทึก pax ในตาราง orders
+            pax: parseInt(mainFormData.pax) || 0,
           })
           .select()
           .single();
@@ -279,53 +280,131 @@ const BookingForm = () => {
       const allDates = [];
       const formElements = document.forms[0].elements;
 
+      // ในฟังก์ชัน handleSubmit ของ BookingForm.jsx
+      // บรรทัดที่มีปัญหาน่าจะอยู่ประมาณนี้
+
+      // สำหรับ tour bookings
+      // สำหรับ tour bookings
       const tourBookings = [];
       for (const tourForm of tourForms) {
         const formId = tourForm.id;
-        const bookingId = await generateBookingID("tour");
-        const tourDate = formElements[`tour_${formId}_date`].value;
+        const bookingId = await generateBookingID("tour"); // สร้าง reference ID
+
+        // ใช้ Optional Chaining (?.) เพื่อป้องกัน undefined
+        const tourDateElement = formElements[`tour_${formId}_date`];
+        const tourDate = tourDateElement ? tourDateElement.value : "";
+
         if (tourDate) allDates.push(tourDate);
 
-        tourBookings.push({
+        // สร้าง object ด้วยข้อมูลพื้นฐานก่อน
+        const tourBooking = {
           order_id: orderKey,
           tour_date: tourDate,
-          tour_detail: formElements[`tour_${formId}_detail`].value,
-          // ไม่ใส่ pax ที่นี่อีกต่อไป
-          status: "pending",
-          tour_type: formElements[`tour_${formId}_type`].value,
-          tour_hotel: formElements[`tour_${formId}_hotel`].value,
-          tour_room_no: formElements[`tour_${formId}_room_no`].value,
-          tour_pickup_time: formElements[`tour_${formId}_pickup_time`].value,
-          tour_contact_no: formElements[`tour_${formId}_contact_no`].value,
-          send_to: formElements[`tour_${formId}_send_to`].value,
-        });
+          reference_id: bookingId, // เพิ่ม reference_id
+        };
+
+        // ส่วนที่เหลือคงเดิม...
+
+        // แล้วค่อยเพิ่มข้อมูลอื่นๆ ที่อาจไม่มี โดยใช้ Optional Chaining
+        const detailElement = formElements[`tour_${formId}_detail`];
+        if (detailElement) tourBooking.tour_detail = detailElement.value;
+
+        const noteElement = formElements[`tour_${formId}_note`];
+        if (noteElement) tourBooking.note = noteElement.value;
+
+        // เพิ่มฟิลด์อื่นๆ ในลักษณะเดียวกัน
+        const typeElement = formElements[`tour_${formId}_type`];
+        if (typeElement) tourBooking.tour_type = typeElement.value;
+
+        const hotelElement = formElements[`tour_${formId}_hotel`];
+        if (hotelElement) tourBooking.tour_hotel = hotelElement.value;
+
+        const roomNoElement = formElements[`tour_${formId}_room_no`];
+        if (roomNoElement) tourBooking.tour_room_no = roomNoElement.value;
+
+        const pickupTimeElement = formElements[`tour_${formId}_pickup_time`];
+        if (pickupTimeElement)
+          tourBooking.tour_pickup_time = pickupTimeElement.value;
+
+        const contactNoElement = formElements[`tour_${formId}_contact_no`];
+        if (contactNoElement)
+          tourBooking.tour_contact_no = contactNoElement.value;
+
+        const sendToElement = formElements[`tour_${formId}_send_to`];
+        if (sendToElement) tourBooking.send_to = sendToElement.value;
+
+        // ตั้งค่า default สำหรับฟิลด์ที่จำเป็น
+        tourBooking.status = "pending";
+
+        tourBookings.push(tourBooking);
       }
-      // Process transfer bookings
+
+      // สำหรับ transfer bookings ใช้แนวทางเดียวกัน
+      // สำหรับ transfer bookings
       const transferBookings = [];
       for (const transferForm of transferForms) {
         const formId = transferForm.id;
-        const bookingId = await generateBookingID("transfer");
-        const transferDate = formElements[`transfer_${formId}_date`].value;
+        const bookingId = await generateBookingID("transfer"); // สร้าง reference ID
+
+        const transferDateElement = formElements[`transfer_${formId}_date`];
+        const transferDate = transferDateElement
+          ? transferDateElement.value
+          : "";
+
         if (transferDate) allDates.push(transferDate);
 
-        transferBookings.push({
+        const transferBooking = {
           order_id: orderKey,
           transfer_date: transferDate,
-          transfer_time: formElements[`transfer_${formId}_pickup_time`].value,
-          pickup_location:
-            formElements[`transfer_${formId}_pickup_location`].value,
-          drop_location: formElements[`transfer_${formId}_drop_location`].value,
-          // ไม่ใส่ pax ที่นี่อีกต่อไป
-          transfer_detail: formElements[`transfer_${formId}_detail`].value,
           status: "pending",
-          transfer_type: formElements[`transfer_${formId}_type`].value,
-          send_to: formElements[`transfer_${formId}_send_to`].value,
-          transfer_flight: formElements[`transfer_${formId}_flight`].value,
-          transfer_ftime:
-            formElements[`transfer_${formId}_transfer_ftime`].value,
-          car_model: formElements[`transfer_${formId}_car_model`].value,
-          phone_number: formElements[`transfer_${formId}_phone_number`].value,
-        });
+          reference_id: bookingId, // เพิ่ม reference_id
+        };
+
+        // ส่วนที่เหลือคงเดิม...
+
+        // เพิ่มฟิลด์อื่นๆ โดยใช้ Optional Chaining
+        const timeElement = formElements[`transfer_${formId}_pickup_time`];
+        if (timeElement) transferBooking.transfer_time = timeElement.value;
+
+        const pickupLocationElement =
+          formElements[`transfer_${formId}_pickup_location`];
+        if (pickupLocationElement)
+          transferBooking.pickup_location = pickupLocationElement.value;
+
+        const dropLocationElement =
+          formElements[`transfer_${formId}_drop_location`];
+        if (dropLocationElement)
+          transferBooking.drop_location = dropLocationElement.value;
+
+        const detailElement = formElements[`transfer_${formId}_detail`];
+        if (detailElement)
+          transferBooking.transfer_detail = detailElement.value;
+
+        const typeElement = formElements[`transfer_${formId}_type`];
+        if (typeElement) transferBooking.transfer_type = typeElement.value;
+
+        const sendToElement = formElements[`transfer_${formId}_send_to`];
+        if (sendToElement) transferBooking.send_to = sendToElement.value;
+
+        const flightElement = formElements[`transfer_${formId}_flight`];
+        if (flightElement)
+          transferBooking.transfer_flight = flightElement.value;
+
+        const ftimeElement = formElements[`transfer_${formId}_transfer_ftime`];
+        if (ftimeElement) transferBooking.transfer_ftime = ftimeElement.value;
+
+        const carModelElement = formElements[`transfer_${formId}_car_model`];
+        if (carModelElement) transferBooking.car_model = carModelElement.value;
+
+        const phoneNumberElement =
+          formElements[`transfer_${formId}_phone_number`];
+        if (phoneNumberElement)
+          transferBooking.phone_number = phoneNumberElement.value;
+
+        const noteElement = formElements[`transfer_${formId}_note`];
+        if (noteElement) transferBooking.note = noteElement.value;
+
+        transferBookings.push(transferBooking);
       }
 
       // Bulk insert tour bookings if any

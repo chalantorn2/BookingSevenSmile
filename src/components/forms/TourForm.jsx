@@ -22,6 +22,7 @@ const TourForm = ({ id, onRemove, data }) => {
         tour_contact_no: data.tour_contact_no || "",
         send_to: data.send_to || "",
         tour_type: data.tour_type || "",
+        note: data.note || "", // เพิ่มบรรทัดนี้
       });
     }
   }, [data]);
@@ -219,6 +220,13 @@ const TourForm = ({ id, onRemove, data }) => {
             required
           />
         </div>
+        <InputField
+          label="หมายเหตุ"
+          name={`${fieldNamePrefix}note`}
+          placeholder="หมายเหตุเพิ่มเติม"
+          value={formData.note || ""}
+          onChange={(newValue) => handleValueChange("note", newValue)}
+        />
       </div>
     </div>
   );

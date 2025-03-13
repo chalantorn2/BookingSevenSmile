@@ -29,6 +29,7 @@ const TransferForm = ({ id, onRemove, data }) => {
         send_to: data.send_to || "",
         transfer_flight: data.transfer_flight || "",
         transfer_ftime: data.transfer_ftime || "",
+        note: data.note || "", // เพิ่มบรรทัดนี้
       });
     }
   }, [data]);
@@ -63,7 +64,7 @@ const TransferForm = ({ id, onRemove, data }) => {
         placeholder={placeholder}
         defaultValue={value || ""}
         onBlur={onChange ? (e) => onChange(e.target.value) : undefined}
-        className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+        className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
         required={required}
       />
     </div>
@@ -184,34 +185,7 @@ const TransferForm = ({ id, onRemove, data }) => {
           onChange={(value) => handleValueChange("transfer_detail", value)}
           placeholder="รายละเอียดเพิ่มเติม"
         />
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <InputField
-            label="เวลารับ"
-            name={`${fieldNamePrefix}pickup_time`}
-            value={formData.transfer_pickup_time}
-            onChange={(value) =>
-              handleValueChange("transfer_pickup_time", value)
-            }
-            placeholder="เวลารับ"
-          />
-          <InputField
-            label="เที่ยวบิน"
-            name={`${fieldNamePrefix}flight`}
-            value={formData.transfer_flight}
-            onChange={(value) => handleValueChange("transfer_flight", value)}
-            placeholder="เที่ยวบิน"
-          />
-          <InputField
-            label="เวลาบิน"
-            name={`${fieldNamePrefix}ftime`}
-            value={formData.transfer_ftime}
-            onChange={(value) => handleValueChange("transfer_ftime", value)}
-            placeholder="เวลาบิน"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               รับจาก
@@ -240,6 +214,18 @@ const TransferForm = ({ id, onRemove, data }) => {
               id={`${fieldNamePrefix}drop_location`}
             />
           </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <InputField
+            label="เวลารับ"
+            name={`${fieldNamePrefix}pickup_time`}
+            value={formData.transfer_pickup_time}
+            onChange={(value) =>
+              handleValueChange("transfer_pickup_time", value)
+            }
+            placeholder="เวลารับ"
+          />
+
           <InputField
             label="วันที่"
             name={`${fieldNamePrefix}date`}
@@ -247,6 +233,30 @@ const TransferForm = ({ id, onRemove, data }) => {
             value={formData.transfer_date}
             onChange={(value) => handleValueChange("transfer_date", value)}
             required
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <InputField
+            label="เที่ยวบิน"
+            name={`${fieldNamePrefix}flight`}
+            value={formData.transfer_flight}
+            onChange={(value) => handleValueChange("transfer_flight", value)}
+            placeholder="เที่ยวบิน"
+          />
+          <InputField
+            label="เวลาบิน"
+            name={`${fieldNamePrefix}ftime`}
+            value={formData.transfer_ftime}
+            onChange={(value) => handleValueChange("transfer_ftime", value)}
+            placeholder="เวลาบิน"
+          />
+          <InputField
+            label="หมายเหตุ"
+            name={`${fieldNamePrefix}note`}
+            placeholder="หมายเหตุเพิ่มเติม"
+            value={formData.note || ""}
+            onChange={(newValue) => handleValueChange("note", newValue)}
           />
         </div>
       </div>
