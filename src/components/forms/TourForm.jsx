@@ -1,28 +1,37 @@
 import React, { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
 import { useInformation } from "../../contexts/InformationContext";
 import AutocompleteInput from "../common/AutocompleteInput";
 
 const TourForm = ({ id, onRemove, data }) => {
-  const { register, setValue, getValues } = useForm();
+  // ลบการใช้ useForm ที่อาจเป็นสาเหตุของปัญหา
+  const [formData, setFormData] = useState({});
 
   // ใช้ context แทนการเรียก API โดยตรง
-  const { tourTypes, tourRecipients, places, addNewInformation, loading } =
+  const { tourTypes, tourRecipients, hotels, addNewInformation, loading } =
     useInformation();
 
   useEffect(() => {
     // ตั้งค่าข้อมูลเริ่มต้น
     if (data) {
-      setValue(`tour_${id}_date`, data.tour_date || "");
-      setValue(`tour_${id}_detail`, data.tour_detail || "");
-      setValue(`tour_${id}_pickup_time`, data.pickup_time || "");
-      setValue(`tour_${id}_hotel`, data.hotel || "");
-      setValue(`tour_${id}_room_no`, data.room_no || "");
-      setValue(`tour_${id}_contact_no`, data.contact_no || "");
-      setValue(`tour_${id}_send_to`, data.send_to || "");
-      setValue(`tour_${id}_type`, data.tour_type || "");
+      setFormData({
+        tour_date: data.tour_date || "",
+        tour_detail: data.tour_detail || "",
+        tour_pickup_time: data.tour_pickup_time || "",
+        tour_hotel: data.tour_hotel || "",
+        tour_room_no: data.tour_room_no || "",
+        tour_contact_no: data.tour_contact_no || "",
+        send_to: data.send_to || "",
+        tour_type: data.tour_type || "",
+      });
     }
-  }, [data, id, setValue]);
+  }, [data]);
+
+  const handleValueChange = (name, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
 
   const InputField = ({
     label,
@@ -30,28 +39,42 @@ const TourForm = ({ id, onRemove, data }) => {
     type = "text",
     required,
     placeholder,
+    value,
+    onChange,
   }) => (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+      <label
+        className="block text-sm font-medium text-gray-700 mb-1"
+        htmlFor={name}
+      >
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       <input
         type={type}
         name={name}
+        id={name}
         placeholder={placeholder}
+        defaultValue={value || ""}
+        onBlur={onChange ? (e) => onChange(e.target.value) : undefined}
         className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
         required={required}
       />
     </div>
   );
 
-  const TextAreaField = ({ label, name, placeholder }) => (
+  const TextAreaField = ({ label, name, placeholder, value, onChange }) => (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+      <label
+        className="block text-sm font-medium text-gray-700 mb-1"
+        htmlFor={name}
+      >
         {label}
       </label>
       <textarea
         name={name}
+        id={name}
+        defaultValue={value || ""}
+        onBlur={onChange ? (e) => onChange(e.target.value) : undefined}
         className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50"
         rows="3"
         placeholder={placeholder}
@@ -70,12 +93,12 @@ const TourForm = ({ id, onRemove, data }) => {
     }
   };
 
-  const handleAddNewPlace = async (newValue) => {
+  const handleAddNewHotel = async (newValue) => {
     try {
-      const result = await addNewInformation("place", newValue);
+      const result = await addNewInformation("hotel", newValue);
       return result;
     } catch (error) {
-      console.error("Error adding new place:", error);
+      console.error("Error adding new hotel:", error);
       return null;
     }
   };
@@ -90,10 +113,7 @@ const TourForm = ({ id, onRemove, data }) => {
     }
   };
 
-  // ฟังก์ชันจัดการการเปลี่ยนแปลงค่า
-  const handleInputChange = (fieldName, value) => {
-    setValue(fieldName, value);
-  };
+  const fieldNamePrefix = `tour_${id}_`;
 
   return (
     <div
@@ -119,12 +139,12 @@ const TourForm = ({ id, onRemove, data }) => {
             </label>
             <AutocompleteInput
               options={tourTypes}
-              value={getValues(`tour_${id}_type`) || ""}
-              onChange={(value) => handleInputChange(`tour_${id}_type`, value)}
+              value={formData.tour_type || ""}
+              onChange={(value) => handleValueChange("tour_type", value)}
               placeholder="เลือกหรือพิมพ์ประเภททัวร์"
               onAddNew={handleAddNewTourType}
-              name={`tour_${id}_type`}
-              id={`tour_${id}_type`}
+              name={`${fieldNamePrefix}type`}
+              id={`${fieldNamePrefix}type`}
             />
           </div>
           <div>
@@ -133,29 +153,30 @@ const TourForm = ({ id, onRemove, data }) => {
             </label>
             <AutocompleteInput
               options={tourRecipients}
-              value={getValues(`tour_${id}_send_to`) || ""}
-              onChange={(value) =>
-                handleInputChange(`tour_${id}_send_to`, value)
-              }
+              value={formData.send_to || ""}
+              onChange={(value) => handleValueChange("send_to", value)}
               placeholder="เลือกหรือพิมพ์ผู้รับ"
               onAddNew={handleAddNewRecipient}
-              name={`tour_${id}_send_to`}
-              id={`tour_${id}_send_to`}
+              name={`${fieldNamePrefix}send_to`}
+              id={`${fieldNamePrefix}send_to`}
             />
           </div>
         </div>
 
         <TextAreaField
           label="รายละเอียด"
-          name={`tour_${id}_detail`}
-          type="textarea"
+          name={`${fieldNamePrefix}detail`}
+          value={formData.tour_detail}
+          onChange={(value) => handleValueChange("tour_detail", value)}
           placeholder="รายละเอียดเพิ่มเติม"
         />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <InputField
             label="เวลารับ"
-            name={`tour_${id}_pickup_time`}
+            name={`${fieldNamePrefix}pickup_time`}
+            value={formData.tour_pickup_time}
+            onChange={(value) => handleValueChange("tour_pickup_time", value)}
             placeholder="เวลารับ"
           />
           <div>
@@ -163,18 +184,20 @@ const TourForm = ({ id, onRemove, data }) => {
               โรงแรม
             </label>
             <AutocompleteInput
-              options={places}
-              value={getValues(`tour_${id}_hotel`) || ""}
-              onChange={(value) => handleInputChange(`tour_${id}_hotel`, value)}
+              options={hotels}
+              value={formData.tour_hotel || ""}
+              onChange={(value) => handleValueChange("tour_hotel", value)}
               placeholder="เลือกหรือพิมพ์ชื่อโรงแรม"
-              onAddNew={handleAddNewPlace}
-              name={`tour_${id}_hotel`}
-              id={`tour_${id}_hotel`}
+              onAddNew={handleAddNewHotel}
+              name={`${fieldNamePrefix}hotel`}
+              id={`${fieldNamePrefix}hotel`}
             />
           </div>
           <InputField
             label="หมายเลขห้อง"
-            name={`tour_${id}_room_no`}
+            name={`${fieldNamePrefix}room_no`}
+            value={formData.tour_room_no}
+            onChange={(value) => handleValueChange("tour_room_no", value)}
             placeholder="เลขห้อง"
           />
         </div>
@@ -182,13 +205,17 @@ const TourForm = ({ id, onRemove, data }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <InputField
             label="เบอร์ติดต่อ"
-            name={`tour_${id}_contact_no`}
+            name={`${fieldNamePrefix}contact_no`}
+            value={formData.tour_contact_no}
+            onChange={(value) => handleValueChange("tour_contact_no", value)}
             placeholder="เบอร์โทรศัพท์"
           />
           <InputField
             label="วันที่"
-            name={`tour_${id}_date`}
+            name={`${fieldNamePrefix}date`}
             type="date"
+            value={formData.tour_date}
+            onChange={(value) => handleValueChange("tour_date", value)}
             required
           />
         </div>
@@ -197,4 +224,4 @@ const TourForm = ({ id, onRemove, data }) => {
   );
 };
 
-export default TourForm;
+export default React.memo(TourForm);

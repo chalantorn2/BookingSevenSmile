@@ -37,12 +37,15 @@ const AutocompleteInput = ({
     setInputValue(value);
 
     // หาตัวเลือกที่ตรงกับค่าปัจจุบัน
-    if (value) {
+    if (value && options.length > 0) {
       const option = options.find((opt) => opt.value === value);
-      setSelectedOption(option);
+      setSelectedOption(option || null);
     } else {
       setSelectedOption(null);
     }
+
+    // ตั้งค่า filteredOptions เริ่มต้น (แสดงเพียง 5 รายการแรก)
+    setFilteredOptions(options.slice(0, Math.min(5, options.length)));
   }, [value, options]);
 
   // ปิด dropdown เมื่อคลิกข้างนอก
@@ -62,14 +65,16 @@ const AutocompleteInput = ({
   // กรองตัวเลือกตามข้อความที่พิมพ์
   const filterOptions = (input) => {
     if (!input.trim()) {
-      return options.slice(0, 10); // แสดงแค่ 10 ตัวแรกถ้าไม่มีการพิมพ์
+      // ถ้าไม่มีการพิมพ์ ให้แสดง 5 ข้อมูลแรกหรือข้อมูลทั้งหมดถ้ามีน้อยกว่า 5
+      return options.slice(0, Math.min(5, options.length));
     }
 
+    // ถ้ามีการพิมพ์ ให้กรองเฉพาะข้อมูลที่ตรงกับคำที่พิมพ์เท่านั้น
     const filtered = options.filter((option) =>
       option.value.toLowerCase().includes(input.toLowerCase())
     );
 
-    return filtered;
+    return filtered.slice(0, Math.min(5, filtered.length));
   };
 
   const handleInputChange = (e) => {
@@ -81,25 +86,26 @@ const AutocompleteInput = ({
     setFilteredOptions(filtered);
 
     // เปิด dropdown เมื่อมีการพิมพ์
-    if (newInputValue) {
-      setIsOpen(true);
-    } else {
-      onChange(""); // ล้างค่าเมื่อ input ว่าง
-      setSelectedOption(null);
-    }
+    setIsOpen(true);
+
+    // ไม่ต้องเรียก onChange ทันที เพราะผู้ใช้ยังพิมพ์อยู่
+    // ควรจะเรียกเมื่อเลือกจาก dropdown หรือ กดปุ่ม Enter หรือ Click นอกพื้นที่
   };
 
+  // เมื่อเลือกตัวเลือกจาก dropdown
   const handleOptionClick = (option) => {
     setInputValue(option.value);
     setSelectedOption(option);
-    onChange(option.value);
     setIsOpen(false);
+
+    // เรียก onChange หลังจากอัปเดตค่าภายใน component
+    onChange(option.value);
   };
 
+  // เมื่อคลิกปุ่มเพิ่มข้อมูลใหม่
   const handleAddNewClick = () => {
-    // แสดง confirm dialog เพื่อแจ้งเตือนผู้ใช้
     const confirmed = window.confirm(
-      "คำเตือน: การเพิ่มข้อมูล อาจทำให้ข้อมูลที่คุณกรอกในฟอร์มบางส่วนถูกรีเซ็ต\nยืนยันที่จะเพิ่มข้อมูลนี้หรือไม่?"
+      'คุณต้องการเพิ่ม "' + inputValue + '" เป็นข้อมูลใหม่ใช่หรือไม่?'
     );
 
     if (confirmed) {
@@ -108,6 +114,7 @@ const AutocompleteInput = ({
     }
   };
 
+  // เมื่อบันทึกข้อมูลใหม่
   const handleAddNewSubmit = async () => {
     if (!newValue.trim()) return;
 
@@ -117,13 +124,17 @@ const AutocompleteInput = ({
       const result = await onAddNew(newValue);
 
       if (result) {
-        // เมื่อเพิ่มสำเร็จ ตั้งค่าอินพุต
+        // อัปเดตเฉพาะค่าใน component นี้
         setInputValue(result.value);
-        onChange(result.value);
         setSelectedOption(result);
 
-        // แสดงข้อความแจ้งเตือนผู้ใช้ว่าเพิ่มข้อมูลสำเร็จ
-        alert(`เพิ่มข้อมูล "${result.value}" ลงใน Information เรียบร้อยแล้ว`);
+        // เรียก onChange เพื่อส่งค่ากลับไปยัง parent component
+        onChange(result.value);
+
+        // แสดงข้อความแจ้งเตือน
+        setTimeout(() => {
+          alert(`เพิ่มข้อมูล "${result.value}" ลงใน Information เรียบร้อยแล้ว`);
+        }, 100);
       }
     } catch (error) {
       console.error("Error adding new item:", error);
@@ -135,6 +146,7 @@ const AutocompleteInput = ({
     }
   };
 
+  // จัดการเมื่อกดปุ่มบนคีย์บอร์ด
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -144,12 +156,6 @@ const AutocompleteInput = ({
       } else if (filteredOptions.length > 0) {
         handleOptionClick(filteredOptions[0]);
       } else if (inputValue && !selectedOption) {
-        // เมื่อกด Enter ในสถานะปกติและไม่พบข้อมูลที่ตรงกัน
-        // ไม่ควรเรียก handleAddNewClick() โดยตรงเพราะจะข้าม confirm dialog
-        // แทนที่จะเปิดโหมด Add New อัตโนมัติ ควรให้ผู้ใช้คลิกที่ปุ่ม "เพิ่ม" ด้วยตนเอง
-        // เพื่อให้ได้เห็น confirm dialog
-
-        // แสดงข้อความเตือนว่าไม่พบข้อมูล และแนะนำให้คลิกปุ่มเพิ่ม
         alert(
           'ไม่พบข้อมูลที่ตรงกัน กรุณาคลิกที่ปุ่ม "เพิ่ม" เพื่อเพิ่มข้อมูลใหม่'
         );
@@ -261,9 +267,9 @@ const AutocompleteInput = ({
 
       {isOpen && !isAdding && (
         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-          {filteredOptions.length > 0 ? (
-            <ul>
-              {filteredOptions.map((option) => (
+          <ul>
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => (
                 <li
                   key={option.id}
                   onClick={() => handleOptionClick(option)}
@@ -276,34 +282,40 @@ const AutocompleteInput = ({
                     </div>
                   )}
                 </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="p-4 text-center">
-              <p className="text-gray-500 mb-2">ไม่พบข้อมูลที่ตรงกัน</p>
-              <button
-                type="button"
-                onClick={handleAddNewClick}
-                className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors inline-flex items-center"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 mr-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+              ))
+            ) : inputValue ? (
+              // ถ้ามีการพิมพ์แต่ไม่พบข้อมูลที่ตรงกัน
+              <li className="p-4 text-center">
+                <p className="text-gray-500 mb-2">ไม่พบข้อมูลที่ตรงกัน</p>
+                <button
+                  type="button"
+                  onClick={handleAddNewClick}
+                  className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors inline-flex items-center"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-                เพิ่ม "{inputValue}"
-              </button>
-            </div>
-          )}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 mr-1"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  เพิ่ม "{inputValue}"
+                </button>
+              </li>
+            ) : (
+              // ถ้าไม่มีการพิมพ์แต่ไม่มีข้อมูล
+              <li className="p-4 text-center text-gray-500">
+                ไม่มีข้อมูลในระบบ กรุณาเพิ่มข้อมูลใหม่
+              </li>
+            )}
+          </ul>
 
           {/* ปุ่มเพิ่มข้อมูลใหม่ถ้ามีการพิมพ์ แต่ไม่ตรงกับตัวเลือกที่มีอยู่ */}
           {inputValue &&

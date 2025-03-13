@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import supabase from "../config/supabaseClient";
 import OrderSelector from "../components/forms/OrderSelector";
 import TourForm from "../components/forms/TourForm";
@@ -6,6 +6,8 @@ import TransferForm from "../components/forms/TransferForm";
 import BookingCounter from "../components/ui/BookingCounter";
 import { generateOrderID, generateBookingID } from "../utils/idGenerator";
 import { fetchInformationByCategory } from "../services/informationService";
+import AutocompleteInput from "../components/common/AutocompleteInput";
+import { useInformation } from "../contexts/InformationContext";
 
 const BookingForm = () => {
   const [currentOrderId, setCurrentOrderId] = useState(null);
@@ -13,26 +15,21 @@ const BookingForm = () => {
   const [isBookingSectionVisible, setIsBookingSectionVisible] = useState(false);
   const [tourForms, setTourForms] = useState([]);
   const [transferForms, setTransferForms] = useState([]);
+  const { agents, addNewInformation, refreshInformation } = useInformation();
+
   const [mainFormData, setMainFormData] = useState({
     agent: "",
     firstName: "",
     lastName: "",
     pax: "",
   });
-  const [agents, setAgents] = useState([]);
+
   const [status, setStatus] = useState({
     loading: false,
     message: "",
     error: "",
   });
   const [bookingCounts, setBookingCounts] = useState(null);
-
-  useEffect(() => {
-    // ดึงข้อมูล Agent สำหรับใช้ในฟอร์ม
-    fetchInformationByCategory("agent").then(({ data }) => {
-      if (data) setAgents(data);
-    });
-  }, []);
 
   const handleOrderSelect = (orderKey, orderId, counts) => {
     if (orderKey) {
@@ -50,12 +47,52 @@ const BookingForm = () => {
     }
   };
 
+  // ใช้ useRef เพื่อเก็บค่า mainFormData ล่าสุดโดยไม่ต้อง re-render
+  const formDataRef = useRef(mainFormData);
+
+  // อัปเดต ref เมื่อ mainFormData เปลี่ยน
+  useEffect(() => {
+    formDataRef.current = mainFormData;
+  }, [mainFormData]);
+
+  // ฟังก์ชันสำหรับการเปลี่ยนค่า Agent (แยกออกมาจาก handleMainFormChange)
+  const handleAgentChange = useCallback((value) => {
+    setMainFormData((prev) => ({
+      ...prev,
+      agent: value,
+    }));
+  }, []);
+
   const handleCreateNewOrder = () => {
     resetForm();
     setCurrentOrderKey(null);
     setCurrentOrderId(null);
     setIsBookingSectionVisible(true);
   };
+
+  // เพิ่ม agent โดยไม่ทำให้หน้าโหลดใหม่
+  const handleAddNewAgent = async (value) => {
+    try {
+      const { data, error } = await supabase
+        .from("information")
+        .insert({
+          category: "agent",
+          value: value.trim(),
+          description: "",
+          active: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error("Error adding new agent:", error);
+      return null;
+    }
+  };
+
   const processOrderData = (orderData) => {
     setMainFormData({
       agent: orderData.agent_name || "",
@@ -125,7 +162,6 @@ const BookingForm = () => {
         pax: "", // ผู้ใช้กรอกเอง
       });
 
-      // ไม่ดึงข้อมูล bookings
       setTourForms([]);
       setTransferForms([]);
     } catch (error) {
@@ -159,18 +195,35 @@ const BookingForm = () => {
     setTransferForms([...transferForms, { id: nextId }]);
   };
 
-  const handleRemoveTourForm = (id) => {
-    setTourForms(tourForms.filter((form) => form.id !== id));
-  };
+  const handleRemoveTourForm = useCallback((id) => {
+    setTourForms((prev) => prev.filter((form) => form.id !== id));
+  }, []);
 
-  const handleRemoveTransferForm = (id) => {
-    setTransferForms(transferForms.filter((form) => form.id !== id));
-  };
+  const handleRemoveTransferForm = useCallback((id) => {
+    setTransferForms((prev) => prev.filter((form) => form.id !== id));
+  }, []);
 
-  const handleMainFormChange = (e) => {
+  const tourFormsRef = useRef(tourForms);
+  const transferFormsRef = useRef(transferForms);
+
+  // update refs เมื่อ state เปลี่ยน
+  useEffect(() => {
+    tourFormsRef.current = tourForms;
+  }, [tourForms]);
+
+  useEffect(() => {
+    transferFormsRef.current = transferForms;
+  }, [transferForms]);
+
+  const handleMainFormChange = useCallback((e) => {
     const { name, value } = e.target;
-    setMainFormData({ ...mainFormData, [name]: value });
-  };
+    setMainFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  }, []);
+
+  // แก้ไขส่วนที่มีปัญหาใน handleSubmit ที่เกี่ยวกับการตรวจสอบและส่งข้อมูล
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -222,52 +275,77 @@ const BookingForm = () => {
       const tourBookings = [];
       for (const tourForm of tourForms) {
         const formId = tourForm.id;
-        const bookingId = await generateBookingID("tour");
-        const tourId = await generateBookingID("tour");
-        const tourDate = formElements[`tour_${formId}_date`].value;
+        const tourDate = formElements[`tour_${formId}_date`]?.value;
         if (tourDate) allDates.push(tourDate);
 
-        tourBookings.push({
+        // ตรวจสอบว่า element มีอยู่จริงก่อนอ่านค่า value
+        const tourBooking = {
           order_id: orderKey,
-          tour_date: tourDate,
-          tour_detail: formElements[`tour_${formId}_detail`].value,
+          tour_date: tourDate || null,
+          tour_detail: formElements[`tour_${formId}_detail`]?.value || "",
           pax: parseInt(mainFormData.pax) || 0,
           status: "pending",
-          tour_type: formElements[`tour_${formId}_type`].value,
-          tour_hotel: formElements[`tour_${formId}_hotel`].value,
-          tour_room_no: formElements[`tour_${formId}_room_no`].value,
-          tour_pickup_time: formElements[`tour_${formId}_pickup_time`].value,
-          tour_contact_no: formElements[`tour_${formId}_contact_no`].value,
-          send_to: formElements[`tour_${formId}_send_to`].value,
-        });
+          tour_type: formElements[`tour_${formId}_type`]?.value || "",
+          tour_hotel: formElements[`tour_${formId}_hotel`]?.value || "",
+          tour_room_no: formElements[`tour_${formId}_room_no`]?.value || "",
+          tour_pickup_time:
+            formElements[`tour_${formId}_pickup_time`]?.value || "",
+          send_to: formElements[`tour_${formId}_send_to`]?.value || "",
+        };
+
+        // เพิ่ม tour_contact_no เมื่อมีการส่งไปเท่านั้น (ไม่ได้มีในทุก schema)
+        const contactNo = formElements[`tour_${formId}_contact_no`]?.value;
+        if (contactNo) {
+          tourBooking.tour_contact_no = contactNo;
+        }
+
+        tourBookings.push(tourBooking);
       }
 
       // Process transfer bookings
       const transferBookings = [];
       for (const transferForm of transferForms) {
         const formId = transferForm.id;
-        const bookingId = await generateBookingID("transfer");
-        const transferId = await generateBookingID("transfer");
-        const transferDate = formElements[`transfer_${formId}_date`].value;
+        const transferDate = formElements[`transfer_${formId}_date`]?.value;
         if (transferDate) allDates.push(transferDate);
 
-        transferBookings.push({
+        const transferBooking = {
           order_id: orderKey,
-          transfer_date: transferDate,
-          transfer_time: formElements[`transfer_${formId}_pickup_time`].value,
+          transfer_date: transferDate || null,
+          transfer_time:
+            formElements[`transfer_${formId}_pickup_time`]?.value || "",
           pickup_location:
-            formElements[`transfer_${formId}_pickup_location`].value,
-          drop_location: formElements[`transfer_${formId}_drop_location`].value,
+            formElements[`transfer_${formId}_pickup_location`]?.value || "",
+          drop_location:
+            formElements[`transfer_${formId}_drop_location`]?.value || "",
           pax: parseInt(mainFormData.pax) || 0,
-          transfer_detail: formElements[`transfer_${formId}_detail`].value,
+          transfer_detail:
+            formElements[`transfer_${formId}_detail`]?.value || "",
           status: "pending",
-          transfer_type: formElements[`transfer_${formId}_type`].value,
-          send_to: formElements[`transfer_${formId}_send_to`].value,
-          transfer_flight: formElements[`transfer_${formId}_flight`].value,
-          car_model: formElements[`transfer_${formId}_car_model`].value,
-          phone_number: formElements[`transfer_${formId}_phone_number`].value,
-        });
+          transfer_type: formElements[`transfer_${formId}_type`]?.value || "",
+          send_to: formElements[`transfer_${formId}_send_to`]?.value || "",
+        };
+
+        // เพิ่มฟิลด์เหล่านี้เมื่อมีการส่งค่าเท่านั้น
+        const transferFlight = formElements[`transfer_${formId}_flight`]?.value;
+        if (transferFlight) {
+          transferBooking.transfer_flight = transferFlight;
+        }
+
+        const carModel = formElements[`transfer_${formId}_car_model`]?.value;
+        if (carModel) {
+          transferBooking.car_model = carModel;
+        }
+
+        const phoneNumber =
+          formElements[`transfer_${formId}_phone_number`]?.value;
+        if (phoneNumber) {
+          transferBooking.phone_number = phoneNumber;
+        }
+
+        transferBookings.push(transferBooking);
       }
+
       // Bulk insert tour bookings if any
       if (tourBookings.length > 0) {
         const { error: tourError } = await supabase
@@ -412,23 +490,16 @@ const BookingForm = () => {
                   >
                     Agent <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    id="agent"
-                    name="agent"
+                  <AutocompleteInput
+                    options={agents}
                     value={mainFormData.agent}
-                    onChange={handleMainFormChange}
-                    className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                    required
-                  >
-                    <option value="">-- เลือก Agent --</option>
-                    {agents.map((agent) => (
-                      <option key={agent.id} value={agent.value}>
-                        {agent.value}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={handleAgentChange}
+                    placeholder="เลือกหรือพิมพ์ชื่อ Agent"
+                    onAddNew={handleAddNewAgent}
+                    name="agent"
+                    id="agent"
+                  />
                 </div>
-
                 <div>
                   <label
                     htmlFor="firstName"
@@ -447,7 +518,6 @@ const BookingForm = () => {
                     required
                   />
                 </div>
-
                 <div>
                   <label
                     htmlFor="lastName"
@@ -466,7 +536,6 @@ const BookingForm = () => {
                     required
                   />
                 </div>
-
                 <div>
                   <label
                     htmlFor="pax"
