@@ -5,8 +5,21 @@ import {
   addInformation,
 } from "../services/informationService";
 
-// สร้าง Context
-const InformationContext = createContext();
+// สร้าง Context พร้อมค่าเริ่มต้น
+const InformationContext = createContext({
+  tourTypes: [],
+  tourRecipients: [],
+  transferTypes: [],
+  transferRecipients: [],
+  places: [],
+  hotels: [],
+  pickupLocations: [],
+  dropLocations: [],
+  agents: [],
+  loading: true,
+  addNewInformation: () => {},
+  refreshInformation: () => {},
+});
 
 // Hook สำหรับใช้งาน Context
 export const useInformation = () => {
@@ -20,10 +33,7 @@ export const InformationProvider = ({ children }) => {
   const [tourRecipients, setTourRecipients] = useState([]);
   const [transferTypes, setTransferTypes] = useState([]);
   const [transferRecipients, setTransferRecipients] = useState([]);
-
-  // แทนที่จะแยกเป็น 3 state เราใช้ places state เดียว
   const [places, setPlaces] = useState([]);
-
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +52,6 @@ export const InformationProvider = ({ children }) => {
         { category: "tour_recipient", setter: setTourRecipients },
         { category: "transfer_type", setter: setTransferTypes },
         { category: "transfer_recipient", setter: setTransferRecipients },
-        // โหลดข้อมูลสถานที่ทั้งหมดเข้า places
         { category: "place", setter: setPlaces },
       ];
 
@@ -144,19 +153,28 @@ export const InformationProvider = ({ children }) => {
     }
   };
 
-  // ค่าที่จะส่งไปยัง Context
+  // แปลงข้อมูลจาก API เป็น options สำหรับ AutocompleteInput
+  const formatOptions = (items) => {
+    if (!Array.isArray(items)) return [];
+
+    return items.map((item) => ({
+      id: item.id,
+      value: item.value || "",
+      description: item.description || "",
+    }));
+  };
+
   const value = {
     // ข้อมูล
-    tourTypes,
-    tourRecipients,
-    transferTypes,
-    transferRecipients,
-    places,
-    // อ้างอิงจากข้อมูลเดิมมาหาข้อมูลใหม่ (เพื่อความเข้ากันได้กับโค้ดเดิม)
-    hotels: places,
-    pickupLocations: places,
-    dropLocations: places,
-    agents,
+    tourTypes: formatOptions(tourTypes),
+    tourRecipients: formatOptions(tourRecipients),
+    transferTypes: formatOptions(transferTypes),
+    transferRecipients: formatOptions(transferRecipients),
+    places: formatOptions(places),
+    hotels: formatOptions(places),
+    pickupLocations: formatOptions(places),
+    dropLocations: formatOptions(places),
+    agents: formatOptions(agents),
     loading,
 
     // ฟังก์ชัน
