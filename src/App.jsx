@@ -5,6 +5,7 @@ import BookingForm from "./pages/BookingForm";
 import Information from "./pages/Information";
 import Layout from "./components/common/Layout";
 import { InformationProvider } from "./contexts/InformationContext";
+import ViewOrders from "./pages/ViewOrders";
 
 const App = () => {
   return (
@@ -15,6 +16,7 @@ const App = () => {
             <Route path="/" element={<Home />} />
             <Route path="/booking-form" element={<BookingForm />} />
             <Route path="/information" element={<Information />} />
+            <Route path="/orders" element={<ViewOrders />} />
             <Route
               path="/dashboard"
               element={
@@ -24,15 +26,7 @@ const App = () => {
                 </div>
               }
             />
-            <Route
-              path="/orders"
-              element={
-                <div className="container mx-auto p-8">
-                  <h1 className="text-2xl font-bold mb-4">Orders</h1>
-                  <p>View Orders Page - Under Development</p>
-                </div>
-              }
-            />
+
             <Route
               path="/invoices"
               element={

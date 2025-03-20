@@ -276,8 +276,25 @@ const BookingForm = () => {
         setCurrentOrderId(referenceId);
       }
 
-      // Collect all dates for start/end date calculation
-      const allDates = [];
+      // ดึงวันที่จาก Booking เดิมในฐานข้อมูล
+      const { data: existingTours, error: tourError } = await supabase
+        .from("tour_bookings")
+        .select("tour_date")
+        .eq("order_id", orderKey);
+      if (tourError) throw tourError;
+
+      const { data: existingTransfers, error: transferError } = await supabase
+        .from("transfer_bookings")
+        .select("transfer_date")
+        .eq("order_id", orderKey);
+      if (transferError) throw transferError;
+
+      // รวมวันที่ทั้งหมด (เดิม + ใหม่)
+      const allDates = [
+        ...(existingTours?.map((t) => t.tour_date) || []),
+        ...(existingTransfers?.map((t) => t.transfer_date) || []),
+      ];
+
       const formElements = document.forms[0].elements;
 
       // ในฟังก์ชัน handleSubmit ของ BookingForm.jsx
@@ -288,12 +305,9 @@ const BookingForm = () => {
       const tourBookings = [];
       for (const tourForm of tourForms) {
         const formId = tourForm.id;
-        const bookingId = await generateBookingID("tour"); // สร้าง reference ID
-
-        // ใช้ Optional Chaining (?.) เพื่อป้องกัน undefined
+        const bookingId = await generateBookingID("tour");
         const tourDateElement = formElements[`tour_${formId}_date`];
         const tourDate = tourDateElement ? tourDateElement.value : "";
-
         if (tourDate) allDates.push(tourDate);
 
         // สร้าง object ด้วยข้อมูลพื้นฐานก่อน
@@ -344,13 +358,11 @@ const BookingForm = () => {
       const transferBookings = [];
       for (const transferForm of transferForms) {
         const formId = transferForm.id;
-        const bookingId = await generateBookingID("transfer"); // สร้าง reference ID
-
+        const bookingId = await generateBookingID("transfer");
         const transferDateElement = formElements[`transfer_${formId}_date`];
         const transferDate = transferDateElement
           ? transferDateElement.value
           : "";
-
         if (transferDate) allDates.push(transferDate);
 
         const transferBooking = {
@@ -435,7 +447,6 @@ const BookingForm = () => {
             end_date: allDates[allDates.length - 1],
           })
           .eq("id", orderKey);
-
         if (updateError) throw updateError;
       }
 
