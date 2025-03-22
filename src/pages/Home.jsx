@@ -244,13 +244,6 @@ const Home = () => {
                       <h3 className="text-lg font-semibold">
                         ทัวร์ ({filteredTourBookings.length})
                       </h3>
-                      <a
-                        href="/booking-form"
-                        className="bg-white bg-opacity-20 text-black hover:bg-opacity-30 px-3 py-1 rounded-full text-sm flex items-center transition-colors"
-                      >
-                        <Plus size={16} className="mr-1" />
-                        เพิ่มทัวร์
-                      </a>
                     </div>
                     <div className="p-3">
                       <BookingList
@@ -271,13 +264,6 @@ const Home = () => {
                       <h3 className="text-lg font-semibold">
                         รถรับส่ง ({filteredTransferBookings.length})
                       </h3>
-                      <a
-                        href="/booking-form"
-                        className="bg-white bg-opacity-20 hover:bg-opacity-30 text-black px-3 py-1 rounded-full text-sm flex items-center transition-colors"
-                      >
-                        <Plus size={16} className="mr-1" />
-                        เพิ่มรถรับส่ง
-                      </a>
                     </div>
                     <div className="p-3">
                       <BookingList

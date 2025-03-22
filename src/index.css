@@ -8,3 +8,6 @@
 body {
   font-family: "Kanit", sans-serif;
 }
+.modal-backdrop.bg-black {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}

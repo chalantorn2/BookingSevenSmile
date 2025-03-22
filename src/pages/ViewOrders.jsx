@@ -606,23 +606,6 @@ const ViewOrders = () => {
           </h1>
           <p className="text-gray-600">View and manage your booking orders</p>
         </div>
-        {/* Action Buttons */}
-        <div className="flex flex-wrap justify-center gap-3 mb-6">
-          <a
-            href="/booking-form"
-            className="btn btn-primary flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
-          >
-            <Plus size={18} />
-            Create New Order
-          </a>
-          <button
-            className="btn btn-success flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition"
-            onClick={fetchOrders}
-          >
-            <RefreshCcw size={18} />
-            Refresh Orders
-          </button>
-        </div>
 
         <div className="bg-white rounded-lg shadow-md mb-6 p-4">
           <h5 className="font-medium text-lg mb-3 flex items-center">
@@ -883,7 +866,7 @@ const ViewOrders = () => {
 
       {/* Order Details Modal */}
       {isModalOpen && selectedOrder && (
-        <div className="fixed inset-0 z-50 overflow-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 overflow-auto modal-backdrop bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
             {/* Header */}
             <div className="px-6 py-4 bg-blue-600 text-white rounded-t-lg flex justify-between items-center">
@@ -892,7 +875,7 @@ const ViewOrders = () => {
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+                className="p-1 hover:bg-blue-700 hover:bg-opacity-20 rounded-full transition-colors"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -1176,13 +1159,13 @@ const ViewOrders = () => {
 
       {/* ยืนยันการนำ Booking ออกจาก Order */}
       {showRemoveBookingConfirm && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 modal-backdrop bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
             <div className="px-6 py-4 border-b flex justify-between items-center bg-red-600 text-white rounded-t-lg">
               <h3 className="text-xl font-semibold">Remove Booking</h3>
               <button
                 onClick={() => setShowRemoveBookingConfirm(false)}
-                className="p-1 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+                className="p-1 hover:bg-red-700 hover:bg-opacity-20 rounded-full transition-colors"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -1225,13 +1208,13 @@ const ViewOrders = () => {
 
       {/* ยืนยันการลบ Order */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 modal-backdrop bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
             <div className="px-6 py-4 border-b flex justify-between items-center bg-red-600 text-white rounded-t-lg">
               <h3 className="text-xl font-semibold">Delete Order</h3>
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="p-1 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+                className="p-1 hover:bg-red-700 hover:bg-opacity-20 rounded-full transition-colors"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -1275,7 +1258,7 @@ const ViewOrders = () => {
 
       {/* โมดัลสำหรับ Add Booking */}
       {showAddBookingModal && selectedOrder && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 modal-backdrop bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-auto">
             <div className="px-6 py-4 border-b flex justify-between items-center bg-blue-600 text-white rounded-t-lg">
               <h3 className="text-xl font-semibold">
@@ -1284,7 +1267,7 @@ const ViewOrders = () => {
               </h3>
               <button
                 onClick={() => setShowAddBookingModal(false)}
-                className="p-1 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+                className="p-1 hover:bg-blue-700 hover:bg-opacity-20 rounded-full transition-colors"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"

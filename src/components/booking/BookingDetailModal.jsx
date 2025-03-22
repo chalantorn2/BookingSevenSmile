@@ -412,7 +412,7 @@ const BookingDetailModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-auto backdrop-blur-sm bg-white bg-opacity-30 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 overflow-auto modal-backdrop bg-black bg-opacity-30 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-auto">
         <div
           className={`px-4 py-3 border-b flex justify-between items-center ${
