@@ -165,7 +165,7 @@ const CalendarHighlight = ({ selectedDate, onDateSelect }) => {
         <span>มีรถรับส่ง</span>
       </div>
       <div className="flex items-center">
-        <div className="w-3 h-3 rounded-full bg-purple-500 mr-1"></div>
+        <div className="w-3 h-3 rounded-full bg-gradient-to-b from-green-600 to-blue-600 mr-1"></div>
         <span>มีทั้งทัวร์และรถรับส่ง</span>
       </div>
       <div className="flex items-center">
@@ -188,11 +188,12 @@ const CalendarHighlight = ({ selectedDate, onDateSelect }) => {
         let bookingStyle = "";
         if (!selected && bookingType) {
           if (bookingType === "tour") {
-            bookingStyle = "bg-green-100 text-green-800 hover:bg-green-200";
+            bookingStyle = "bg-green-200 text-green-800 hover:bg-green-200";
           } else if (bookingType === "transfer") {
-            bookingStyle = "bg-blue-100 text-blue-800 hover:bg-blue-200";
+            bookingStyle = "bg-blue-200 text-blue-800 hover:bg-blue-200";
           } else if (bookingType === "both") {
-            bookingStyle = "bg-purple-100 text-purple-800 hover:bg-purple-200";
+            bookingStyle =
+              "bg-gradient-to-b from-green-300 to-blue-400  hover:from-green-700 hover:to-blue-700";
           }
         }
 
@@ -210,7 +211,7 @@ const CalendarHighlight = ({ selectedDate, onDateSelect }) => {
               }
               ${
                 selected
-                  ? "bg-blue-500 text-white hover:bg-blue-600 font-bold"
+                  ? "bg-gray-500 text-white hover:bg-gray-600 font-bold"
                   : ""
               }
               ${today && !selected ? "border-2 border-gray-300 font-bold" : ""}
@@ -228,7 +229,7 @@ const CalendarHighlight = ({ selectedDate, onDateSelect }) => {
                     ? "bg-green-600"
                     : bookingType === "transfer"
                     ? "bg-blue-600"
-                    : "bg-purple-600"
+                    : "bg-gradient-to-t from-green-600 to-blue-600"
                 }`}
               ></span>
             )}

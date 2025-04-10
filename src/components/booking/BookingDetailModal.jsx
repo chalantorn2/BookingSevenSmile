@@ -93,7 +93,8 @@ const BookingDetailModal = ({
     e.preventDefault();
     setIsSubmitting(true);
     setStatusMessage({ type: "info", message: "กำลังบันทึกข้อมูล..." });
-
+    console.log("Status being sent:", formData.status);
+    console.log("All form data:", formData);
     try {
       // สร้างข้อมูลใหม่โดยไม่รวมฟิลด์ orders (ถ้ามี)
       const { orders, ...bookingDataToSave } = formData;
@@ -419,15 +420,15 @@ const BookingDetailModal = ({
             bookingType === "tour" ? "bg-green-600" : "bg-blue-600"
           } text-white rounded-t-lg`}
         >
-          <div>
-            <h3 className="text-xl font-semibold">
+          <div className="flex justify-center items-center">
+            <span className="text-xl font-semibold mr-2">
               {bookingType === "tour"
                 ? "รายละเอียดการจองทัวร์"
                 : "รายละเอียดการจองรถรับส่ง"}
-            </h3>
+            </span>
             {booking.status && (
               <span
-                className={`text-xs px-2 py-1 rounded-full ${getStatusBadgeClass(
+                className={`text-xs px-2 py-1 rounded-md ${getStatusBadgeClass(
                   booking.status
                 )}`}
               >

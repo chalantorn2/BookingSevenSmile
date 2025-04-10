@@ -14,6 +14,22 @@ import {
 
 const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
   console.log(`${type} bookings:`, bookings);
+  const getStatusBackgroundStyle = (status) => {
+    switch (status) {
+      case "pending":
+        return "bg-gradient-to-t from-gray-200 to-white";
+      case "booked":
+        return "bg-gradient-to-t from-blue-100 to-white";
+      case "in_progress":
+        return "bg-gradient-to-t from-yellow-100 to-white";
+      case "completed":
+        return "bg-gradient-to-t from-green-100 to-white";
+      case "cancelled":
+        return "bg-gradient-to-t from-red-100 to-white";
+      default:
+        return "bg-gradient-to-t from-gray-100 to-white";
+    }
+  };
   if (isLoading) {
     return (
       <div className="text-center py-4">
@@ -86,7 +102,9 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
         return (
           <div
             key={booking.id}
-            className={`border rounded-md overflow-hidden transition-all hover:shadow-md`}
+            className={`border rounded-md overflow-hidden transition-all hover:shadow-md ${getStatusBackgroundStyle(
+              booking.status
+            )}`}
             style={{
               borderLeftWidth: "4px",
               borderLeftColor: type === "tour" ? "#16a34a" : "#2563eb",
