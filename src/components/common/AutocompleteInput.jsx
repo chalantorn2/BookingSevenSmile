@@ -33,19 +33,24 @@ const AutocompleteInput = ({
   const wrapperRef = useRef(null);
 
   // ตั้งค่าค่าเริ่มต้นเมื่อ value เปลี่ยน
+  // แก้ไข useEffect ที่ตั้งค่า filteredOptions เริ่มต้น
+  // แก้ไขในฟังก์ชัน useEffect ที่ตั้งค่า filteredOptions เริ่มต้น
   useEffect(() => {
     setInputValue(value);
 
     // หาตัวเลือกที่ตรงกับค่าปัจจุบัน
     if (value && options.length > 0) {
-      const option = options.find((opt) => opt.value === value);
+      const option = options.find((opt) => String(opt.value) === String(value));
       setSelectedOption(option || null);
     } else {
       setSelectedOption(null);
     }
 
-    // ตั้งค่า filteredOptions เริ่มต้น (แสดงเพียง 5 รายการแรก)
-    setFilteredOptions(options.slice(0, Math.min(5, options.length)));
+    // ตั้งค่า filteredOptions เริ่มต้น (แสดงทุกตัวเลือก)
+    setFilteredOptions(options.slice(0, Math.min(10, options.length)));
+
+    // เพิ่ม console log เพื่อดูข้อมูล
+    console.log("AutocompleteInput options:", options);
   }, [value, options]);
 
   // ปิด dropdown เมื่อคลิกข้างนอก
@@ -62,17 +67,20 @@ const AutocompleteInput = ({
     };
   }, [wrapperRef]);
 
-  // กรองตัวเลือกตามข้อความที่พิมพ์
+  // แก้ไขฟังก์ชัน filterOptions ในไฟล์ AutocompleteInput.jsx
   const filterOptions = (input) => {
     if (!input.trim()) {
       // ถ้าไม่มีการพิมพ์ ให้แสดง 5 ข้อมูลแรกหรือข้อมูลทั้งหมดถ้ามีน้อยกว่า 5
       return options.slice(0, Math.min(5, options.length));
     }
 
-    // ถ้ามีการพิมพ์ ให้กรองเฉพาะข้อมูลที่ตรงกับคำที่พิมพ์เท่านั้น
-    const filtered = options.filter((option) =>
-      option.value.toLowerCase().includes(input.toLowerCase())
-    );
+    // ถ้ามีการพิมพ์ ให้กรองเฉพาะข้อมูลที่ตรงกับคำที่พิมพ์
+    // แก้ไขตรงนี้: ปรับให้ค้นหาแบบไม่คำนึงถึงตัวพิมพ์ใหญ่-เล็ก และมีความยืดหยุ่น
+    const filtered = options.filter((option) => {
+      const optionValue = String(option.value || "").toLowerCase();
+      const searchInput = input.toLowerCase();
+      return optionValue.includes(searchInput);
+    });
 
     return filtered.slice(0, Math.min(5, filtered.length));
   };
@@ -168,6 +176,12 @@ const AutocompleteInput = ({
     }
   };
 
+  const handleFocus = () => {
+    setIsOpen(true);
+    // แสดงตัวเลือกทั้งหมดเมื่อได้รับ focus
+    setFilteredOptions(options.slice(0, Math.min(10, options.length)));
+  };
+
   return (
     <div className="relative w-full" ref={wrapperRef}>
       {!isAdding ? (
@@ -179,7 +193,7 @@ const AutocompleteInput = ({
             value={inputValue}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            onFocus={() => setIsOpen(true)}
+            onFocus={handleFocus}
             placeholder={placeholder}
             className={`w-full border p-2 rounded-md border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 ${className}`}
             autoComplete="off"
@@ -271,7 +285,7 @@ const AutocompleteInput = ({
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option) => (
                 <li
-                  key={option.id}
+                  key={option.id || option.value}
                   onClick={() => handleOptionClick(option)}
                   className="px-4 py-2 hover:bg-blue-50 cursor-pointer transition-colors"
                 >

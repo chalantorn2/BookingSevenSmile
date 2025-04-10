@@ -19,9 +19,7 @@ const Information = () => {
     { id: "transfer_recipient", label: "ส่งใคร Transfer" },
     { id: "tour_type", label: "ประเภท Tour" },
     { id: "transfer_type", label: "ประเภท Transfer" },
-    { id: "hotel", label: "โรงแรม" },
-    { id: "pickup_location", label: "สถานที่รับ" },
-    { id: "drop_location", label: "สถานที่ส่ง" },
+    { id: "place", label: "สถานที่" }, // แทนที่ 3 รายการด้วยรายการเดียว
   ]);
 
   const [selectedCategory, setSelectedCategory] = useState("agent");

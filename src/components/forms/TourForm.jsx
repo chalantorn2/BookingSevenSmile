@@ -7,7 +7,7 @@ const TourForm = ({ id, onRemove, data }) => {
   const [formData, setFormData] = useState({});
 
   // ใช้ context แทนการเรียก API โดยตรง
-  const { tourTypes, tourRecipients, hotels, addNewInformation, loading } =
+  const { tourTypes, tourRecipients, places, addNewInformation, loading } =
     useInformation();
 
   useEffect(() => {
@@ -26,6 +26,23 @@ const TourForm = ({ id, onRemove, data }) => {
       });
     }
   }, [data]);
+
+  useEffect(() => {
+    // ตรวจสอบข้อมูล places ทั้งหมด
+    console.log("ALL Places:", places);
+
+    // ตรวจสอบเฉพาะข้อมูลที่ใช้
+    const filteredHotels = places.filter(
+      (place) =>
+        place.description === "hotel" || place.description === "จาก hotel"
+    );
+    console.log("Filtered Hotels:", filteredHotels);
+
+    // ตรวจสอบว่ามีข้อมูลหรือไม่
+    if (filteredHotels.length === 0) {
+      console.warn("No hotels found in places data!");
+    }
+  }, [places]);
 
   const handleValueChange = (name, value) => {
     setFormData((prev) => ({
@@ -96,7 +113,7 @@ const TourForm = ({ id, onRemove, data }) => {
 
   const handleAddNewHotel = async (newValue) => {
     try {
-      const result = await addNewInformation("hotel", newValue);
+      const result = await addNewInformation("place", newValue, "hotel");
       return result;
     } catch (error) {
       console.error("Error adding new hotel:", error);
@@ -185,7 +202,7 @@ const TourForm = ({ id, onRemove, data }) => {
               โรงแรม
             </label>
             <AutocompleteInput
-              options={hotels}
+              options={places} // ใช้ places ทั้งหมดไม่ต้องกรอง
               value={formData.tour_hotel || ""}
               onChange={(value) => handleValueChange("tour_hotel", value)}
               placeholder="เลือกหรือพิมพ์ชื่อโรงแรม"

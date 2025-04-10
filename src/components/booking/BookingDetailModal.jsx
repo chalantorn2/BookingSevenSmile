@@ -167,7 +167,7 @@ const BookingDetailModal = ({
             ข้อมูล Order
           </h4>
           <span className="text-sm text-gray-500">
-            (ข้อมูลนี้ไม่สามารถแก้ไขได้ใน modal นี้)
+            {/* (ข้อมูลนี้ไม่สามารถแก้ไขได้ใน modal นี้) */}
           </span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

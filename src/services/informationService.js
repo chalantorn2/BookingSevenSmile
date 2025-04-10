@@ -48,8 +48,11 @@ export const fetchInformationByCategory = async (category) => {
  * @param {Object} informationData - ข้อมูลที่ต้องการเพิ่ม
  * @returns {Promise<{data: Object|null, error: Object|null}>}
  */
+// src/services/informationService.js
+// แก้ไขฟังก์ชัน addInformation ให้รองรับ description
 export const addInformation = async (informationData) => {
   try {
+    // ลบการตรวจสอบหมวดหมู่เก่าทั้งหมด
     const { data, error } = await supabase
       .from("information")
       .insert(informationData)

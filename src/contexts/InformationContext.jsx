@@ -11,10 +11,7 @@ const InformationContext = createContext({
   tourRecipients: [],
   transferTypes: [],
   transferRecipients: [],
-  places: [],
-  hotels: [],
-  pickupLocations: [],
-  dropLocations: [],
+  places: [], // เหลือแค่ places อย่างเดียว
   agents: [],
   loading: true,
   addNewInformation: () => {},
@@ -52,7 +49,7 @@ export const InformationProvider = ({ children }) => {
         { category: "tour_recipient", setter: setTourRecipients },
         { category: "transfer_type", setter: setTransferTypes },
         { category: "transfer_recipient", setter: setTransferRecipients },
-        { category: "place", setter: setPlaces },
+        { category: "place", setter: setPlaces }, // เพิ่ม place ในรายการหลัก
       ];
 
       // ดึงข้อมูลทุกประเภทแบบขนาน
@@ -65,35 +62,7 @@ export const InformationProvider = ({ children }) => {
         })
       );
 
-      // ดึงข้อมูลจากหมวดหมู่เก่า (hotel, pickup_location, drop_location)
-      // และเพิ่มเข้าไปใน places (ช่วงเปลี่ยนผ่าน)
-      const legacyCategories = ["hotel", "pickup_location", "drop_location"];
-      const legacyPlaces = [];
-
-      await Promise.all(
-        legacyCategories.map(async (category) => {
-          const { data } = await fetchInformationByCategory(category);
-          if (data && data.length > 0) {
-            legacyPlaces.push(...data);
-          }
-        })
-      );
-
-      // รวมและขจัดข้อมูลซ้ำ
-      if (legacyPlaces.length > 0) {
-        // อาจมีข้อมูลซ้ำกัน ให้ใช้ Set เพื่อกรองค่าที่ซ้ำกัน (ตามชื่อ value)
-        const uniqueValues = new Set();
-        const uniquePlaces = [];
-
-        [...places, ...legacyPlaces].forEach((place) => {
-          if (!uniqueValues.has(place.value)) {
-            uniqueValues.add(place.value);
-            uniquePlaces.push(place);
-          }
-        });
-
-        setPlaces(uniquePlaces);
-      }
+      // ลบส่วนการดึงข้อมูล legacyCategories ทั้งหมด
     } catch (error) {
       console.error("Error loading information:", error);
     } finally {
@@ -157,6 +126,9 @@ export const InformationProvider = ({ children }) => {
   const formatOptions = (items) => {
     if (!Array.isArray(items)) return [];
 
+    // เพิ่ม console.log เพื่อตรวจสอบข้อมูลที่นำเข้า
+    console.log("Formatting items:", items);
+
     return items.map((item) => ({
       id: item.id,
       value: item.value || "",
@@ -170,10 +142,7 @@ export const InformationProvider = ({ children }) => {
     tourRecipients: formatOptions(tourRecipients),
     transferTypes: formatOptions(transferTypes),
     transferRecipients: formatOptions(transferRecipients),
-    places: formatOptions(places),
-    hotels: formatOptions(places),
-    pickupLocations: formatOptions(places),
-    dropLocations: formatOptions(places),
+    places: formatOptions(places), // เหลือแค่ places อย่างเดียว
     agents: formatOptions(agents),
     loading,
 
@@ -181,7 +150,6 @@ export const InformationProvider = ({ children }) => {
     addNewInformation,
     refreshInformation: loadAllInformation,
   };
-
   return (
     <InformationContext.Provider value={value}>
       {children}

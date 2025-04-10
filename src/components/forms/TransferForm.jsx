@@ -10,8 +10,7 @@ const TransferForm = ({ id, onRemove, data }) => {
   const {
     transferTypes,
     transferRecipients,
-    pickupLocations,
-    dropLocations,
+    places, // เปลี่ยนจาก pickupLocations, dropLocations เป็น places อย่างเดียว
     addNewInformation,
     loading,
   } = useInformation();
@@ -33,6 +32,23 @@ const TransferForm = ({ id, onRemove, data }) => {
       });
     }
   }, [data]);
+
+  useEffect(() => {
+    // ตรวจสอบข้อมูล places ทั้งหมด
+    console.log("ALL Places:", places);
+
+    // ตรวจสอบเฉพาะข้อมูลที่ใช้
+    const filteredHotels = places.filter(
+      (place) =>
+        place.description === "hotel" || place.description === "จาก hotel"
+    );
+    console.log("Filtered Hotels:", filteredHotels);
+
+    // ตรวจสอบว่ามีข้อมูลหรือไม่
+    if (filteredHotels.length === 0) {
+      console.warn("No hotels found in places data!");
+    }
+  }, [places]);
 
   const handleValueChange = (name, value) => {
     setFormData((prev) => ({
@@ -93,7 +109,11 @@ const TransferForm = ({ id, onRemove, data }) => {
   // ฟังก์ชันเพิ่มข้อมูลใหม่
   const handleAddNewPickupLocation = async (newValue) => {
     try {
-      const result = await addNewInformation("pickup_location", newValue);
+      const result = await addNewInformation(
+        "place",
+        newValue,
+        "pickup_location"
+      );
       return result;
     } catch (error) {
       console.error("Error adding new pickup location:", error);
@@ -103,7 +123,11 @@ const TransferForm = ({ id, onRemove, data }) => {
 
   const handleAddNewDropLocation = async (newValue) => {
     try {
-      const result = await addNewInformation("drop_location", newValue);
+      const result = await addNewInformation(
+        "place",
+        newValue,
+        "drop_location"
+      );
       return result;
     } catch (error) {
       console.error("Error adding new drop location:", error);
@@ -191,7 +215,7 @@ const TransferForm = ({ id, onRemove, data }) => {
               รับจาก
             </label>
             <AutocompleteInput
-              options={pickupLocations}
+              options={places} // ใช้ places ทั้งหมดไม่ต้องกรอง
               value={formData.pickup_location || ""}
               onChange={(value) => handleValueChange("pickup_location", value)}
               placeholder="เลือกหรือพิมพ์สถานที่รับ"
@@ -205,7 +229,7 @@ const TransferForm = ({ id, onRemove, data }) => {
               ไปส่งที่
             </label>
             <AutocompleteInput
-              options={dropLocations}
+              options={places} // ใช้ places ทั้งหมดไม่ต้องกรอง
               value={formData.drop_location || ""}
               onChange={(value) => handleValueChange("drop_location", value)}
               placeholder="เลือกหรือพิมพ์สถานที่ส่ง"
