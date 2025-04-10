@@ -39,7 +39,6 @@ const Sidebar = () => {
       path: "/payments",
       label: "Payment",
       icon: <CreditCard size={20} />,
-      disabled: true,
     },
     {
       path: "/information",
