@@ -9,6 +9,7 @@ import {
   CreditCard,
   PieChart,
   Database,
+  Receipt,
 } from "lucide-react";
 
 const Sidebar = () => {
@@ -30,10 +31,9 @@ const Sidebar = () => {
       disabled: true,
     },
     {
-      path: "/invoices",
+      path: "/invoice",
       label: "Invoice",
       icon: <FileText size={20} />,
-      disabled: true,
     },
     {
       path: "/payments",

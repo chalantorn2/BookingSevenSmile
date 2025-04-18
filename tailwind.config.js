@@ -1,12 +1,26 @@
 /** @type {import('tailwindcss').Config} */
-export default {
+module.exports = {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
-    extend: {
-      fontFamily: {
-        kanit: ["Kanit", "sans-serif"], // เพิ่มฟอนต์ Kanit
-      },
-    },
+    extend: {},
   },
   plugins: [],
+  // เพิ่ม variants สำหรับการพิมพ์
+  variants: {
+    extend: {
+      display: ["print"],
+    },
+  },
+  // เพิ่ม media queries สำหรับการพิมพ์
+  corePlugins: {
+    // ...
+  },
+  // กำหนด media queries ใหม่สำหรับ print
+  future: {
+    purgeLayersByDefault: true,
+  },
+  // เพิ่ม modifiers สำหรับการพิมพ์
+  modifiers: {
+    print: "@media print",
+  },
 };
