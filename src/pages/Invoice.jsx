@@ -110,19 +110,18 @@ const Invoice = () => {
 
       if (payment.bookings && payment.bookings.length > 0) {
         payment.bookings.forEach((booking) => {
-          const bookingDate =
-            booking.date || booking.tour_date || booking.transfer_date;
-          if (bookingDate) {
-            const dateObj = new Date(bookingDate);
-            if (!isNaN(dateObj.getTime())) {
-              if (!startDate || dateObj < startDate) {
-                startDate = dateObj;
-              }
-              if (!endDate || dateObj > endDate) {
-                endDate = dateObj;
-              }
-            }
-          }
+          const price = parseFloat(booking.sellingPrice) || 0;
+          const quantity = parseInt(booking.quantity) || 0;
+          const cost = parseFloat(booking.cost) || 0;
+
+          const rowTotal = price * quantity;
+          const rowCost = cost * quantity;
+          const rowProfit = rowTotal - rowCost; // คำนวณกำไรเป็นผลต่างระหว่างยอดขายกับต้นทุน
+
+          grandTotalSum += rowTotal;
+          costSum += rowCost;
+          sellingSum += rowTotal;
+          profitSum += rowProfit;
         });
       }
 
@@ -170,53 +169,14 @@ const Invoice = () => {
   // แก้ไขฟังก์ชัน buildInvoiceTable
   const buildInvoiceTable = () => {
     if (selectedPaymentIds.length === 0) {
-      // setError("กรุณาเลือก Payment อย่างน้อย 1 รายการ");
       return;
     }
 
     setLoading(true);
 
     try {
-      // คำนวณยอดรวม
-      let grandTotalSum = 0;
-      let costSum = 0;
-      let sellingSum = 0;
-      let profitSum = 0;
-
-      // สำหรับแต่ละ payment ที่เลือก
-      selectedPaymentIds.forEach((paymentId) => {
-        const payment = allPaymentsData.find((p) => p.id === paymentId);
-        if (!payment || !payment.bookings || !Array.isArray(payment.bookings))
-          return;
-
-        payment.bookings.forEach((booking) => {
-          try {
-            // แปลงค่าเป็น Number และจำกัดทศนิยม
-            const price = Number(Number(booking.sellingPrice || 0).toFixed(2));
-            const quantity = Number(booking.quantity || 0);
-            const cost = Number(Number(booking.cost || 0).toFixed(2));
-
-            // คำนวณผลรวมแถว
-            const rowTotal = Number((price * quantity).toFixed(2));
-            const rowCost = Number((cost * quantity).toFixed(2));
-            const rowProfit = Number((rowTotal - rowCost).toFixed(2));
-
-            // บวกเข้ากับผลรวมทั้งหมด
-            grandTotalSum = Number((grandTotalSum + rowTotal).toFixed(2));
-            costSum = Number((costSum + rowCost).toFixed(2));
-            sellingSum = Number((sellingSum + rowTotal).toFixed(2));
-            profitSum = Number((profitSum + rowProfit).toFixed(2));
-          } catch (err) {
-            console.warn("Error calculating row values:", err);
-          }
-        });
-      });
-
-      // ตั้งค่าผลรวม
-      setGrandTotal(grandTotalSum);
-      setTotalCost(costSum);
-      setTotalSellingPrice(sellingSum);
-      setTotalProfit(profitSum);
+      // ใช้ฟังก์ชัน calculateTotals ที่มีอยู่แล้วเพื่อคำนวณยอดรวม
+      calculateTotals();
     } catch (error) {
       console.error("Error building invoice table:", error);
       setError("เกิดข้อผิดพลาดในการสร้างตาราง Invoice");
@@ -409,9 +369,15 @@ const Invoice = () => {
       setInvoiceDate(data.invoice_date || format(new Date(), "dd/MM/yyyy"));
       setSelectedPaymentIds(data.payment_ids || []);
 
+      // ตั้งค่ายอดรวมจากข้อมูลที่มีอยู่แล้ว
+      setGrandTotal(parseFloat(data.total_amount) || 0);
+      setTotalCost(parseFloat(data.total_cost) || 0);
+      setTotalSellingPrice(parseFloat(data.total_selling_price) || 0);
+      setTotalProfit(parseFloat(data.total_profit) || 0);
+
       // Close modal and build invoice table
       setIsViewModalOpen(false);
-      buildInvoiceTable();
+      // buildInvoiceTable(); => เราไม่ต้องเรียกฟังก์ชันนี้ซ้ำอีก เพราะเราได้ตั้งค่ายอดรวมแล้ว
     } catch (error) {
       console.error("Error loading invoice:", error);
       setError("ไม่สามารถโหลดข้อมูล Invoice ได้");
@@ -775,12 +741,15 @@ const Invoice = () => {
         const priceVal = booking.sellingPrice || 0;
         const costVal = booking.cost || 0;
         const rowTotal = priceVal * unitVal;
-        const profitVal = rowTotal - costVal * unitVal;
+        const rowCostTotal = costVal * unitVal;
+        // ในไฟล์ Invoice.jsx ในฟังก์ชัน renderInvoiceTable
+        // แก้การคำนวณ profitVal จากเดิม
+        const profitVal = priceVal - costVal;
         const feeVal = booking.fee || 0;
 
         paymentRowTotal += rowTotal;
         paymentCostTotal += costVal * unitVal;
-        paymentProfitTotal += profitVal;
+        paymentProfitTotal += profitVal * unitVal;
 
         const detailText =
           booking.detail ||
@@ -899,6 +868,7 @@ const Invoice = () => {
           </td>
         </tr>
       );
+
       tableRows.push(totalRow);
     });
 
@@ -919,7 +889,25 @@ const Invoice = () => {
         </td>
       </tr>
     );
-    tableRows.push(grandRow);
+    if (grandTotal !== undefined && grandTotal !== null) {
+      const grandRow = (
+        <tr key="grand-total" className="bg-green-50 grand-total-row">
+          <td
+            colSpan={showCostProfit ? 10 : 8}
+            className="px-2 py-2 text-right font-bold text-green-700"
+          >
+            GRAND TOTAL
+          </td>
+          <td
+            colSpan={2}
+            className="px-2 py-2 font-bold text-green-700 text-right"
+          >
+            {formatNumberWithCommas(grandTotal)}
+          </td>
+        </tr>
+      );
+      tableRows.push(grandRow);
+    }
 
     return tableRows;
   };
@@ -1436,14 +1424,12 @@ const Invoice = () => {
           <p className="mb-1">ACCT : SEVENSMILE CO., LTD.</p>
         </div>
         <div className="w-full md:w-1/2 text-right">
-          {grandTotal > 0 && (
-            <div
-              className="mt-1 text-lg font-bold text-gray-700"
-              id="grandTotalDisplay"
-            >
-              GRAND TOTAL: {formatNumberWithCommas(grandTotal)} THB
-            </div>
-          )}
+          <div
+            className="mt-1 text-lg font-bold text-gray-700"
+            id="grandTotalDisplay"
+          >
+            GRAND TOTAL: {formatNumberWithCommas(grandTotal || 0)} THB
+          </div>
         </div>
       </div>
 
