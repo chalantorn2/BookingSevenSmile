@@ -925,7 +925,7 @@ const Invoice = () => {
         {/* Backdrop */}
         {isSelectModalOpen && (
           <div
-            className="absolute inset-0 modal-backdrop bg-black"
+            className="absolute inset-0 modal-backdrop"
             onClick={() => setIsSelectModalOpen(false)}
           />
         )}
@@ -968,7 +968,19 @@ const Invoice = () => {
   };
 
   // Render view invoices modal
+  // Replace the existing renderViewModal function in Invoice.jsx with this updated version:
   const renderViewModal = () => {
+    const [searchInvoiceQuery, setSearchInvoiceQuery] = useState("");
+    const filteredInvoiceList = searchInvoiceQuery
+      ? invoicesList.filter(
+          (invoice) =>
+            (invoice.invoice_name || "")
+              .toLowerCase()
+              .includes(searchInvoiceQuery.toLowerCase()) ||
+            (invoice.invoice_date || "").includes(searchInvoiceQuery)
+        )
+      : invoicesList.slice(0, 3); // แสดงเพียง 3 รายการล่าสุด
+
     return (
       <div
         className={`${
@@ -998,21 +1010,49 @@ const Invoice = () => {
               <X size={20} />
             </button>
           </div>
-          <div>
-            <select
-              className="w-full border border-gray-300 rounded p-2"
-              onChange={(e) => handleViewSelectedInvoice(e.target.value)}
-            >
-              <option value="">กรุณาเลือก Invoice</option>
-              {invoicesList.map((invoice) => (
-                <option key={invoice.id} value={invoice.id}>
-                  {invoice.invoice_name || "ไม่มีชื่อ"} (
-                  {invoice.invoice_date || "ไม่มีวันที่"})
-                </option>
-              ))}
-            </select>
+          <div className="mb-4">
+            <div className="relative">
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                size={18}
+              />
+              <input
+                type="text"
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded"
+                placeholder="ค้นหาตามชื่อหรือวันที่..."
+                value={searchInvoiceQuery}
+                onChange={(e) => setSearchInvoiceQuery(e.target.value)}
+              />
+            </div>
           </div>
-          <div className="flex justify-end mt-4">
+          <div className="max-h-60 overflow-y-auto mb-4">
+            {filteredInvoiceList.length === 0 ? (
+              <div className="text-center py-4 text-gray-500">
+                ไม่พบ Invoice ที่ตรงกับคำค้นหา
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredInvoiceList.map((invoice) => (
+                  <div
+                    key={invoice.id}
+                    onClick={() => handleViewSelectedInvoice(invoice.id)}
+                    className="p-3 border rounded cursor-pointer hover:bg-blue-50 transition-colors flex justify-between items-center"
+                  >
+                    <div>
+                      <div className="font-medium">
+                        {invoice.invoice_name || "ไม่มีชื่อ"}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {invoice.invoice_date || "ไม่มีวันที่"}
+                      </div>
+                    </div>
+                    <Eye size={18} className="text-blue-500" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end">
             <button
               className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
               onClick={() => setIsViewModalOpen(false)}
@@ -1040,7 +1080,7 @@ const Invoice = () => {
         {/* Backdrop */}
         {isEditModalOpen && (
           <div
-            className="absolute inset-0 modal-backdrop bg-black"
+            className="absolute inset-0 modal-backdrop"
             onClick={() => setIsEditModalOpen(false)}
           />
         )}

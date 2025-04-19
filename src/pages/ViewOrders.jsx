@@ -866,7 +866,7 @@ const ViewOrders = () => {
 
       {/* Order Details Modal */}
       {isModalOpen && selectedOrder && (
-        <div className="fixed inset-0 z-50 overflow-auto modal-backdrop bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 overflow-auto modal-backdrop bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
             {/* Header */}
             <div className="px-6 py-4 bg-blue-600 text-white rounded-t-lg flex justify-between items-center">
@@ -1159,7 +1159,7 @@ const ViewOrders = () => {
 
       {/* ยืนยันการนำ Booking ออกจาก Order */}
       {showRemoveBookingConfirm && (
-        <div className="fixed inset-0 z-50 modal-backdrop bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 modal-backdrop bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
             <div className="px-6 py-4 border-b flex justify-between items-center bg-red-600 text-white rounded-t-lg">
               <h3 className="text-xl font-semibold">Remove Booking</h3>
@@ -1208,7 +1208,7 @@ const ViewOrders = () => {
 
       {/* ยืนยันการลบ Order */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 modal-backdrop bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 modal-backdrop bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
             <div className="px-6 py-4 border-b flex justify-between items-center bg-red-600 text-white rounded-t-lg">
               <h3 className="text-xl font-semibold">Delete Order</h3>
@@ -1258,7 +1258,7 @@ const ViewOrders = () => {
 
       {/* โมดัลสำหรับ Add Booking */}
       {showAddBookingModal && selectedOrder && (
-        <div className="fixed inset-0 z-50 modal-backdrop bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 modal-backdrop bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-auto">
             <div className="px-6 py-4 border-b flex justify-between items-center bg-blue-600 text-white rounded-t-lg">
               <h3 className="text-xl font-semibold">

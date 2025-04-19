@@ -23,6 +23,7 @@ const PaymentRow = ({ booking, index, onRemove, onChange }) => {
       return dateStr;
     }
   };
+  // console.log(booking.reference_id);
 
   return (
     <tr className={isTour ? "bg-green-50 " : "bg-blue-50 "}>
