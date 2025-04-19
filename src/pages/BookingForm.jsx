@@ -16,7 +16,7 @@ const BookingForm = () => {
   const [tourForms, setTourForms] = useState([]);
   const [transferForms, setTransferForms] = useState([]);
   const { agents, addNewInformation, refreshInformation } = useInformation();
-
+  const [isCreatingNewOrder, setIsCreatingNewOrder] = useState(false);
   const [mainFormData, setMainFormData] = useState({
     agent: "",
     firstName: "",
@@ -37,6 +37,7 @@ const BookingForm = () => {
       setCurrentOrderId(orderId);
       setBookingCounts(counts);
       setIsBookingSectionVisible(true);
+      setIsCreatingNewOrder(false);
 
       // ถ้ามีข้อมูล orderData ที่ส่งมาจาก OrderSelector
       if (orderData) {
@@ -52,7 +53,10 @@ const BookingForm = () => {
       }
     } else {
       resetForm();
+      setCurrentOrderKey(null);
+      setCurrentOrderId(null);
       setIsBookingSectionVisible(false);
+      setIsCreatingNewOrder(false); // ต้องตั้งค่าเป็น false ด้วยเมื่อยกเลิกการเลือก
       setBookingCounts(null);
     }
   };
@@ -78,6 +82,7 @@ const BookingForm = () => {
     setCurrentOrderKey(null);
     setCurrentOrderId(null);
     setIsBookingSectionVisible(true);
+    setIsCreatingNewOrder(true);
   };
 
   // เพิ่ม agent โดยไม่ทำให้หน้าโหลดใหม่
@@ -475,6 +480,29 @@ const BookingForm = () => {
     }
   };
 
+  const handleCancelCreateOrder = () => {
+    setIsCreatingNewOrder(false);
+    // ถ้ามีการเปลี่ยนแปลงข้อมูลฟอร์มแล้ว อาจเพิ่มการยืนยันก่อนยกเลิก
+    if (
+      mainFormData.firstName ||
+      mainFormData.lastName ||
+      mainFormData.agent ||
+      mainFormData.pax
+    ) {
+      if (
+        window.confirm(
+          "คุณต้องการยกเลิกการสร้าง Order ใหม่ใช่หรือไม่? ข้อมูลที่กรอกจะหายไป"
+        )
+      ) {
+        resetForm();
+        setIsBookingSectionVisible(false);
+      }
+    } else {
+      resetForm();
+      setIsBookingSectionVisible(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-6 bg-gray-50 min-h-screen">
       <div className="text-center mb-6">
@@ -492,6 +520,9 @@ const BookingForm = () => {
               ref={orderSelectorRef}
               onOrderSelect={handleOrderSelect}
               onCreateNewOrder={handleCreateNewOrder}
+              isCreatingNewOrder={isCreatingNewOrder}
+              selectedOrderId={currentOrderId}
+              onCancelCreate={handleCancelCreateOrder}
             />
           </div>
         </div>

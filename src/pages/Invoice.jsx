@@ -60,6 +60,11 @@ const Invoice = () => {
   const [totalSellingPrice, setTotalSellingPrice] = useState(0);
   const [totalProfit, setTotalProfit] = useState(0);
 
+  const [currentInvoice, setCurrentInvoice] = useState(null);
+
+  const [isViewingExistingInvoice, setIsViewingExistingInvoice] =
+    useState(false);
+
   const organizePaymentsByMonth = (payments) => {
     if (!payments || !Array.isArray(payments)) return;
 
@@ -363,6 +368,9 @@ const Invoice = () => {
         setError("ไม่พบข้อมูล Invoice");
         return;
       }
+      if (data) {
+        setCurrentInvoice(data);
+      }
 
       // Set data for viewing/editing
       setInvoiceId(selectedInvoiceId);
@@ -384,6 +392,7 @@ const Invoice = () => {
     } finally {
       setLoading(false);
     }
+    setIsViewingExistingInvoice(true);
   };
 
   // Open edit invoice modal
@@ -1298,6 +1307,12 @@ const Invoice = () => {
       </div>
 
       <div className="print:hidden text-center mb-4 space-x-2">
+        {isViewingExistingInvoice && (
+          <div className="text-center mb-4 bg-blue-100 text-blue-700 p-2 rounded">
+            กำลังดู Invoice <b>{currentInvoice?.invoice_name || invoiceId}</b>{" "}
+            อยู่
+          </div>
+        )}
         <button
           className="inline-flex items-center px-3 py-2 rounded bg-yellow-500 text-white hover:bg-yellow-600 mr-2"
           onClick={handleOpenSelectModal}
@@ -1309,6 +1324,7 @@ const Invoice = () => {
         <button
           className="inline-flex items-center px-3 py-2 rounded bg-green-500 text-white hover:bg-green-600 mr-2"
           onClick={handleSaveInvoice}
+          disabled={isViewingExistingInvoice} // เพิ่ม disabled attribute
         >
           <Save size={16} className="mr-1" />
           บันทึก Invoice

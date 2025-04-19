@@ -219,8 +219,22 @@ const BookingDetailModal = ({
                 { value: "cancelled", label: "ยกเลิก" },
               ],
             },
-            { name: "tour_date", label: "วันที่", type: "date" },
-            { name: "tour_pickup_time", label: "เวลารับ" },
+            {
+              name: "tour_date",
+              label: "วันที่",
+              type: "date",
+              className:
+                "bg-green-50 border-green-300 text-green-800 font-bold",
+              labelClass: "text-green-700 font-semibold",
+            },
+
+            {
+              name: "tour_pickup_time",
+              label: "เวลารับ",
+              className:
+                "bg-green-50 border-green-300 text-green-800 font-bold",
+              labelClass: "text-green-700 font-semibold",
+            },
           ],
         },
         {
@@ -228,23 +242,48 @@ const BookingDetailModal = ({
           icon: <Package size={18} className="mr-2 text-green-600" />,
           fields: [
             { name: "tour_type", label: "ประเภททัวร์" },
-            { name: "tour_detail", label: "รายละเอียด", type: "textarea" },
+            {
+              name: "tour_detail",
+              label: "รายละเอียด",
+              type: "textarea",
+              className:
+                "bg-green-50 border-green-300 text-green-800 font-bold",
+              labelClass: "text-green-700 font-semibold",
+            },
             { name: "pax", label: "จำนวนคน", type: "number" },
-            { name: "tour_hotel", label: "โรงแรม" },
-            { name: "tour_room_no", label: "หมายเลขห้อง" },
+            {
+              name: "tour_hotel",
+              label: "โรงแรม",
+              className:
+                "bg-green-50 border-green-300 text-green-800 font-bold",
+              labelClass: "text-green-700 font-semibold",
+            },
+            {
+              name: "tour_room_no",
+              label: "หมายเลขห้อง",
+              className:
+                "bg-green-50 border-green-300 text-green-800 font-bold",
+              labelClass: "text-green-700 font-semibold",
+            },
             { name: "tour_contact_no", label: "เบอร์ติดต่อ" },
-            { name: "send_to", label: "ส่งใคร" },
+            {
+              name: "send_to",
+              label: "ส่งใคร",
+              className:
+                "bg-green-50 border-green-300 text-green-800 font-bold",
+              labelClass: "text-green-700 font-semibold",
+            },
           ],
         },
-        {
-          title: "ราคาและหมายเหตุ",
-          icon: <FileText size={18} className="mr-2 text-green-600" />,
-          fields: [
-            { name: "cost_price", label: "ราคาต้นทุน", type: "number" },
-            { name: "selling_price", label: "ราคาขาย", type: "number" },
-            { name: "note", label: "หมายเหตุ", type: "textarea" },
-          ],
-        },
+        // {
+        //   title: "ราคาและหมายเหตุ",
+        //   icon: <FileText size={18} className="mr-2 text-green-600" />,
+        //   fields: [
+        //     { name: "cost_price", label: "ราคาต้นทุน", type: "number" },
+        //     { name: "selling_price", label: "ราคาขาย", type: "number" },
+        //     { name: "note", label: "หมายเหตุ", type: "textarea" },
+        //   ],
+        // },
       ];
     } else {
       return [
@@ -270,8 +309,19 @@ const BookingDetailModal = ({
                 { value: "cancelled", label: "ยกเลิก" },
               ],
             },
-            { name: "transfer_date", label: "วันที่", type: "date" },
-            { name: "transfer_time", label: "เวลารับ" },
+            {
+              name: "transfer_date",
+              label: "วันที่",
+              type: "date",
+              className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
+              labelClass: "text-blue-700 font-semibold",
+            },
+            {
+              name: "transfer_time",
+              label: "เวลารับ",
+              className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
+              labelClass: "text-blue-700 font-semibold",
+            },
           ],
         },
         {
@@ -279,12 +329,42 @@ const BookingDetailModal = ({
           icon: <Clock size={18} className="mr-2 text-blue-600" />,
           fields: [
             { name: "transfer_type", label: "ประเภทการรับส่ง" },
-            { name: "transfer_detail", label: "รายละเอียด", type: "textarea" },
+            {
+              name: "transfer_detail",
+              label: "รายละเอียด",
+              type: "textarea",
+            },
             { name: "pax", label: "จำนวนคน", type: "number" },
-            { name: "pickup_location", label: "สถานที่รับ" },
-            { name: "drop_location", label: "สถานที่ส่ง" },
-            { name: "transfer_flight", label: "เที่ยวบิน" },
-            { name: "send_to", label: "ส่งใคร" },
+            {
+              name: "pickup_location",
+              label: "สถานที่รับ",
+              className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
+              labelClass: "text-blue-700 font-semibold",
+            },
+            {
+              name: "drop_location",
+              label: "สถานที่ส่ง",
+              className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
+              labelClass: "text-blue-700 font-semibold",
+            },
+            {
+              name: "transfer_flight",
+              label: "เที่ยวบิน",
+              className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
+              labelClass: "text-blue-700 font-semibold",
+            },
+            {
+              name: "transfer_ftime",
+              label: "เวลาบิน",
+              className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
+              labelClass: "text-blue-700 font-semibold",
+            },
+            {
+              name: "send_to",
+              label: "ส่งใคร",
+              className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
+              labelClass: "text-blue-700 font-semibold",
+            },
           ],
         },
         {
@@ -298,20 +378,19 @@ const BookingDetailModal = ({
             { name: "phone_number", label: "เบอร์โทร" },
           ],
         },
-        {
-          title: "ราคาและหมายเหตุ",
-          icon: <FileText size={18} className="mr-2 text-blue-600" />,
-          fields: [
-            { name: "cost_price", label: "ราคาต้นทุน", type: "number" },
-            { name: "selling_price", label: "ราคาขาย", type: "number" },
-            { name: "note", label: "หมายเหตุ", type: "textarea" },
-          ],
-        },
+        // {
+        //   title: "ราคาและหมายเหตุ",
+        //   icon: <FileText size={18} className="mr-2 text-blue-600" />,
+        //   fields: [
+        //     { name: "cost_price", label: "ราคาต้นทุน", type: "number" },
+        //     { name: "selling_price", label: "ราคาขาย", type: "number" },
+        //     { name: "note", label: "หมายเหตุ", type: "textarea" },
+        //   ],
+        // },
       ];
     }
   };
 
-  // สร้าง form field ตามประเภท
   const renderField = (field) => {
     const {
       name,
@@ -320,10 +399,17 @@ const BookingDetailModal = ({
       readOnly = false,
       options = [],
       value: explicitValue,
+      className = "", // ดึง className มาจาก field
     } = field;
 
     const fieldValue =
       explicitValue !== undefined ? explicitValue : formData[name] || "";
+
+    const baseClass = `w-full rounded-md p-2 border ${
+      readOnly
+        ? "bg-gray-100 border-gray-300"
+        : "border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200"
+    } ${className}`; // << ใส่ className ที่มากับ field ด้วย
 
     switch (type) {
       case "textarea":
@@ -334,11 +420,7 @@ const BookingDetailModal = ({
             value={fieldValue}
             onChange={handleChange}
             readOnly={readOnly}
-            className={`w-full rounded-md ${
-              readOnly
-                ? "bg-gray-100 border-gray-300"
-                : "border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200"
-            } p-2`}
+            className={baseClass}
             rows={3}
           />
         );
@@ -350,11 +432,7 @@ const BookingDetailModal = ({
             value={fieldValue}
             onChange={handleChange}
             disabled={readOnly}
-            className={`w-full rounded-md ${
-              readOnly
-                ? "bg-gray-100 border-gray-300"
-                : "border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200"
-            } p-2`}
+            className={baseClass}
           >
             {options.map((option) => (
               <option key={option.value} value={option.value}>
@@ -372,11 +450,7 @@ const BookingDetailModal = ({
             value={fieldValue}
             onChange={handleChange}
             readOnly={readOnly}
-            className={`w-full rounded-md ${
-              readOnly
-                ? "bg-gray-100 border-gray-300"
-                : "border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200"
-            } p-2`}
+            className={baseClass}
           />
         );
     }
@@ -416,7 +490,7 @@ const BookingDetailModal = ({
     <div className="fixed inset-0 z-50 overflow-auto modal-backdrop bg-opacity-30 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-auto">
         <div
-          className={`px-4 py-3 border-b flex justify-between items-center ${
+          className={`px-4 py-3 border-b flex justify-between items-center sticky top-0 ${
             bookingType === "tour" ? "bg-green-600" : "bg-blue-600"
           } text-white rounded-t-lg`}
         >
@@ -460,13 +534,14 @@ const BookingDetailModal = ({
                   <div key={field.name} className="mb-3  ">
                     <label
                       htmlFor={`field-${field.name}`}
-                      className="block text-sm  font-medium text-gray-700 mb-1"
+                      className={`block text-sm mb-1 ${
+                        field.labelClass || "text-gray-700"
+                      }`}
                     >
                       {field.label}
                     </label>
-                    <div className="border rounded-md border-gray-300">
-                      {renderField(field)}
-                    </div>
+
+                    {renderField(field)}
                   </div>
                 ))}
               </div>
