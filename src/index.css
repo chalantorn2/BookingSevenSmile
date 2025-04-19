@@ -8,6 +8,32 @@
 body {
   font-family: "Kanit", sans-serif;
 }
-.modal-backdrop.bg-black {
-  background-color: rgba(0, 0, 0, 0.5) !important;
+.modal-backdrop {
+  position: fixed;
+  background: linear-gradient(
+    135deg,
+    rgba(30, 30, 60, 0.7) 0%,
+    rgba(0, 120, 120, 0.4) 100%
+  );
+  backdrop-filter: blur(6px);
+}
+
+.modal-backdrop::before {
+  content: "";
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 255, 255, 0.15) 0%,
+    transparent 70%
+  );
+  opacity: 0.5;
+}
+
+/* ถ้ามีการ fade (เช่น Bootstrap) */
+.modal-backdrop.fade {
+  opacity: 0;
+  transition: opacity 0.15s linear;
+}
+
+.modal-backdrop.show {
+  opacity: 1;
 }

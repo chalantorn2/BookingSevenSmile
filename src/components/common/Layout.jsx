@@ -1,7 +1,16 @@
+// src/components/common/Layout.jsx
 import React from "react";
 import Sidebar from "./Sidebar";
+import { useAuth } from "../../contexts/AuthContext";
 
 const Layout = ({ children }) => {
+  const { user } = useAuth();
+
+  // ถ้ายังไม่ login ไม่ต้องแสดง Sidebar
+  if (!user) {
+    return <main>{children}</main>;
+  }
+
   return (
     <div className="flex h-screen bg-gray-100">
       {/* เพิ่ม class print:hidden เพื่อซ่อน Sidebar เมื่อพิมพ์ */}
