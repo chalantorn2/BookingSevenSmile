@@ -21,8 +21,8 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // ฟังก์ชัน login
-  const login = async (username, password) => {
+  // ฟังก์ชัน login - เพิ่มพารามิเตอร์ rememberMe แต่ใช้โค้ดเดิมส่วนใหญ่
+  const login = async (username, password, rememberMe = false) => {
     try {
       setLoading(true);
       // ค้นหาผู้ใช้ด้วย username และ password
@@ -59,6 +59,14 @@ export const AuthProvider = ({ children }) => {
 
       // บันทึกข้อมูลลง localStorage
       localStorage.setItem("user", JSON.stringify(userData));
+
+      // เพิ่มเติม: บันทึกการจดจำชื่อผู้ใช้ถ้า rememberMe = true
+      if (rememberMe) {
+        localStorage.setItem("rememberedUsername", username);
+      } else {
+        localStorage.removeItem("rememberedUsername");
+      }
+
       setUser(userData);
       return { success: true, user: userData };
     } catch (error) {
@@ -72,10 +80,11 @@ export const AuthProvider = ({ children }) => {
   // ฟังก์ชัน logout
   const logout = () => {
     localStorage.removeItem("user");
+    // ไม่ลบ rememberedUsername เพื่อให้จำชื่อผู้ใช้ไว้สำหรับการเข้าสู่ระบบครั้งถัดไป
     setUser(null);
   };
 
-  // ฟังก์ชันตรวจสอบสิทธิ์
+  // ฟังก์ชันตรวจสอบสิทธิ์ (ไม่เปลี่ยนแปลง)
   const checkPermission = (requiredRole) => {
     if (!user) return false;
 

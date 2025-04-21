@@ -1,6 +1,7 @@
 // src/pages/UserManagement.jsx
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import supabase from "../config/supabaseClient";
 import {
   fetchAllUsers,
   createUser,
@@ -19,7 +20,11 @@ import {
   AlertCircle,
   User,
   Shield,
+  X,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import { validatePassword } from "../utils/passwordUtils";
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -34,6 +39,8 @@ const UserManagement = () => {
   const [passwordUser, setPasswordUser] = useState(null);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { user: currentLoggedUser } = useAuth();
 
@@ -89,14 +96,6 @@ const UserManagement = () => {
       if (userId) {
         // แก้ไขผู้ใช้
         result = await updateUser(userId, userData);
-
-        // ถ้ามีการส่งรหัสผ่านมา
-        if (userData.password) {
-          const pwdResult = await changePassword(userId, userData.password);
-          if (!pwdResult.success) {
-            throw new Error(pwdResult.error || "ไม่สามารถเปลี่ยนรหัสผ่านได้");
-          }
-        }
       } else {
         // เพิ่มผู้ใช้ใหม่
         result = await createUser(userData);
@@ -124,17 +123,20 @@ const UserManagement = () => {
 
   // เปลี่ยนรหัสผ่าน
   const handleChangePassword = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
 
     if (!passwordUser) return;
 
-    if (newPassword !== confirmPassword) {
-      setError("รหัสผ่านไม่ตรงกัน");
+    // ตรวจสอบสิทธิ์
+    if (!canEditPassword(passwordUser)) {
+      setError("คุณไม่มีสิทธิ์เปลี่ยนรหัสผ่าน");
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
+    // ตรวจสอบรหัสผ่าน
+    const { isValid, errors } = validatePassword(newPassword, confirmPassword);
+    if (!isValid) {
+      setError(errors.password || errors.confirmPassword);
       return;
     }
 
@@ -155,9 +157,9 @@ const UserManagement = () => {
       setShowPasswordModal(false);
 
       alert("เปลี่ยนรหัสผ่านเรียบร้อย");
-    } catch (err) {
-      console.error("Error changing password:", err);
-      setError(err.message || "เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน");
+    } catch (error) {
+      console.error("Error changing password:", error);
+      setError(error.message || "เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน");
     } finally {
       setLoading(false);
     }
@@ -217,6 +219,12 @@ const UserManagement = () => {
 
     // นอกจากนั้นจัดการไม่ได้
     return false;
+  };
+
+  // ฟังก์ชันตรวจสอบสิทธิ์ในการเปลี่ยนรหัสผ่าน
+  const canEditPassword = (targetUser) => {
+    // เฉพาะ developer เท่านั้นที่แก้ไขได้ทุกคน
+    return currentLoggedUser.role === "dev";
   };
 
   return (
@@ -420,11 +428,28 @@ const UserManagement = () => {
                               ? "opacity-50 cursor-not-allowed"
                               : ""
                           }`}
-                          title="แก้ไขข้อมูลและรหัสผ่าน"
+                          title="แก้ไขข้อมูลผู้ใช้"
                         >
                           <Edit size={18} />
                         </button>
-                        {/* ลบปุ่ม Key ออก เนื่องจากซ้ำซ้อนกับฟังก์ชันในปุ่ม Edit */}
+
+                        {/* ปุ่มเปลี่ยนรหัสผ่าน */}
+                        <button
+                          onClick={() => {
+                            setPasswordUser(user);
+                            setShowPasswordModal(true);
+                          }}
+                          disabled={!canEditPassword(user)}
+                          className={`text-yellow-600 hover:text-yellow-900 p-1 rounded hover:bg-yellow-50 ${
+                            !canEditPassword(user)
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
+                          title="เปลี่ยนรหัสผ่าน"
+                        >
+                          <Key size={18} />
+                        </button>
+
                         <button
                           onClick={() => handleDeleteUser(user)}
                           disabled={
@@ -465,7 +490,7 @@ const UserManagement = () => {
 
       {/* Change Password Modal */}
       {showPasswordModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md mx-4">
             <div className="flex justify-between items-center p-4 border-b">
               <h3 className="text-lg font-semibold text-gray-900">
@@ -477,29 +502,19 @@ const UserManagement = () => {
                   setPasswordUser(null);
                   setNewPassword("");
                   setConfirmPassword("");
+                  setShowNewPassword(false);
+                  setShowConfirmPassword(false);
                 }}
                 className="text-gray-400 hover:text-gray-600 focus:outline-none"
               >
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
+                <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleChangePassword} className="p-4">
+            <div className="p-4">
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ผู้ใช้
+                  ชื่อผู้ใช้
                 </label>
                 <input
                   type="text"
@@ -509,84 +524,96 @@ const UserManagement = () => {
                 />
               </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  รหัสผ่านใหม่ <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="รหัสผ่านใหม่"
-                  required
-                />
-              </div>
+              <form onSubmit={handleChangePassword}>
+                <div className="mb-4 relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    รหัสผ่านใหม่ <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
+                    placeholder="รหัสผ่านใหม่"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-2 top-9 text-gray-500 hover:text-gray-700"
+                    title={showNewPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+                  >
+                    {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ยืนยันรหัสผ่านใหม่ <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="ยืนยันรหัสผ่านใหม่"
-                  required
-                />
-              </div>
+                <div className="mb-4 relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ยืนยันรหัสผ่านใหม่ <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
+                    placeholder="ยืนยันรหัสผ่านใหม่"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-2 top-9 text-gray-500 hover:text-gray-700"
+                    title={
+                      showConfirmPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"
+                    }
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff size={20} />
+                    ) : (
+                      <Eye size={20} />
+                    )}
+                  </button>
+                </div>
 
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowPasswordModal(false);
-                    setPasswordUser(null);
-                    setNewPassword("");
-                    setConfirmPassword("");
-                  }}
-                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500"
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center"
-                >
-                  {loading ? (
-                    <>
-                      <svg
-                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      กำลังบันทึก...
-                    </>
-                  ) : (
-                    <>
-                      <Key size={16} className="mr-2" /> เปลี่ยนรหัสผ่าน
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center"
+                  >
+                    {loading ? (
+                      <>
+                        <svg
+                          className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        กำลังบันทึก...
+                      </>
+                    ) : (
+                      <>
+                        <Key size={16} className="mr-2" /> เปลี่ยนรหัสผ่าน
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
