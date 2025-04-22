@@ -64,6 +64,16 @@ const UserManagement = () => {
     }
   }, [users, searchTerm]);
 
+  const canDeleteUser = (targetUser) => {
+    // เฉพาะ developer เท่านั้นที่ลบได้
+    if (currentLoggedUser.role === "dev") {
+      return true;
+    }
+
+    // Admin และ role อื่น ๆ ลบไม่ได้
+    return false;
+  };
+
   // โหลดข้อมูลผู้ใช้จาก API
   const loadUsers = async () => {
     setLoading(true);
@@ -86,19 +96,34 @@ const UserManagement = () => {
   };
 
   // บันทึกข้อมูลผู้ใช้ (เพิ่ม/แก้ไข)
-  const handleSaveUser = async (userData, userId = null) => {
+  // แก้ไขในฟังก์ชัน handleSaveUser ในไฟล์ UserManagement.jsx
+  const handleSaveUser = async (formData, userId = null) => {
     setLoading(true);
     setError(null);
 
     try {
       let result;
 
+      // สร้างข้อมูลที่จะส่งไป API
+      const updatedUserData = {
+        username: formData.username,
+        fullname: formData.fullname,
+        role: formData.role,
+        active: formData.active === true || formData.active === "true",
+      };
+      console.log("Saving user with active status:", updatedUserData.active);
+
+      // เพิ่มรหัสผ่านเฉพาะเมื่อเพิ่มผู้ใช้ใหม่
+      if (!userId && formData.password) {
+        updatedUserData.password = formData.password;
+      }
+
       if (userId) {
         // แก้ไขผู้ใช้
-        result = await updateUser(userId, userData);
+        result = await updateUser(userId, updatedUserData);
       } else {
         // เพิ่มผู้ใช้ใหม่
-        result = await createUser(userData);
+        result = await createUser(updatedUserData);
       }
 
       if (!result.success) {
@@ -112,7 +137,7 @@ const UserManagement = () => {
       setShowUserForm(false);
       setCurrentUser(null);
 
-      alert(userId ? "อัปเดตผู้ใช้เรียบร้อย" : "เพิ่มผู้ใช้ใหม่เรียบร้อย");
+      // alert(userId ? "อัปเดตผู้ใช้เรียบร้อย" : "เพิ่มผู้ใช้ใหม่เรียบร้อย");
     } catch (err) {
       console.error("Error saving user:", err);
       setError(err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
@@ -167,9 +192,9 @@ const UserManagement = () => {
 
   // ลบผู้ใช้
   const handleDeleteUser = async (user) => {
-    // ตรวจสอบสิทธิ์
-    if (currentLoggedUser.role !== "dev" && user.role === "admin") {
-      alert("คุณไม่มีสิทธิ์ลบผู้ใช้ระดับ Admin");
+    // ใช้ canDeleteUser เพื่อตรวจสอบสิทธิ์การลบ
+    if (!canDeleteUser(user)) {
+      alert("คุณไม่มีสิทธิ์ลบผู้ใช้");
       return;
     }
 
@@ -187,15 +212,13 @@ const UserManagement = () => {
     setError(null);
 
     try {
-      const result = await deleteUser(user.id);
+      const result = await deleteUser(user.id, false);
 
       if (!result.success) {
         throw new Error(result.error || "ไม่สามารถลบผู้ใช้ได้");
       }
 
-      // โหลดข้อมูลผู้ใช้อีกครั้ง
       await loadUsers();
-
       alert("ลบผู้ใช้เรียบร้อย");
     } catch (err) {
       console.error("Error deleting user:", err);
@@ -453,11 +476,11 @@ const UserManagement = () => {
                         <button
                           onClick={() => handleDeleteUser(user)}
                           disabled={
-                            !canManageUser(user) ||
+                            !canDeleteUser(user) ||
                             user.id === currentLoggedUser.id
                           }
                           className={`text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 ${
-                            !canManageUser(user) ||
+                            !canDeleteUser(user) ||
                             user.id === currentLoggedUser.id
                               ? "opacity-50 cursor-not-allowed"
                               : ""

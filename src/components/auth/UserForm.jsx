@@ -10,6 +10,7 @@ const UserForm = ({ user, onSave, onClose }) => {
     confirmPassword: "",
     fullname: "",
     role: "user",
+    active: true,
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -25,13 +26,22 @@ const UserForm = ({ user, onSave, onClose }) => {
         confirmPassword: "",
         fullname: user.fullname || "",
         role: user.role || "user",
+        active: user.active !== false,
       });
     }
   }, [user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+
+    // จัดการกับค่า active เป็นกรณีพิเศษ
+    if (name === "active") {
+      const boolValue = value === "true";
+      console.log(`Setting active to: ${value} (${boolValue})`);
+      setFormData({ ...formData, [name]: boolValue });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
 
     // ล้าง error เมื่อผู้ใช้แก้ไข
     if (errors[name]) {
@@ -85,13 +95,30 @@ const UserForm = ({ user, onSave, onClose }) => {
         username: formData.username,
         fullname: formData.fullname,
         role: formData.role,
+        active: formData.active, // เพิ่มค่า active!
       };
+
+      await onSave(userData, user ? user.id : null);
 
       // เพิ่มรหัสผ่านเฉพาะเมื่อเพิ่มผู้ใช้ใหม่
       if (!user && formData.password) {
         userData.password = formData.password;
       }
 
+      console.log("Form data before submit:", formData);
+      console.log(
+        "Active status type:",
+        typeof formData.active,
+        "value:",
+        formData.active
+      );
+
+      // ส่งค่า formData ที่แปลงเป็น boolean ชัดเจนแล้ว
+      const dataToSave = {
+        ...formData,
+        active: Boolean(formData.active), // แปลงให้เป็น boolean ชัดเจน
+      };
+      console.log("Data to save:", dataToSave);
       await onSave(userData, user ? user.id : null);
 
       // รีเซ็ตฟอร์ม
@@ -158,7 +185,6 @@ const UserForm = ({ user, onSave, onClose }) => {
                 )}
               </div>
             </div>
-
             {!user && (
               <>
                 <div className="relative">
@@ -230,7 +256,6 @@ const UserForm = ({ user, onSave, onClose }) => {
                 </div>
               </>
             )}
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 ชื่อ-นามสกุล <span className="text-red-500">*</span>
@@ -251,7 +276,6 @@ const UserForm = ({ user, onSave, onClose }) => {
                 <p className="mt-1 text-xs text-red-500">{errors.fullname}</p>
               )}
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 ระดับสิทธิ์ <span className="text-red-500">*</span>
@@ -265,6 +289,21 @@ const UserForm = ({ user, onSave, onClose }) => {
                 <option value="user">User</option>
                 <option value="admin">Admin</option>
                 <option value="dev">Developer</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                สถานะผู้ใช้
+              </label>
+              <select
+                name="active"
+                value={formData.active === true ? "true" : "false"}
+                onChange={handleChange}
+                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="true">ใช้งาน</option>
+                <option value="false">ปิดใช้งาน</option>
               </select>
             </div>
           </div>

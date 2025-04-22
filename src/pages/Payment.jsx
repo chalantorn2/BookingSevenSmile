@@ -215,8 +215,10 @@ const Payment = () => {
   return (
     <div className="container mx-auto px-4 py-6 bg-gray-50">
       <div className="text-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Payments</h1>
-        <p className="text-gray-600">จัดการการคิดเงินสำหรับ Orders</p>
+        <h1 className="text-3xl font-bold text-gray-800">กรอข้อมูลการเงิน</h1>
+        <p className="text-gray-600">
+          จัดการการคิดเงินสำหรับ Orders และ Booking
+        </p>
       </div>
 
       {/* Filter section */}

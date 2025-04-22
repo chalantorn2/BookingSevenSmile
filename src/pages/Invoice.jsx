@@ -1294,235 +1294,235 @@ const Invoice = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 bg-white print:max-w-full print:w-full print:p-0 print:m-0">
-      {/* Modals backdrop (Tailwind) */}
-      {renderSelectModal()}
-      {renderViewModal()}
-      {renderEditModal()}
-
-      {/* Header and action buttons */}
-      <div className="print:hidden text-center mb-4">
-        <h2 className="text-2xl font-bold">Invoice</h2>
-        <p className="text-gray-600">รายละเอียด Order / Payment ทั้งหมด</p>
+    <div className="container mx-auto px-4 py-6 bg-gray-50 min-h-screen">
+      <div className="text-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">Invoice</h1>
+        <p className="text-gray-600 mb-4">รายละเอียด Order / Payment ทั้งหมด</p>
       </div>
+      <div className="max-w-7xl mx-auto p-4 bg-white print:max-w-full print:w-full print:p-0 print:m-0">
+        {/* Modals backdrop (Tailwind) */}
+        {renderSelectModal()}
+        {renderViewModal()}
+        {renderEditModal()}
 
-      <div className="print:hidden text-center mb-4 space-x-2">
-        {isViewingExistingInvoice && (
-          <div className="text-center mb-4 bg-blue-100 text-blue-700 p-2 rounded">
-            กำลังดู Invoice <b>{currentInvoice?.invoice_name || invoiceId}</b>{" "}
-            อยู่
-          </div>
-        )}
-        <button
-          className="inline-flex items-center px-3 py-2 rounded bg-yellow-500 text-white hover:bg-yellow-600 mr-2"
-          onClick={handleOpenSelectModal}
-        >
-          <CheckSquare size={16} className="mr-1" />
-          เลือก Payments
-        </button>
-
-        <button
-          className="inline-flex items-center px-3 py-2 rounded bg-green-500 text-white hover:bg-green-600 mr-2"
-          onClick={handleSaveInvoice}
-          disabled={isViewingExistingInvoice} // เพิ่ม disabled attribute
-        >
-          <Save size={16} className="mr-1" />
-          บันทึก Invoice
-        </button>
-
-        <button
-          className="inline-flex items-center px-3 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 mr-2"
-          onClick={handleEditInvoice}
-        >
-          <Edit size={16} className="mr-1" />
-          แก้ไข Invoice
-        </button>
-
-        <button
-          className="inline-flex items-center px-3 py-2 rounded bg-indigo-500 text-white hover:bg-indigo-600 mr-2"
-          onClick={handleExportCsv}
-        >
-          <Download size={16} className="mr-1" />
-          นำออกข้อมูล
-        </button>
-
-        <button
-          className="inline-flex items-center px-3 py-2 rounded bg-blue-400 text-white hover:bg-blue-500 mr-2"
-          onClick={handleViewInvoices}
-        >
-          <Eye size={16} className="mr-1" />
-          ดูรายการ Invoice
-        </button>
-
-        <button
-          className="inline-flex items-center px-3 py-2 rounded bg-gray-500 text-white hover:bg-gray-600"
-          onClick={handlePrint}
-        >
-          <Printer size={16} className="mr-1" />
-          พิมพ์
-        </button>
-      </div>
-
-      <div className="print:hidden text-center mb-4">
-        <label className="inline-flex items-center space-x-2">
-          <input
-            className="rounded"
-            type="checkbox"
-            id="showCostProfitCheckbox"
-            checked={showCostProfit}
-            onChange={handleToggleCostProfit}
-          />
-          <span>แสดงต้นทุน (Cost) และกำไร (Profit)</span>
-        </label>
-      </div>
-
-      {/* เนื้อหาส่วน Invoice ที่จะแสดงเมื่อพิมพ์ */}
-      <div className="print:block">
-        {/* ส่วนหัว Invoice */}
-        <div className="grid grid-cols-3 print:flex print:justify-between mb-3">
-          <div className="col-span-2">
-            <img
-              id="bannerImage"
-              src="/src/assets/banner-06.png"
-              alt="Banner"
-              style={{ maxWidth: "80%" }}
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.style.display = "none";
-                e.target.parentNode.innerHTML =
-                  '<div class="p-4 text-xl font-bold">SevenSmile Tour & Ticket</div>';
-              }}
-            />
-          </div>
-          <div className="invoice-header-right col-span-1 text-right">
-            <h2 className="font-bold text-xl mb-1">INVOICE</h2>
-            <div className="mb-1">ATTN : ACCOUNTING DEPT.</div>
-            <div>
-              DATE:{" "}
-              <span
-                id="invoiceDateSpan"
-                className="font-semibold italic text-gray-700 border border-gray-300 rounded px-2 cursor-pointer"
-                onClick={handleEditInvoiceDate}
-              >
-                {invoiceDate}
-              </span>
+        <div className="print:hidden text-center mb-4 space-x-2">
+          {isViewingExistingInvoice && (
+            <div className="text-center mb-4 bg-blue-100 text-blue-700 p-2 rounded">
+              กำลังดู Invoice <b>{currentInvoice?.invoice_name || invoiceId}</b>{" "}
+              อยู่
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Error message */}
-      {error && (
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-3 relative rounded">
-          <strong className="font-bold mr-1">ข้อผิดพลาด:</strong> {error}
+          )}
           <button
-            className="absolute top-2 right-2 text-red-500 hover:text-red-600"
-            onClick={() => setError(null)}
+            className="inline-flex items-center px-3 py-2 rounded bg-yellow-500 text-white hover:bg-yellow-600 mr-2"
+            onClick={handleOpenSelectModal}
           >
-            <X size={18} />
+            <CheckSquare size={16} className="mr-1" />
+            เลือก Payments
+          </button>
+
+          <button
+            className="inline-flex items-center px-3 py-2 rounded bg-green-500 text-white hover:bg-green-600 mr-2"
+            onClick={handleSaveInvoice}
+            disabled={isViewingExistingInvoice} // เพิ่ม disabled attribute
+          >
+            <Save size={16} className="mr-1" />
+            บันทึก Invoice
+          </button>
+
+          <button
+            className="inline-flex items-center px-3 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 mr-2"
+            onClick={handleEditInvoice}
+          >
+            <Edit size={16} className="mr-1" />
+            แก้ไข Invoice
+          </button>
+
+          <button
+            className="inline-flex items-center px-3 py-2 rounded bg-indigo-500 text-white hover:bg-indigo-600 mr-2"
+            onClick={handleExportCsv}
+          >
+            <Download size={16} className="mr-1" />
+            นำออกข้อมูล
+          </button>
+
+          <button
+            className="inline-flex items-center px-3 py-2 rounded bg-blue-400 text-white hover:bg-blue-500 mr-2"
+            onClick={handleViewInvoices}
+          >
+            <Eye size={16} className="mr-1" />
+            ดูรายการ Invoice
+          </button>
+
+          <button
+            className="inline-flex items-center px-3 py-2 rounded bg-gray-500 text-white hover:bg-gray-600"
+            onClick={handlePrint}
+          >
+            <Printer size={16} className="mr-1" />
+            พิมพ์
           </button>
         </div>
-      )}
 
-      {/* Invoice table */}
-      <div className="overflow-x-auto">
-        <table
-          className="min-w-full border border-gray-300 text-center align-middle"
-          id="invoiceTable"
-        >
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="py-2 px-2 border-b border-r">Item</th>
-              <th className="py-2 px-2 border-b border-r">NAME</th>
-              <th className="py-2 px-2 border-b border-r">REF.</th>
-              <th className="py-2 px-2 border-b border-r">Hotel</th>
-              <th className="py-2 px-2 border-b border-r">Date in PHUKET</th>
-              <th className="py-2 px-2 border-b border-r ">TOUR INCLUDE</th>
-              {showCostProfit ? (
-                <>
-                  <th className="py-2 px-2 border-b border-r">Cost</th>
-                  <th className="py-2 px-2 border-b border-r">PRICE</th>
-                  <th className="py-2 px-2 border-b border-r">Profit</th>
-                </>
-              ) : (
-                <th className="py-2 px-2 border-b border-r">PRICE</th>
-              )}
-              <th className="py-2 px-2 border-b border-r">Fee</th>
-              <th className="py-2 px-2 border-b border-r">Unit</th>
-              <th className="py-2 px-2 border-b">TOTAL</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td
-                  colSpan={showCostProfit ? 12 : 10}
-                  className="py-4 text-center"
+        <div className="print:hidden text-center mb-4">
+          <label className="inline-flex items-center space-x-2">
+            <input
+              className="rounded"
+              type="checkbox"
+              id="showCostProfitCheckbox"
+              checked={showCostProfit}
+              onChange={handleToggleCostProfit}
+            />
+            <span>แสดงต้นทุน (Cost) และกำไร (Profit)</span>
+          </label>
+        </div>
+
+        {/* เนื้อหาส่วน Invoice ที่จะแสดงเมื่อพิมพ์ */}
+        <div className="print:block">
+          {/* ส่วนหัว Invoice */}
+          <div className="grid grid-cols-3 print:flex print:justify-between mb-3">
+            <div className="col-span-2">
+              <img
+                id="bannerImage"
+                src="/src/assets/banner-06.png"
+                alt="Banner"
+                style={{ maxWidth: "80%" }}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.style.display = "none";
+                  e.target.parentNode.innerHTML =
+                    '<div class="p-4 text-xl font-bold">SevenSmile Tour & Ticket</div>';
+                }}
+              />
+            </div>
+            <div className="invoice-header-right col-span-1 text-right">
+              <h2 className="font-bold text-xl mb-1">INVOICE</h2>
+              <div className="mb-1">ATTN : ACCOUNTING DEPT.</div>
+              <div>
+                DATE:{" "}
+                <span
+                  id="invoiceDateSpan"
+                  className="font-semibold italic text-gray-700 border border-gray-300 rounded px-2 cursor-pointer"
+                  onClick={handleEditInvoiceDate}
                 >
-                  <div className="inline-block w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                  <p className="mt-2 text-sm text-gray-700">
-                    กำลังโหลดข้อมูล...
-                  </p>
-                </td>
-              </tr>
-            ) : (
-              renderInvoiceTable()
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Footer information */}
-      <div className="invoice-footer flex flex-wrap mt-4">
-        <div className="w-full md:w-1/2 text-left">
-          <p className="mb-1 font-bold">PAYMENT TO SEVENSMILE</p>
-          <p className="mb-1">KBank 0000-000-0000</p>
-          <p className="mb-1">ACCT : SEVENSMILE CO., LTD.</p>
+                  {invoiceDate}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="w-full md:w-1/2 text-right">
-          <div
-            className="mt-1 text-lg font-bold text-gray-700"
-            id="grandTotalDisplay"
+
+        {/* Error message */}
+        {error && (
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-3 relative rounded">
+            <strong className="font-bold mr-1">ข้อผิดพลาด:</strong> {error}
+            <button
+              className="absolute top-2 right-2 text-red-500 hover:text-red-600"
+              onClick={() => setError(null)}
+            >
+              <X size={18} />
+            </button>
+          </div>
+        )}
+
+        {/* Invoice table */}
+        <div className="overflow-x-auto">
+          <table
+            className="min-w-full border border-gray-300 text-center align-middle"
+            id="invoiceTable"
           >
-            GRAND TOTAL: {formatNumberWithCommas(grandTotal || 0)} THB
-          </div>
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="py-2 px-2 border-b border-r">Item</th>
+                <th className="py-2 px-2 border-b border-r">NAME</th>
+                <th className="py-2 px-2 border-b border-r">REF.</th>
+                <th className="py-2 px-2 border-b border-r">Hotel</th>
+                <th className="py-2 px-2 border-b border-r">Date in PHUKET</th>
+                <th className="py-2 px-2 border-b border-r ">TOUR INCLUDE</th>
+                {showCostProfit ? (
+                  <>
+                    <th className="py-2 px-2 border-b border-r">Cost</th>
+                    <th className="py-2 px-2 border-b border-r">PRICE</th>
+                    <th className="py-2 px-2 border-b border-r">Profit</th>
+                  </>
+                ) : (
+                  <th className="py-2 px-2 border-b border-r">PRICE</th>
+                )}
+                <th className="py-2 px-2 border-b border-r">Fee</th>
+                <th className="py-2 px-2 border-b border-r">Unit</th>
+                <th className="py-2 px-2 border-b">TOTAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td
+                    colSpan={showCostProfit ? 12 : 10}
+                    className="py-4 text-center"
+                  >
+                    <div className="inline-block w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="mt-2 text-sm text-gray-700">
+                      กำลังโหลดข้อมูล...
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                renderInvoiceTable()
+              )}
+            </tbody>
+          </table>
         </div>
-      </div>
 
-      {/* Summary section for cost/profit */}
-      {showCostProfit && selectedPaymentIds.length > 0 && (
-        <div className="print:hidden mt-6">
-          <div className="flex flex-wrap text-center">
-            <div className="w-full md:w-1/3 mb-4">
-              <p>
-                <strong>รวมต้นทุนทั้งหมด:</strong>
-                <br />
-                <span className="text-2xl font-bold text-blue-500">
-                  {formatNumberWithCommas(totalCost)}
-                </span>
-              </p>
-            </div>
-            <div className="w-full md:w-1/3 mb-4">
-              <p>
-                <strong>รวมราคาขายทั้งหมด:</strong>
-                <br />
-                <span className="text-2xl font-bold text-blue-700">
-                  {formatNumberWithCommas(totalSellingPrice)}
-                </span>
-              </p>
-            </div>
-            <div className="w-full md:w-1/3 mb-4">
-              <p>
-                <strong>กำไรรวมทั้งหมด:</strong>
-                <br />
-                <span className="text-2xl font-bold text-green-600">
-                  {formatNumberWithCommas(totalProfit)}
-                </span>
-              </p>
+        {/* Footer information */}
+        <div className="invoice-footer flex flex-wrap mt-4">
+          <div className="w-full md:w-1/2 text-left">
+            <p className="mb-1 font-bold">PAYMENT TO SEVENSMILE</p>
+            <p className="mb-1">KBank 0000-000-0000</p>
+            <p className="mb-1">ACCT : SEVENSMILE CO., LTD.</p>
+          </div>
+          <div className="w-full md:w-1/2 text-right">
+            <div
+              className="mt-1 text-lg font-bold text-gray-700"
+              id="grandTotalDisplay"
+            >
+              GRAND TOTAL: {formatNumberWithCommas(grandTotal || 0)} THB
             </div>
           </div>
         </div>
-      )}
+
+        {/* Summary section for cost/profit */}
+        {showCostProfit && selectedPaymentIds.length > 0 && (
+          <div className="print:hidden mt-6">
+            <div className="flex flex-wrap text-center">
+              <div className="w-full md:w-1/3 mb-4">
+                <p>
+                  <strong>รวมต้นทุนทั้งหมด:</strong>
+                  <br />
+                  <span className="text-2xl font-bold text-blue-500">
+                    {formatNumberWithCommas(totalCost)}
+                  </span>
+                </p>
+              </div>
+              <div className="w-full md:w-1/3 mb-4">
+                <p>
+                  <strong>รวมราคาขายทั้งหมด:</strong>
+                  <br />
+                  <span className="text-2xl font-bold text-blue-700">
+                    {formatNumberWithCommas(totalSellingPrice)}
+                  </span>
+                </p>
+              </div>
+              <div className="w-full md:w-1/3 mb-4">
+                <p>
+                  <strong>กำไรรวมทั้งหมด:</strong>
+                  <br />
+                  <span className="text-2xl font-bold text-green-600">
+                    {formatNumberWithCommas(totalProfit)}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -601,10 +601,8 @@ const ViewOrders = () => {
       <div className="container mx-auto px-4 py-6">
         {/* Page Header */}
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">
-            Orders Management
-          </h1>
-          <p className="text-gray-600">View and manage your booking orders</p>
+          <h1 className="text-3xl font-bold text-gray-800">จัดการ Order</h1>
+          <p className="text-gray-600">ดูและจัดการ Order</p>
         </div>
 
         <div className="bg-white rounded-lg shadow-md mb-6 p-4">
@@ -681,7 +679,7 @@ const ViewOrders = () => {
             <div className="md:col-span-6 flex justify-end">
               <div className="flex rounded-md overflow-hidden">
                 <button
-                  className={`px-3 py-2 border ${
+                  className={`px-3 py-2 border rounded-l-md  ${
                     filterType === "all"
                       ? "bg-gray-200 font-medium"
                       : "bg-white"
@@ -701,7 +699,7 @@ const ViewOrders = () => {
                   Invoiced
                 </button>
                 <button
-                  className={`px-3 py-2 border ${
+                  className={`px-3 py-2 border rounded-r-md ${
                     filterType === "notInvoiced"
                       ? "bg-gray-200 font-medium"
                       : "bg-white"
@@ -715,7 +713,7 @@ const ViewOrders = () => {
           </div>
         </div>
         {/* Stats Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
             <h5 className="text-gray-700 font-medium">Total Orders</h5>
             <p className="text-4xl font-bold text-blue-600 mt-2">
@@ -734,7 +732,7 @@ const ViewOrders = () => {
               {stats.filteredCount}
             </p>
           </div>
-        </div>
+        </div> */}
         {/* No Orders Message */}
         {!loading && filteredOrders.length === 0 && (
           <div className="bg-blue-50 text-blue-800 p-4 rounded-md flex items-center justify-center mb-6">

@@ -81,13 +81,19 @@ export const createUser = async (userData) => {
  * @param {Object} userData - ข้อมูลที่ต้องการอัปเดต
  * @returns {Promise<{success: boolean, error: string|null}>}
  */
+// ในฟังก์ชัน updateUser ในไฟล์ authService.js
 export const updateUser = async (userId, userData) => {
   try {
+    console.log("Updating user with data:", userData); // เพิ่ม log
+
     const updates = {
       fullname: userData.fullname,
       role: userData.role,
+      active: userData.active, // ต้องเป็น boolean แล้ว
       updated_at: new Date().toISOString(),
     };
+
+    console.log("Final update payload:", updates); // เพิ่ม log
 
     const { error } = await supabase
       .from("users")

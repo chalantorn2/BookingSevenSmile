@@ -31,6 +31,7 @@ const BookingForm = () => {
   });
   const [bookingCounts, setBookingCounts] = useState(null);
   const orderSelectorRef = useRef(null);
+
   const handleOrderSelect = (orderKey, orderId, counts, orderData) => {
     if (orderKey) {
       setCurrentOrderKey(orderKey);
@@ -38,17 +39,14 @@ const BookingForm = () => {
       setBookingCounts(counts);
       setIsBookingSectionVisible(true);
       setIsCreatingNewOrder(false);
-
-      // ถ้ามีข้อมูล orderData ที่ส่งมาจาก OrderSelector
       if (orderData) {
         setMainFormData({
           agent: orderData.agent_name || "",
           firstName: orderData.first_name || "",
           lastName: orderData.last_name || "",
-          pax: orderData.pax || "", // ตั้งค่า pax จาก orderData
+          pax: orderData.pax || "",
         });
       } else {
-        // ถ้าไม่มีให้ดึงข้อมูลพื้นฐานของ Order
         loadOrderBasicDetails(orderKey);
       }
     } else {
@@ -56,20 +54,16 @@ const BookingForm = () => {
       setCurrentOrderKey(null);
       setCurrentOrderId(null);
       setIsBookingSectionVisible(false);
-      setIsCreatingNewOrder(false); // ต้องตั้งค่าเป็น false ด้วยเมื่อยกเลิกการเลือก
+      setIsCreatingNewOrder(false);
       setBookingCounts(null);
     }
   };
 
-  // ใช้ useRef เพื่อเก็บค่า mainFormData ล่าสุดโดยไม่ต้อง re-render
   const formDataRef = useRef(mainFormData);
-
-  // อัปเดต ref เมื่อ mainFormData เปลี่ยน
   useEffect(() => {
     formDataRef.current = mainFormData;
   }, [mainFormData]);
 
-  // ฟังก์ชันสำหรับการเปลี่ยนค่า Agent (แยกออกมาจาก handleMainFormChange)
   const handleAgentChange = useCallback((value) => {
     setMainFormData((prev) => ({
       ...prev,
@@ -85,7 +79,6 @@ const BookingForm = () => {
     setIsCreatingNewOrder(true);
   };
 
-  // เพิ่ม agent โดยไม่ทำให้หน้าโหลดใหม่
   const handleAddNewAgent = async (value) => {
     try {
       const { data, error } = await supabase
@@ -98,9 +91,7 @@ const BookingForm = () => {
         })
         .select()
         .single();
-
       if (error) throw error;
-
       return data;
     } catch (error) {
       console.error("Error adding new agent:", error);
@@ -115,16 +106,12 @@ const BookingForm = () => {
       lastName: orderData.last_name || "",
       pax: "",
     });
-
-    // จัดการข้อมูล Tour Bookings
     if (orderData.tour_bookings && orderData.tour_bookings.length > 0) {
       const formattedTours = orderData.tour_bookings.map((tour, index) => ({
         id: index + 1,
         data: tour,
       }));
       setTourForms(formattedTours);
-
-      // ตั้งค่า pax จาก tour แรกถ้ามี
       if (formattedTours[0].data.pax) {
         setMainFormData((prev) => ({
           ...prev,
@@ -134,8 +121,6 @@ const BookingForm = () => {
     } else {
       setTourForms([]);
     }
-
-    // จัดการข้อมูล Transfer Bookings
     if (orderData.transfer_bookings && orderData.transfer_bookings.length > 0) {
       const formattedTransfers = orderData.transfer_bookings.map(
         (transfer, index) => ({
@@ -144,8 +129,6 @@ const BookingForm = () => {
         })
       );
       setTransferForms(formattedTransfers);
-
-      // ตั้งค่า pax จาก transfer แรกถ้ายังไม่มีค่า pax จาก tour
       if (!mainFormData.pax && formattedTransfers[0].data.pax) {
         setMainFormData((prev) => ({
           ...prev,
@@ -160,23 +143,18 @@ const BookingForm = () => {
   const loadOrderBasicDetails = async (orderKey) => {
     try {
       setStatus({ ...status, loading: true, error: "" });
-
       const { data, error } = await supabase
         .from("orders")
         .select("*")
         .eq("id", orderKey)
         .single();
-
       if (error) throw error;
-
-      // ตั้งค่าข้อมูลพื้นฐาน
       setMainFormData({
         agent: data.agent_name || "",
         firstName: data.first_name || "",
         lastName: data.last_name || "",
-        pax: data.pax || "", // ตรวจสอบว่ามีการดึงค่า pax มาจาก order
+        pax: data.pax || "",
       });
-
       setTourForms([]);
       setTransferForms([]);
     } catch (error) {
@@ -186,11 +164,16 @@ const BookingForm = () => {
       setStatus({ ...status, loading: false });
     }
   };
+
   const resetForm = () => {
     setMainFormData({ agent: "", firstName: "", lastName: "", pax: "" });
     setTourForms([]);
     setTransferForms([]);
     setStatus({ loading: false, message: "", error: "" });
+    setCurrentOrderKey(null);
+    setCurrentOrderId(null);
+    setIsCreatingNewOrder(false);
+    setBookingCounts(null);
   };
 
   const handleAddTourForm = () => {
@@ -219,12 +202,9 @@ const BookingForm = () => {
 
   const tourFormsRef = useRef(tourForms);
   const transferFormsRef = useRef(transferForms);
-
-  // update refs เมื่อ state เปลี่ยน
   useEffect(() => {
     tourFormsRef.current = tourForms;
   }, [tourForms]);
-
   useEffect(() => {
     transferFormsRef.current = transferForms;
   }, [transferForms]);
@@ -237,19 +217,22 @@ const BookingForm = () => {
     }));
   }, []);
 
-  // แก้ไขส่วนที่มีปัญหาใน handleSubmit ที่เกี่ยวกับการตรวจสอบและส่งข้อมูล
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus({ loading: true, message: "", error: "" });
 
     try {
+      console.log("Starting submit with data:", {
+        mainFormData,
+        tourForms,
+        transferForms,
+      });
+
       if (!mainFormData.agent) {
         throw new Error(
           "กรุณากรอก Agent ก่อน เพื่อใช้เป็น prefix ของ Order ID"
         );
       }
-
       if (tourForms.length === 0 && transferForms.length === 0) {
         throw new Error(
           "กรุณาเพิ่มการจอง Tour หรือ Transfer อย่างน้อย 1 รายการ"
@@ -259,7 +242,6 @@ const BookingForm = () => {
       let referenceId = currentOrderId;
       let orderKey = currentOrderKey;
 
-      // Create new order if needed
       if (!orderKey) {
         referenceId = await generateOrderID(mainFormData.agent);
         const { data: newOrder, error: orderError } = await supabase
@@ -269,19 +251,16 @@ const BookingForm = () => {
             last_name: mainFormData.lastName,
             agent_name: mainFormData.agent,
             reference_id: referenceId,
-            pax: parseInt(mainFormData.pax) || 0,
+            pax: mainFormData.pax || "", // เปลี่ยนจาก parseInt เป็นข้อความโดยตรง
           })
           .select()
           .single();
-
         if (orderError) throw orderError;
-
         orderKey = newOrder.id;
         setCurrentOrderKey(orderKey);
         setCurrentOrderId(referenceId);
       }
 
-      // ดึงวันที่จาก Booking เดิมในฐานข้อมูล
       const { data: existingTours, error: tourError } = await supabase
         .from("tour_bookings")
         .select("tour_date")
@@ -294,72 +273,57 @@ const BookingForm = () => {
         .eq("order_id", orderKey);
       if (transferError) throw transferError;
 
-      // รวมวันที่ทั้งหมด (เดิม + ใหม่)
       const allDates = [
         ...(existingTours?.map((t) => t.tour_date) || []),
         ...(existingTransfers?.map((t) => t.transfer_date) || []),
       ];
 
       const formElements = document.forms[0].elements;
+      console.log(
+        "Form elements:",
+        Array.from(formElements).map((e) => ({ name: e.name, value: e.value }))
+      );
 
-      // ในฟังก์ชัน handleSubmit ของ BookingForm.jsx
-      // บรรทัดที่มีปัญหาน่าจะอยู่ประมาณนี้
-
-      // สำหรับ tour bookings
-      // สำหรับ tour bookings
       const tourBookings = [];
       for (const tourForm of tourForms) {
         const formId = tourForm.id;
         const bookingId = await generateBookingID("tour");
         const tourDateElement = formElements[`tour_${formId}_date`];
         const tourDate = tourDateElement ? tourDateElement.value : "";
+        if (!tourDate) {
+          throw new Error(`Tour ${formId} ต้องระบุวันที่`);
+        }
         if (tourDate) allDates.push(tourDate);
 
-        // สร้าง object ด้วยข้อมูลพื้นฐานก่อน
         const tourBooking = {
           order_id: orderKey,
           tour_date: tourDate,
-          reference_id: bookingId, // เพิ่ม reference_id
+          reference_id: bookingId,
+          status: "pending",
         };
 
-        // ส่วนที่เหลือคงเดิม...
-
-        // แล้วค่อยเพิ่มข้อมูลอื่นๆ ที่อาจไม่มี โดยใช้ Optional Chaining
         const detailElement = formElements[`tour_${formId}_detail`];
         if (detailElement) tourBooking.tour_detail = detailElement.value;
-
         const noteElement = formElements[`tour_${formId}_note`];
         if (noteElement) tourBooking.note = noteElement.value;
-
-        // เพิ่มฟิลด์อื่นๆ ในลักษณะเดียวกัน
         const typeElement = formElements[`tour_${formId}_type`];
         if (typeElement) tourBooking.tour_type = typeElement.value;
-
         const hotelElement = formElements[`tour_${formId}_hotel`];
         if (hotelElement) tourBooking.tour_hotel = hotelElement.value;
-
         const roomNoElement = formElements[`tour_${formId}_room_no`];
         if (roomNoElement) tourBooking.tour_room_no = roomNoElement.value;
-
         const pickupTimeElement = formElements[`tour_${formId}_pickup_time`];
         if (pickupTimeElement)
           tourBooking.tour_pickup_time = pickupTimeElement.value;
-
         const contactNoElement = formElements[`tour_${formId}_contact_no`];
         if (contactNoElement)
           tourBooking.tour_contact_no = contactNoElement.value;
-
         const sendToElement = formElements[`tour_${formId}_send_to`];
         if (sendToElement) tourBooking.send_to = sendToElement.value;
-
-        // ตั้งค่า default สำหรับฟิลด์ที่จำเป็น
-        tourBooking.status = "pending";
 
         tourBookings.push(tourBooking);
       }
 
-      // สำหรับ transfer bookings ใช้แนวทางเดียวกัน
-      // สำหรับ transfer bookings
       const transferBookings = [];
       for (const transferForm of transferForms) {
         const formId = transferForm.id;
@@ -368,81 +332,66 @@ const BookingForm = () => {
         const transferDate = transferDateElement
           ? transferDateElement.value
           : "";
+        if (!transferDate) {
+          throw new Error(`Transfer ${formId} ต้องระบุวันที่`);
+        }
         if (transferDate) allDates.push(transferDate);
 
         const transferBooking = {
           order_id: orderKey,
           transfer_date: transferDate,
           status: "pending",
-          reference_id: bookingId, // เพิ่ม reference_id
+          reference_id: bookingId,
         };
 
-        // ส่วนที่เหลือคงเดิม...
-
-        // เพิ่มฟิลด์อื่นๆ โดยใช้ Optional Chaining
         const timeElement = formElements[`transfer_${formId}_pickup_time`];
         if (timeElement) transferBooking.transfer_time = timeElement.value;
-
         const pickupLocationElement =
           formElements[`transfer_${formId}_pickup_location`];
         if (pickupLocationElement)
           transferBooking.pickup_location = pickupLocationElement.value;
-
         const dropLocationElement =
           formElements[`transfer_${formId}_drop_location`];
         if (dropLocationElement)
           transferBooking.drop_location = dropLocationElement.value;
-
         const detailElement = formElements[`transfer_${formId}_detail`];
         if (detailElement)
           transferBooking.transfer_detail = detailElement.value;
-
         const typeElement = formElements[`transfer_${formId}_type`];
         if (typeElement) transferBooking.transfer_type = typeElement.value;
-
         const sendToElement = formElements[`transfer_${formId}_send_to`];
         if (sendToElement) transferBooking.send_to = sendToElement.value;
-
         const flightElement = formElements[`transfer_${formId}_flight`];
         if (flightElement)
           transferBooking.transfer_flight = flightElement.value;
-
         const ftimeElement = formElements[`transfer_${formId}_transfer_ftime`];
         if (ftimeElement) transferBooking.transfer_ftime = ftimeElement.value;
-
         const carModelElement = formElements[`transfer_${formId}_car_model`];
         if (carModelElement) transferBooking.car_model = carModelElement.value;
-
         const phoneNumberElement =
           formElements[`transfer_${formId}_phone_number`];
         if (phoneNumberElement)
           transferBooking.phone_number = phoneNumberElement.value;
-
         const noteElement = formElements[`transfer_${formId}_note`];
         if (noteElement) transferBooking.note = noteElement.value;
 
         transferBookings.push(transferBooking);
       }
 
-      // Bulk insert tour bookings if any
       if (tourBookings.length > 0) {
         const { error: tourError } = await supabase
           .from("tour_bookings")
           .insert(tourBookings);
-
         if (tourError) throw tourError;
       }
 
-      // Bulk insert transfer bookings if any
       if (transferBookings.length > 0) {
         const { error: transferError } = await supabase
           .from("transfer_bookings")
           .insert(transferBookings);
-
         if (transferError) throw transferError;
       }
 
-      // Update start/end dates on the order
       if (allDates.length > 0) {
         allDates.sort();
         const { error: updateError } = await supabase
@@ -455,23 +404,19 @@ const BookingForm = () => {
         if (updateError) throw updateError;
       }
 
-      // Success message
-      let message = "บันทึกข้อมูลสำเร็จ!\n";
-      if (tourBookings.length > 0)
-        message += `Tour Bookings: ${tourBookings.length}\n`;
-      if (transferBookings.length > 0)
-        message += `Transfer Bookings: ${transferBookings.length}\n`;
-
+      let message = `บันทึกข้อมูลสำเร็จ! Tour: ${tourBookings.length}, Transfer: ${transferBookings.length}`;
       setStatus({ loading: false, message, error: "" });
-      resetForm();
-      setIsBookingSectionVisible(false);
-      if (orderSelectorRef.current) {
-        setTimeout(() => {
+      console.log("Submit success, message set:", message);
+
+      setTimeout(() => {
+        resetForm();
+        setIsBookingSectionVisible(false);
+        if (orderSelectorRef.current) {
           orderSelectorRef.current.refreshOrders();
-        }, 500); // รออีกนิดหนึ่งเพื่อให้ข้อมูลในฐานข้อมูลอัปเดต
-      }
+        }
+      }, 2000);
     } catch (error) {
-      console.error("Error submitting form:", error);
+      console.error("Submit error:", error.message, error);
       setStatus({
         loading: false,
         message: "",
@@ -482,7 +427,6 @@ const BookingForm = () => {
 
   const handleCancelCreateOrder = () => {
     setIsCreatingNewOrder(false);
-    // ถ้ามีการเปลี่ยนแปลงข้อมูลฟอร์มแล้ว อาจเพิ่มการยืนยันก่อนยกเลิก
     if (
       mainFormData.firstName ||
       mainFormData.lastName ||
@@ -507,9 +451,11 @@ const BookingForm = () => {
     <div className="container mx-auto px-4 py-6 bg-gray-50 min-h-screen">
       <div className="text-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          Seven Smile Booking
+          เพิ่มรายการจอง
         </h1>
-        <p className="text-gray-600 mb-4">กรุณาเลือกฟอร์มที่ต้องการกรอก</p>
+        <p className="text-gray-600 mb-4">
+          กรุณาเลือกฟอร์มที่ต้องการกรอก หรือสร้างรายการจองใหม่
+        </p>
       </div>
 
       <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
@@ -528,18 +474,6 @@ const BookingForm = () => {
         </div>
       </div>
 
-      {status.message && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 shadow-sm">
-          <p>{status.message}</p>
-        </div>
-      )}
-
-      {status.error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 shadow-sm">
-          <p>{status.error}</p>
-        </div>
-      )}
-
       {isBookingSectionVisible && (
         <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-8 transition-all duration-300">
           <div className="bg-gradient-to-r from-gray-800 to-gray-700 text-white p-4 text-center">
@@ -551,7 +485,6 @@ const BookingForm = () => {
             )}
           </div>
 
-          {/* แสดงข้อมูลจำนวน bookings */}
           {bookingCounts && (
             <div className="bg-gray-100 p-3 border-b border-gray-200">
               <p className="text-center text-gray-700">
@@ -632,7 +565,7 @@ const BookingForm = () => {
                     Pax <span className="text-red-500">*</span>
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     id="pax"
                     name="pax"
                     value={mainFormData.pax}
@@ -720,6 +653,17 @@ const BookingForm = () => {
                       ))}
                     </div>
                   </div>
+                  {status.message && (
+                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded my-4 shadow-sm">
+                      <p style={{ whiteSpace: "pre-line" }}>{status.message}</p>
+                    </div>
+                  )}
+
+                  {status.error && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded my-4 shadow-sm">
+                      <p>{status.error}</p>
+                    </div>
+                  )}
 
                   <div className="text-center mt-8">
                     <button
