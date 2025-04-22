@@ -251,7 +251,7 @@ const UserManagement = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="container mx-auto px-4 py-6  bg-gray-50">
       <div className="text-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">จัดการผู้ใช้งาน</h1>
         <p className="text-gray-600">เพิ่ม แก้ไข และลบผู้ใช้งานในระบบ</p>
@@ -306,7 +306,7 @@ const UserManagement = () => {
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-100">
               <tr>
                 <th
                   scope="col"

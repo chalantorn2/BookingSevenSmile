@@ -1299,7 +1299,7 @@ const Invoice = () => {
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Invoice</h1>
         <p className="text-gray-600 mb-4">รายละเอียด Order / Payment ทั้งหมด</p>
       </div>
-      <div className="max-w-7xl mx-auto p-4 bg-white print:max-w-full print:w-full print:p-0 print:m-0">
+      <div className="max-w-7xl mx-auto p-4 rounded-lg shadow-md  bg-white print:max-w-full print:w-full print:p-0 print:m-0">
         {/* Modals backdrop (Tailwind) */}
         {renderSelectModal()}
         {renderViewModal()}

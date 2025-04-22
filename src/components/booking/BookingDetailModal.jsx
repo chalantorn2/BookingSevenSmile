@@ -275,15 +275,15 @@ const BookingDetailModal = ({
             },
           ],
         },
-        // {
-        //   title: "ราคาและหมายเหตุ",
-        //   icon: <FileText size={18} className="mr-2 text-green-600" />,
-        //   fields: [
-        //     { name: "cost_price", label: "ราคาต้นทุน", type: "number" },
-        //     { name: "selling_price", label: "ราคาขาย", type: "number" },
-        //     { name: "note", label: "หมายเหตุ", type: "textarea" },
-        //   ],
-        // },
+        {
+          title: "ราคาและหมายเหตุ",
+          icon: <FileText size={18} className="mr-2 text-green-600" />,
+          fields: [
+            { name: "cost_price", label: "ราคาต้นทุน", type: "number" },
+            { name: "selling_price", label: "ราคาขาย", type: "number" },
+            { name: "note", label: "หมายเหตุ", type: "textarea" },
+          ],
+        },
       ];
     } else {
       return [
@@ -365,6 +365,7 @@ const BookingDetailModal = ({
               className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
               labelClass: "text-blue-700 font-semibold",
             },
+            { name: "note", label: "หมายเหตุ", type: "textarea" },
           ],
         },
         {
@@ -378,15 +379,15 @@ const BookingDetailModal = ({
             { name: "phone_number", label: "เบอร์โทร" },
           ],
         },
-        // {
-        //   title: "ราคาและหมายเหตุ",
-        //   icon: <FileText size={18} className="mr-2 text-blue-600" />,
-        //   fields: [
-        //     { name: "cost_price", label: "ราคาต้นทุน", type: "number" },
-        //     { name: "selling_price", label: "ราคาขาย", type: "number" },
-        //     { name: "note", label: "หมายเหตุ", type: "textarea" },
-        //   ],
-        // },
+        {
+          title: "ราคาและหมายเหตุ",
+          icon: <FileText size={18} className="mr-2 text-blue-600" />,
+          fields: [
+            { name: "cost_price", label: "ราคาต้นทุน", type: "number" },
+            { name: "selling_price", label: "ราคาขาย", type: "number" },
+            { name: "payment_note", label: "หมายเหตุ", type: "textarea" },
+          ],
+        },
       ];
     }
   };

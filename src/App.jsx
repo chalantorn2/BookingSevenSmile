@@ -16,6 +16,7 @@ import Payment from "./pages/Payment";
 import Invoice from "./pages/Invoice";
 import Login from "./pages/Login";
 import UserManagement from "./pages/UserManagement";
+import ViewPayment from "./pages/ViewPayment";
 import { AuthProvider } from "./contexts/AuthContext";
 import PrivateRoute from "./components/auth/PrivateRoute";
 import "./styles/invoice.css";
@@ -38,6 +39,7 @@ const App = () => {
                 <Route path="/payments" element={<Payment />} />
                 <Route path="/invoice" element={<Invoice />} />
                 <Route path="/information" element={<Information />} />
+                <Route path="/view-payment" element={<ViewPayment />} />
 
                 {/* Admin Routes */}
                 <Route element={<PrivateRoute requiredRole="admin" />}>

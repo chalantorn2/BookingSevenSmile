@@ -14,6 +14,7 @@ import {
   Users,
   LogOut,
   User,
+  DollarSign,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -38,6 +39,12 @@ const Sidebar = () => {
       permission: null,
     },
     {
+      path: "/view-payment",
+      label: "View Payment",
+      icon: <DollarSign size={20} />,
+      permission: null,
+    },
+    {
       path: "/payments",
       label: "Payment",
       icon: <CreditCard size={20} />,
@@ -56,6 +63,7 @@ const Sidebar = () => {
       icon: <Database size={20} />,
       permission: null,
     },
+
     // {
     //   path: "/dashboard",
     //   label: "Dashboard",
