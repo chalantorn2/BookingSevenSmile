@@ -19,6 +19,16 @@ const BookingCard = ({ booking, type, onAddBooking }) => {
     }
   };
 
+  const handleAddClick = () => {
+    // สร้าง object ที่มีข้อมูล cost_price และ payment_status เพิ่ม
+    const bookingWithPrice = {
+      ...booking,
+      cost: booking.cost_price || 0, // ใช้ค่า cost_price เป็นค่าเริ่มต้นสำหรับ cost
+      status: booking.payment_status || "notPaid", // ใช้ค่า payment_status เป็นค่าเริ่มต้นสำหรับ status
+    };
+    onAddBooking(bookingWithPrice, type);
+  };
+
   return (
     <div
       className={`border ${

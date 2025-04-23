@@ -1,6 +1,7 @@
 import React from "react";
 import { Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import supabase from "../../config/supabaseClient";
 
 const PaymentRow = ({ booking, index, onRemove, onChange }) => {
   const isTour = booking.type === "tour";
@@ -23,7 +24,29 @@ const PaymentRow = ({ booking, index, onRemove, onChange }) => {
       return dateStr;
     }
   };
-  // console.log(booking.reference_id);
+
+  const handleStatusChange = async (e) => {
+    const newStatus = e.target.value;
+    onChange(index, "status", newStatus);
+
+    // อัพเดทค่า payment_status กลับไปยังฐานข้อมูล
+    try {
+      const table =
+        booking.type === "tour" ? "tour_bookings" : "transfer_bookings";
+      const paymentStatus = newStatus === "paid" ? "paid" : "not_paid";
+
+      await supabase
+        .from(table)
+        .update({ payment_status: paymentStatus })
+        .eq("id", booking.dbKey);
+
+      console.log(
+        `Updated payment status for ${table} ID ${booking.dbKey} to ${paymentStatus}`
+      );
+    } catch (error) {
+      console.error("Error updating payment status:", error);
+    }
+  };
 
   return (
     <tr className={isTour ? "bg-green-50 " : "bg-blue-50 "}>
@@ -108,7 +131,7 @@ const PaymentRow = ({ booking, index, onRemove, onChange }) => {
               : "bg-red-600 text-white"
           }`}
           value={booking.status}
-          onChange={(e) => onChange(index, "status", e.target.value)}
+          onChange={handleStatusChange}
         >
           <option className="bg-red-600 text-white" value="notPaid">
             ยังไม่จ่าย

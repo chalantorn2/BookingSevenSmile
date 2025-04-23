@@ -437,7 +437,7 @@ const Payment = () => {
                   </th>
                   <th
                     className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    style={{ width: "150px" }}
+                    style={{ width: "180px" }}
                   >
                     Hotel
                   </th>
@@ -449,43 +449,43 @@ const Payment = () => {
                   </th>
                   <th
                     className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    style={{ width: "80px" }}
+                    style={{ width: "150px" }}
                   >
                     Type
                   </th>
                   <th
                     className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    style={{ width: "90px" }}
+                    style={{ width: "150px" }}
                   >
                     Cost
                   </th>
                   <th
                     className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    style={{ width: "60px" }}
+                    style={{ width: "100px" }}
                   >
                     Pax
                   </th>
                   <th
                     className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    style={{ width: "100px" }}
+                    style={{ width: "150px" }}
                   >
                     Total Cost
                   </th>
                   <th
                     className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    style={{ width: "90px" }}
+                    style={{ width: "150px" }}
                   >
                     Sell Price
                   </th>
                   <th
                     className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    style={{ width: "100px" }}
+                    style={{ width: "150px" }}
                   >
                     Total Price
                   </th>
                   <th
                     className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    style={{ width: "100px" }}
+                    style={{ width: "160px" }}
                   >
                     Status
                   </th>

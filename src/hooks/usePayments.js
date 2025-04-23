@@ -83,7 +83,8 @@ const usePayments = () => {
     }
   };
 
-  // Add booking to payment calculation
+  // ในฟังก์ชัน addBookingToPayment ของไฟล์ usePayments.js
+
   const addBookingToPayment = (booking, type) => {
     // Check if booking is already added
     const existingIndex = selectedBookings.findIndex(
@@ -98,20 +99,19 @@ const usePayments = () => {
       setSelectedBookings(updatedBookings);
     } else {
       // Prepare booking data based on type
-      // ในส่วนของการสร้าง bookingData
       const bookingData = {
         id: booking.id,
         dbKey: booking.id,
         type: type,
         date: type === "tour" ? booking.tour_date : booking.transfer_date,
         detail: type === "tour" ? booking.tour_detail : booking.transfer_detail,
-        hotel: type === "tour" ? booking.tour_hotel : "", // ตั้งค่า hotel สำหรับ tour
+        hotel: type === "tour" ? booking.tour_hotel : "",
         sendTo: type === "tour" ? booking.send_to : booking.send_to,
         pax: booking.pax || 1,
-        cost: 0,
+        cost: booking.cost_price || 0, // ใช้ค่า cost_price ที่มากับ booking
         quantity: booking.pax || 1,
-        sellingPrice: 0,
-        status: "notPaid",
+        sellingPrice: booking.selling_price || 0, // ใช้ค่า selling_price ที่มากับ booking
+        status: booking.payment_status === "paid" ? "paid" : "notPaid", // แปลงค่า payment_status
         remark: "",
         bookingType: "",
         chosenCount: 1,
