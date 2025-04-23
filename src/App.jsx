@@ -17,6 +17,7 @@ import Invoice from "./pages/Invoice";
 import Login from "./pages/Login";
 import UserManagement from "./pages/UserManagement";
 import ViewPayment from "./pages/ViewPayment";
+import NotFound from "./pages/NotFound"; // Import the NotFound component
 import { AuthProvider } from "./contexts/AuthContext";
 import PrivateRoute from "./components/auth/PrivateRoute";
 import "./styles/invoice.css";
@@ -68,8 +69,8 @@ const App = () => {
                 />
               </Route>
 
-              {/* Default - redirect to login หากไม่พบเส้นทาง */}
-              <Route path="*" element={<Navigate to="/login" replace />} />
+              {/* 404 Page - แสดงสำหรับทุก path ที่ไม่ตรงกับเส้นทางที่กำหนด */}
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>
         </Router>
