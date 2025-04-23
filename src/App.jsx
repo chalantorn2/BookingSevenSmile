@@ -28,11 +28,12 @@ const App = () => {
         <Router>
           <Layout>
             <Routes>
-              {/* Public Routes */}
+              {/* Public Routes - ทางเข้าที่ไม่ต้องล็อกอิน */}
               <Route path="/login" element={<Login />} />
 
-              {/* Protected Routes */}
+              {/* Protected Routes - ต้องล็อกอินเท่านั้น */}
               <Route element={<PrivateRoute />}>
+                {/* หน้าทั่วไปที่ทุกระดับสิทธิ์เข้าถึงได้ */}
                 <Route path="/" element={<Home />} />
                 <Route path="/booking-form" element={<BookingForm />} />
                 <Route path="/orders" element={<ViewOrders />} />
@@ -41,12 +42,12 @@ const App = () => {
                 <Route path="/information" element={<Information />} />
                 <Route path="/view-payment" element={<ViewPayment />} />
 
-                {/* Admin Routes */}
+                {/* Admin Routes - เฉพาะ admin และ dev เท่านั้น */}
                 <Route element={<PrivateRoute requiredRole="admin" />}>
                   <Route path="/users" element={<UserManagement />} />
                 </Route>
 
-                {/* Under Development */}
+                {/* Under Development - อยู่ระหว่างพัฒนา */}
                 <Route
                   path="/dashboard"
                   element={
@@ -67,18 +68,8 @@ const App = () => {
                 />
               </Route>
 
-              {/* Not Found Route */}
-              <Route
-                path="*"
-                element={
-                  <div className="container mx-auto p-8 text-center">
-                    <h1 className="text-2xl font-bold mb-4">
-                      404 - Page Not Found
-                    </h1>
-                    <p>The page you are looking for does not exist.</p>
-                  </div>
-                }
-              />
+              {/* Default - redirect to login หากไม่พบเส้นทาง */}
+              <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
           </Layout>
         </Router>

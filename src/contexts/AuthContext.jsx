@@ -12,16 +12,60 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ดึงข้อมูลผู้ใช้จาก localStorage เมื่อโหลดครั้งแรก
+  // ตรวจสอบสถานะการล็อกอินเมื่อโหลดแอพ
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
+    const checkAuthState = async () => {
+      setLoading(true);
+      try {
+        // ดึงข้อมูลผู้ใช้จาก localStorage
+        const storedUser = localStorage.getItem("user");
+
+        if (storedUser) {
+          // ตรวจสอบข้อมูลผู้ใช้กับ Supabase เพื่อยืนยันว่าผู้ใช้ยังมีอยู่และใช้งานได้
+          const userData = JSON.parse(storedUser);
+
+          // ตรวจสอบว่าผู้ใช้ยังมีอยู่ในระบบและยังใช้งานได้
+          const { data, error } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", userData.id)
+            .eq("active", true)
+            .single();
+
+          if (error || !data) {
+            // ถ้าไม่พบข้อมูลผู้ใช้หรือผู้ใช้ถูกปิดใช้งาน ให้ล้างข้อมูลการล็อกอิน
+            console.log("User session invalid, cleaning up...");
+            localStorage.removeItem("user");
+            setUser(null);
+          } else {
+            // อัพเดทข้อมูลผู้ใช้ใหม่ในกรณีที่มีการเปลี่ยนแปลง
+            const updatedUserData = {
+              id: data.id,
+              username: data.username,
+              fullname: data.fullname,
+              role: data.role,
+            };
+
+            localStorage.setItem("user", JSON.stringify(updatedUserData));
+            setUser(updatedUserData);
+          }
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error("Authentication check error:", error);
+        // ในกรณีที่เกิดข้อผิดพลาด ให้ล้างข้อมูลการล็อกอินเพื่อความปลอดภัย
+        localStorage.removeItem("user");
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuthState();
   }, []);
 
-  // ฟังก์ชัน login - เพิ่มพารามิเตอร์ rememberMe แต่ใช้โค้ดเดิมส่วนใหญ่
+  // ฟังก์ชัน login
   const login = async (username, password, rememberMe = false) => {
     try {
       setLoading(true);
@@ -37,7 +81,6 @@ export const AuthProvider = ({ children }) => {
       if (!data) throw new Error("ไม่พบชื่อผู้ใช้");
 
       // ตรวจสอบรหัสผ่าน (ใช้ bcrypt ใน production)
-      // ในตัวอย่างนี้เราเก็บ hash ไว้ในฐานข้อมูลแล้ว
       const { data: passwordValid, error: pwdError } = await supabase.rpc(
         "verify_password",
         {
@@ -84,17 +127,20 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  // ฟังก์ชันตรวจสอบสิทธิ์ (ไม่เปลี่ยนแปลง)
+  // ฟังก์ชันตรวจสอบสิทธิ์
   const checkPermission = (requiredRole) => {
     if (!user) return false;
 
     // ถ้าเป็น Dev สามารถเข้าถึงได้ทุกส่วน
     if (user.role === "dev") return true;
 
+    // ถ้าต้องการสิทธิ์ Admin และผู้ใช้เป็น Admin
+    if (requiredRole === "admin" && user.role === "admin") return true;
+
     // ถ้าต้องการสิทธิ์ Admin แต่เป็น User ให้กลับ false
     if (requiredRole === "admin" && user.role === "user") return false;
 
-    // กรณีอื่นๆ (Admin เข้าถึงได้หมด หรือ User เข้าถึงหน้า User)
+    // กรณีอื่นๆ (ไม่ต้องการสิทธิ์พิเศษ)
     return true;
   };
 

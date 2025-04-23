@@ -317,8 +317,8 @@ const Payment = () => {
                 </option>
                 {filteredOrders.map((order) => (
                   <option key={order.id} value={order.id}>
-                    {order.reference_id || `Order #${order.id}`} -{" "}
-                    {order.first_name} {order.last_name}({order.tourCount || 0}{" "}
+                    {/* {order.reference_id || `Order #${order.id}`} -{" "} */}
+                    {order.first_name} {order.last_name} ({order.tourCount || 0}{" "}
                     Tours, {order.transferCount || 0} Transfers)
                   </option>
                 ))}

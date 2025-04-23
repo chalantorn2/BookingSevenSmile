@@ -1026,17 +1026,17 @@ const ViewOrders = () => {
                                 </p>
                                 <p className="text-sm">
                                   <span className="font-medium">Time:</span>{" "}
-                                  {booking.time || "N/A"}
+                                  {booking.time || "-"}
                                 </p>
                                 <p className="text-sm">
                                   <span className="font-medium">Pax:</span>{" "}
-                                  {booking.pax || "N/A"}
+                                  {booking.pax || "-"}
                                 </p>
                                 <p className="text-sm">
                                   <span className="font-medium">Send To:</span>{" "}
                                   {(isTour
                                     ? booking.send_to
-                                    : booking.send_to) || "N/A"}
+                                    : booking.send_to) || "-"}
                                 </p>
                               </div>
 
@@ -1048,25 +1048,25 @@ const ViewOrders = () => {
                                       <span className="font-medium">
                                         Tour Type:
                                       </span>{" "}
-                                      {booking.tour_type || "N/A"}
+                                      {booking.tour_type || "-"}
                                     </p>
                                     <p className="text-sm">
                                       <span className="font-medium">
                                         Hotel:
                                       </span>{" "}
-                                      {booking.tour_hotel || "N/A"}
+                                      {booking.tour_hotel || "-"}
                                     </p>
                                     <p className="text-sm">
                                       <span className="font-medium">
                                         Room No:
                                       </span>{" "}
-                                      {booking.tour_room_no || "N/A"}
+                                      {booking.tour_room_no || "-"}
                                     </p>
                                     <p className="text-sm">
                                       <span className="font-medium">
                                         Contact:
                                       </span>{" "}
-                                      {booking.tour_contact_no || "N/A"}
+                                      {booking.tour_contact_no || "-"}
                                     </p>
                                   </>
                                 ) : (
@@ -1075,23 +1075,23 @@ const ViewOrders = () => {
                                       <span className="font-medium">
                                         Transfer Type:
                                       </span>{" "}
-                                      {booking.transfer_type || "N/A"}
+                                      {booking.transfer_type || "-"}
                                     </p>
                                     <p className="text-sm">
                                       <span className="font-medium">
                                         Pickup:
                                       </span>{" "}
-                                      {booking.pickup_location || "N/A"}
+                                      {booking.pickup_location || "-"}
                                     </p>
                                     <p className="text-sm">
                                       <span className="font-medium">Drop:</span>{" "}
-                                      {booking.drop_location || "N/A"}
+                                      {booking.drop_location || "-"}
                                     </p>
                                     <p className="text-sm">
                                       <span className="font-medium">
                                         Flight:
                                       </span>{" "}
-                                      {booking.transfer_flight || "N/A"}
+                                      {booking.transfer_flight || "-"}
                                     </p>
                                   </>
                                 )}
@@ -1103,23 +1103,23 @@ const ViewOrders = () => {
                                   <span className="font-medium">Details:</span>{" "}
                                   {(isTour
                                     ? booking.tour_detail
-                                    : booking.transfer_detail) || "N/A"}
+                                    : booking.transfer_detail) || "-"}
                                 </p>
                                 <p className="text-sm">
                                   <span className="font-medium">Note:</span>{" "}
-                                  {booking.note || "N/A"}
+                                  {booking.note || "-"}
                                 </p>
                                 <p className="text-sm">
                                   <span className="font-medium">
                                     Cost Price:
                                   </span>{" "}
-                                  {booking.cost_price || "N/A"}
+                                  {booking.cost_price || "-"}
                                 </p>
                                 <p className="text-sm">
                                   <span className="font-medium">
                                     Selling Price:
                                   </span>{" "}
-                                  {booking.selling_price || "N/A"}
+                                  {booking.selling_price || "-"}
                                 </p>
                               </div>
                             </div>

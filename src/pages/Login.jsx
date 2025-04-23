@@ -1,26 +1,30 @@
-// แก้ไขในไฟล์ Login.jsx
+// src/pages/Login.jsx
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { User, Lock, LogIn } from "lucide-react";
 
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false); // เพิ่มสถานะ rememberMe
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const { login, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // ถ้ามีผู้ใช้อยู่แล้ว ให้ไปที่หน้าหลัก
+  // ดึงเส้นทางที่ผู้ใช้ต้องการเข้าถึงก่อนถูกส่งมาที่หน้า login
+  const from = location.state?.from || "/";
+
+  // ถ้ามีผู้ใช้อยู่แล้ว ให้ไปที่หน้าที่ต้องการเข้าถึงหรือหน้าหลัก
   useEffect(() => {
     if (user) {
-      navigate("/");
+      navigate(from, { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, from]);
 
   // ตรวจสอบว่ามีข้อมูลการ Remember ไว้หรือไม่
   useEffect(() => {
@@ -43,7 +47,7 @@ const Login = () => {
     try {
       setError("");
       setLoading(true);
-      const result = await login(username, password, rememberMe); // ส่งค่า rememberMe ไปด้วย
+      const result = await login(username, password, rememberMe);
 
       if (!result.success) {
         setError(result.error || "เข้าสู่ระบบไม่สำเร็จ กรุณาลองอีกครั้ง");
@@ -57,7 +61,8 @@ const Login = () => {
         localStorage.removeItem("rememberedUsername");
       }
 
-      // เข้าสู่ระบบสำเร็จ จะ redirect ผ่าน useEffect
+      // เข้าสู่ระบบสำเร็จ นำทางไปยังเส้นทางที่ต้องการเข้าถึงก่อนหน้า หรือหน้าหลัก
+      navigate(from, { replace: true });
     } catch (error) {
       console.error("Login error:", error);
       setError("เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
@@ -163,7 +168,6 @@ const Login = () => {
             </div>
           </div>
 
-          {/* เพิ่ม Checkbox Remember Me */}
           <div className="mb-6">
             <label className="flex items-center">
               <input

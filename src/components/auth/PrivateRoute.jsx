@@ -1,23 +1,25 @@
 // src/components/auth/PrivateRoute.jsx
-import React from "react";
-import { Navigate, Outlet } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 
 const PrivateRoute = ({ requiredRole = null }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   // รอโหลดข้อมูลผู้ใช้
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        <div className="ml-3 text-gray-700">กำลังโหลดข้อมูล...</div>
       </div>
     );
   }
 
   // ถ้าไม่ได้ล็อกอิน ให้ redirect ไปที่หน้า login
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
   // ถ้าต้องการสิทธิ์เฉพาะแต่ไม่มีสิทธิ์
