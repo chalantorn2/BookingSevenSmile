@@ -25,8 +25,12 @@ import {
   EyeOff,
 } from "lucide-react";
 import { validatePassword } from "../utils/passwordUtils";
+import { useNotification } from "../hooks/useNotification";
+import { useAlertDialogContext } from "../contexts/AlertDialogContext";
 
 const UserManagement = () => {
+  const showAlert = useAlertDialogContext();
+  const { showSuccess, showError, showInfo } = useNotification();
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -181,7 +185,7 @@ const UserManagement = () => {
       setPasswordUser(null);
       setShowPasswordModal(false);
 
-      alert("เปลี่ยนรหัสผ่านเรียบร้อย");
+      showSuccess("เปลี่ยนรหัสผ่านเรียบร้อย");
     } catch (error) {
       console.error("Error changing password:", error);
       setError(error.message || "เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน");
@@ -194,18 +198,27 @@ const UserManagement = () => {
   const handleDeleteUser = async (user) => {
     // ใช้ canDeleteUser เพื่อตรวจสอบสิทธิ์การลบ
     if (!canDeleteUser(user)) {
-      alert("คุณไม่มีสิทธิ์ลบผู้ใช้");
+      showError("คุณไม่มีสิทธิ์ลบผู้ใช้");
       return;
     }
 
     // ไม่ให้ลบตัวเอง
     if (user.id === currentLoggedUser.id) {
-      alert("คุณไม่สามารถลบบัญชีของตัวเองได้");
+      showWarning("คุณไม่สามารถลบบัญชีของตัวเองได้");
       return;
     }
 
-    if (!window.confirm(`คุณต้องการลบผู้ใช้ ${user.username} ใช่หรือไม่?`)) {
-      return;
+    const confirmed = await showAlert({
+      title: "ยืนยันการลบผู้ใช้",
+      description: `คุณต้องการลบผู้ใช้ ${user.username} ใช่หรือไม่?`,
+      confirmText: "ยืนยันการลบ",
+      cancelText: "ยกเลิก",
+      actionVariant: "destructive",
+    });
+
+    // ตรวจสอบว่า confirmed เป็น true หรือไม่
+    if (!confirmed) {
+      return; // ออกถ้าผู้ใช้กดยกเลิก
     }
 
     setLoading(true);
@@ -219,7 +232,7 @@ const UserManagement = () => {
       }
 
       await loadUsers();
-      alert("ลบผู้ใช้เรียบร้อย");
+      showSuccess("ลบผู้ใช้เรียบร้อย");
     } catch (err) {
       console.error("Error deleting user:", err);
       setError(err.message || "เกิดข้อผิดพลาดในการลบผู้ใช้");

@@ -24,14 +24,16 @@ import {
   updatePaymentsInvoiceStatus,
   fetchInvoiceById,
 } from "../services/invoiceService";
-import "../styles/invoice.css"; // ตรวจสอบว่าพาธถูกต้อง
-// Helper function to format numbers with commas
+import "../styles/invoice.css";
+import { useNotification } from "../hooks/useNotification";
+
 const formatNumberWithCommas = (num) => {
   if (num === null || num === undefined) return "0";
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 };
 
 const Invoice = () => {
+  const { showSuccess, showError, showInfo } = useNotification();
   // State variables
   const [allPaymentsData, setAllPaymentsData] = useState({});
   const [allTourBookings, setAllTourBookings] = useState([]);
@@ -269,7 +271,7 @@ const Invoice = () => {
         }
       }
 
-      alert(`บันทึก Invoice เรียบร้อย! Invoice: ${invoiceName}`);
+      showSuccess(`บันทึก Invoice เรียบร้อย! Invoice: ${invoiceName}`);
 
       // รีเซ็ตหน้าจอ
       setSelectedPaymentIds([]);
@@ -456,7 +458,7 @@ const Invoice = () => {
         updated_at: new Date().toISOString(),
       });
 
-      alert("บันทึกการแก้ไข Invoice เรียบร้อย");
+      showSuccess("บันทึกการแก้ไข Invoice เรียบร้อย");
 
       // Refresh data and close modal
       setIsEditModalOpen(false);
@@ -534,7 +536,7 @@ const Invoice = () => {
       link.click();
       document.body.removeChild(link);
 
-      alert("นำออกข้อมูลเป็น CSV สำเร็จ");
+      showSuccess("นำออกข้อมูลเป็น CSV สำเร็จ");
     } catch (error) {
       console.error("Error exporting to CSV:", error);
       setError("เกิดข้อผิดพลาดในการนำออกข้อมูลเป็น CSV");
@@ -563,7 +565,7 @@ const Invoice = () => {
 
       if (error) throw error;
 
-      alert("อัปเดต REF เรียบร้อย");
+      showSuccess("อัปเดต REF เรียบร้อย");
       buildInvoiceTable();
     } catch (error) {
       console.error("Error updating REF:", error);
@@ -600,7 +602,7 @@ const Invoice = () => {
 
       if (error) throw error;
 
-      alert("อัปเดต Fee เรียบร้อย");
+      showSuccess("อัปเดต Fee เรียบร้อย");
       await loadInitialData();
       buildInvoiceTable();
     } catch (error) {
@@ -623,7 +625,7 @@ const Invoice = () => {
       updateInvoice(invoiceId, { invoice_date: newDate })
         .then(({ success }) => {
           if (success) {
-            alert("อัปเดตวันที่ Invoice เรียบร้อย");
+            showSuccess("อัปเดตวันที่ Invoice เรียบร้อย");
           }
         })
         .catch((error) => {
@@ -1206,11 +1208,11 @@ const Invoice = () => {
                 );
 
                 if (availablePayments.length === 0) {
-                  alert("ไม่มี Payment ที่สามารถเพิ่มได้");
+                  showInfo("ไม่มี Payment ที่สามารถเพิ่มได้");
                   return;
                 }
                 // Show modal to select additional payments (future feature)
-                alert("ฟังก์ชันนี้จะมีการพัฒนาในอนาคต");
+                showInfo("ฟังก์ชันนี้จะมีการพัฒนาในอนาคต");
               }}
             >
               <PlusCircle size={16} />

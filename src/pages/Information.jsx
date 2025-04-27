@@ -8,8 +8,12 @@ import {
 } from "../services/informationService";
 import { Plus, Edit, Trash, Save, X } from "lucide-react";
 import { useInformation } from "../contexts/InformationContext";
+import { useNotification } from "../hooks/useNotification";
+import { useAlertDialogContext } from "../contexts/AlertDialogContext";
 
 const Information = () => {
+  const showAlert = useAlertDialogContext();
+  const { showSuccess, showError, showInfo } = useNotification();
   // เรียกใช้ useInformation ที่ระดับบนสุดของ component
   const { refreshInformation } = useInformation();
 
@@ -77,7 +81,7 @@ const Information = () => {
 
   const handleSaveEdit = async () => {
     if (!editingItem.value.trim()) {
-      alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+      showInfo("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
 
@@ -92,7 +96,7 @@ const Information = () => {
       refreshInformation();
       setEditingItem(null);
     } else {
-      alert(`ไม่สามารถบันทึกข้อมูลได้: ${result.error}`);
+      showError(`ไม่สามารถบันทึกข้อมูลได้: ${result.error}`);
     }
   };
 
@@ -108,7 +112,7 @@ const Information = () => {
 
   const handleSaveNew = async () => {
     if (!newItem.value.trim()) {
-      alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+      showInfo("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
 
@@ -126,21 +130,33 @@ const Information = () => {
       setAddingNew(false);
       setNewItem({ value: "", description: "" });
     } else {
-      alert(`ไม่สามารถเพิ่มข้อมูลได้: ${result.error}`);
+      showError(`ไม่สามารถเพิ่มข้อมูลได้: ${result.error}`);
     }
   };
 
   const handleDeactivate = async (id) => {
-    if (window.confirm("คุณต้องการยกเลิกการใช้งานข้อมูลนี้ใช่หรือไม่?")) {
+    const confirmed = await showAlert({
+      title: "ยืนยันการยกเลิกการใช้งาน",
+      description: "คุณต้องการยกเลิกการใช้งานข้อมูลนี้ใช่หรือไม่?",
+      confirmText: "ยืนยันการลบ",
+      cancelText: "ยกเลิก",
+      actionVariant: "destructive",
+    });
+
+    if (confirmed) {
+      setLoading(true);
+
       const result = await deactivateInformation(id);
 
       if (result.success) {
-        loadInformationData();
-        // เรียกใช้ refreshInformation เพื่ออัพเดท context
+        showSuccess("ยกเลิกการใช้งานข้อมูลเรียบร้อย");
+        await loadInformationData();
         refreshInformation();
       } else {
-        alert(`ไม่สามารถยกเลิกการใช้งานข้อมูลได้: ${result.error}`);
+        showError(`ไม่สามารถยกเลิกการใช้งานข้อมูลได้: ${result.error}`);
       }
+
+      setLoading(false);
     }
   };
 
@@ -177,7 +193,7 @@ const Information = () => {
           </div>
 
           {/* Content */}
-          <div className="w-full md:w-3/4 p-4">
+          <div className="w-full md:w-3/4 p-4 ">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">
                 {categories.find((cat) => cat.id === selectedCategory)?.label ||
@@ -196,7 +212,7 @@ const Information = () => {
 
             {loading ? (
               <div className="text-center py-6">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-solid border-blue-500 border-r-transparent"></div>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-solid border-blue-500 border-r-transparent "></div>
                 <p className="mt-2 text-gray-600">กำลังโหลดข้อมูล...</p>
               </div>
             ) : error ? (
@@ -253,7 +269,7 @@ const Information = () => {
                 )}
 
                 {/* Information list */}
-                <div className="border rounded-md overflow-hidden">
+                <div className="border border-gray-400 rounded-md overflow-hidden">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>

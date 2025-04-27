@@ -8,8 +8,12 @@ import { generateOrderID, generateBookingID } from "../utils/idGenerator";
 import { fetchInformationByCategory } from "../services/informationService";
 import AutocompleteInput from "../components/common/AutocompleteInput";
 import { useInformation } from "../contexts/InformationContext";
+import { useNotification } from "../hooks/useNotification";
+import { useAlertDialogContext } from "../contexts/AlertDialogContext";
 
 const BookingForm = () => {
+  const showAlert = useAlertDialogContext();
+  const { showSuccess, showError, showInfo } = useNotification();
   const [currentOrderId, setCurrentOrderId] = useState(null);
   const [currentOrderKey, setCurrentOrderKey] = useState(null);
   const [isBookingSectionVisible, setIsBookingSectionVisible] = useState(false);
@@ -301,6 +305,7 @@ const BookingForm = () => {
           reference_id: bookingId,
           status: "pending",
         };
+        tourBooking.pax = parseInt(mainFormData.pax) || 0;
 
         const detailElement = formElements[`tour_${formId}_detail`];
         if (detailElement) tourBooking.tour_detail = detailElement.value;
@@ -343,6 +348,7 @@ const BookingForm = () => {
           status: "pending",
           reference_id: bookingId,
         };
+        transferBooking.pax = parseInt(mainFormData.pax) || 0;
 
         const timeElement = formElements[`transfer_${formId}_pickup_time`];
         if (timeElement) transferBooking.transfer_time = timeElement.value;
@@ -364,7 +370,7 @@ const BookingForm = () => {
         const flightElement = formElements[`transfer_${formId}_flight`];
         if (flightElement)
           transferBooking.transfer_flight = flightElement.value;
-        const ftimeElement = formElements[`transfer_${formId}_transfer_ftime`];
+        const ftimeElement = formElements[`transfer_${formId}_ftime`];
         if (ftimeElement) transferBooking.transfer_ftime = ftimeElement.value;
         const carModelElement = formElements[`transfer_${formId}_car_model`];
         if (carModelElement) transferBooking.car_model = carModelElement.value;
@@ -404,9 +410,11 @@ const BookingForm = () => {
         if (updateError) throw updateError;
       }
 
-      let message = `บันทึกข้อมูลสำเร็จ! Tour: ${tourBookings.length}, Transfer: ${transferBookings.length}`;
-      setStatus({ loading: false, message, error: "" });
-      console.log("Submit success, message set:", message);
+      showSuccess(
+        `บันทึกข้อมูลสำเร็จ! Tour: ${tourBookings.length}, Transfer: ${transferBookings.length}`
+      );
+      setStatus({ loading: false, error: "" });
+      console.log("Submit success, message set: ");
 
       setTimeout(() => {
         resetForm();
@@ -425,7 +433,7 @@ const BookingForm = () => {
     }
   };
 
-  const handleCancelCreateOrder = () => {
+  const handleCancelCreateOrder = async () => {
     setIsCreatingNewOrder(false);
     if (
       mainFormData.firstName ||
@@ -433,13 +441,21 @@ const BookingForm = () => {
       mainFormData.agent ||
       mainFormData.pax
     ) {
-      if (
-        window.confirm(
-          "คุณต้องการยกเลิกการสร้าง Order ใหม่ใช่หรือไม่? ข้อมูลที่กรอกจะหายไป"
-        )
-      ) {
+      const confirmed = await showAlert({
+        title: "ยืนยันการยกเลิก",
+        description:
+          "คุณต้องการยกเลิกการสร้าง Order ใหม่ใช่หรือไม่? ข้อมูลที่กรอกจะหายไป",
+        confirmText: "ยกเลิก",
+        cancelText: "กลับไปกรอกข้อมูลต่อ",
+        actionVariant: "destructive",
+      });
+
+      if (confirmed) {
         resetForm();
         setIsBookingSectionVisible(false);
+      } else {
+        // กลับไปกรอกข้อมูลต่อ
+        setIsCreatingNewOrder(true);
       }
     } else {
       resetForm();

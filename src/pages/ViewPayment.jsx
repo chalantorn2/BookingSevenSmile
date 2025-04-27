@@ -5,8 +5,10 @@ import supabase from "../config/supabaseClient";
 import { useInformation } from "../contexts/InformationContext";
 import AutocompleteInput from "../components/common/AutocompleteInput";
 import BookingDetailModal from "../components/booking/BookingDetailModal";
+import { useNotification } from "../hooks/useNotification";
 
 const ViewPayment = () => {
+  const { showSuccess, showError, showInfo } = useNotification();
   const [selectedType, setSelectedType] = useState("tour"); // 'tour' หรือ 'transfer'
   const [selectedRecipient, setSelectedRecipient] = useState("");
   const [startDate, setStartDate] = useState(
@@ -108,7 +110,7 @@ const ViewPayment = () => {
       fetchBookings(currentPage);
     } catch (error) {
       console.error("Error updating payment status:", error);
-      alert("ไม่สามารถอัพเดทสถานะได้");
+      showError("ไม่สามารถอัพเดทสถานะได้");
     }
   };
 
@@ -131,7 +133,7 @@ const ViewPayment = () => {
       fetchBookings(currentPage);
     } catch (error) {
       console.error("Error updating payment note:", error);
-      alert("ไม่สามารถอัพเดทหมายเหตุได้");
+      showError("ไม่สามารถอัพเดทหมายเหตุได้");
     }
   };
 
@@ -464,7 +466,7 @@ const ViewPayment = () => {
           }}
           onDelete={async () => {
             // Don't allow delete from this view
-            alert("ไม่สามารถลบข้อมูลได้จากหน้านี้");
+            showError("ไม่สามารถลบข้อมูลได้จากหน้านี้");
             return { success: false };
           }}
         />

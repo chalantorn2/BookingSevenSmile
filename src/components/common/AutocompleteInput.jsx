@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-
+import { useNotification } from "../../hooks/useNotification";
+import { useAlertDialogContext } from "../../contexts/AlertDialogContext";
 /**
  * AutocompleteInput - คอมโพเนนต์สำหรับการค้นหาและเพิ่มข้อมูลใหม่
  *
@@ -22,6 +23,8 @@ const AutocompleteInput = ({
   id,
   className = "",
 }) => {
+  const showAlert = useAlertDialogContext();
+  const { showSuccess, showError, showInfo } = useNotification();
   const [inputValue, setInputValue] = useState(value);
   const [filteredOptions, setFilteredOptions] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -111,10 +114,14 @@ const AutocompleteInput = ({
   };
 
   // เมื่อคลิกปุ่มเพิ่มข้อมูลใหม่
-  const handleAddNewClick = () => {
-    const confirmed = window.confirm(
-      'คุณต้องการเพิ่ม "' + inputValue + '" เป็นข้อมูลใหม่ใช่หรือไม่?'
-    );
+  const handleAddNewClick = async () => {
+    const confirmed = await showAlert({
+      title: "ยืนยันการเพิ่มข้อมูล",
+      description: `คุณต้องการเพิ่ม "${inputValue}" เป็นข้อมูลใหม่ใช่หรือไม่?`,
+      confirmText: "เพิ่ม",
+      cancelText: "ยกเลิก",
+      actionVariant: "success", // ใช้สีเขียวสำหรับปุ่มเพิ่ม
+    });
 
     if (confirmed) {
       setIsAdding(true);
@@ -141,12 +148,16 @@ const AutocompleteInput = ({
 
         // แสดงข้อความแจ้งเตือน
         setTimeout(() => {
-          alert(`เพิ่มข้อมูล "${result.value}" ลงใน Information เรียบร้อยแล้ว`);
+          showSuccess(
+            `เพิ่มข้อมูล "${result.value}" ลงใน Information เรียบร้อยแล้ว`
+          );
         }, 100);
       }
     } catch (error) {
       console.error("Error adding new item:", error);
-      alert(`เกิดข้อผิดพลาด: ${error.message || "ไม่สามารถเพิ่มข้อมูลได้"}`);
+      showError(
+        `เกิดข้อผิดพลาด: ${error.message || "ไม่สามารถเพิ่มข้อมูลได้"}`
+      );
     } finally {
       setIsLoading(false);
       setIsAdding(false);
@@ -164,7 +175,7 @@ const AutocompleteInput = ({
       } else if (filteredOptions.length > 0) {
         handleOptionClick(filteredOptions[0]);
       } else if (inputValue && !selectedOption) {
-        alert(
+        showInfo(
           'ไม่พบข้อมูลที่ตรงกัน กรุณาคลิกที่ปุ่ม "เพิ่ม" เพื่อเพิ่มข้อมูลใหม่'
         );
       }

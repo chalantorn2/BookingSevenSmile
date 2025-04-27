@@ -5,6 +5,7 @@ import BookingList from "../components/booking/BookingList";
 import BookingDetailModal from "../components/booking/BookingDetailModal";
 import BookingStatusLegend from "../components/booking/BookingStatusLegend";
 import CalendarHighlight from "../components/booking/CalendarHighlight";
+import { useNotification } from "../hooks/useNotification";
 import {
   Plus,
   Printer,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 
 const Home = () => {
+  const { showSuccess, showError, showInfo } = useNotification();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [tourBookings, setTourBookings] = useState([]);
   const [transferBookings, setTransferBookings] = useState([]);
@@ -139,7 +141,7 @@ const Home = () => {
 
   const handleExport = () => {
     // This would be implemented with html2canvas or similar library
-    alert("ฟังก์ชันส่งออกภาพจะถูกพัฒนาในเวอร์ชันถัดไป");
+    showInfo("ฟังก์ชันส่งออกภาพจะถูกพัฒนาในเวอร์ชันถัดไป");
   };
 
   // คำนวณยอดรวมจำนวนคน

@@ -16,6 +16,7 @@ import { formatDateForDatabase } from "../utils/dateUtils";
 import BookingCard from "../components/payment/BookingCard";
 import PaymentRow from "../components/payment/PaymentRow";
 import usePayments from "../hooks/usePayments";
+import { useNotification } from "../hooks/useNotification";
 
 const Payment = () => {
   // States for the page
@@ -182,7 +183,7 @@ const Payment = () => {
     try {
       const result = await savePaymentData(selectedOrder);
       if (result.success) {
-        alert(`บันทึกข้อมูลสำเร็จ! Payment ID: ${result.paymentID}`);
+        showSuccess(`บันทึกข้อมูลสำเร็จ! Payment ID: ${result.paymentID}`);
       }
     } catch (error) {
       console.error("Error saving payment:", error);
@@ -227,11 +228,11 @@ const Payment = () => {
         <div className="flex flex-col md:flex-row gap-4 justify-center">
           <div className="w-full md:w-2/3 lg:w-1/2">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-              <div className="md:col-span-5">
+              <div className="md:col-span-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   From Date
                 </label>
-                <div className="flex items-center border rounded-md">
+                <div className="flex items-center border border-gray-400 rounded-md">
                   <span className="px-2 text-gray-500">
                     <Calendar size={18} />
                   </span>
@@ -243,11 +244,11 @@ const Payment = () => {
                   />
                 </div>
               </div>
-              <div className="md:col-span-5">
+              <div className="md:col-span-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   To Date
                 </label>
-                <div className="flex items-center border rounded-md">
+                <div className="flex items-center border border-gray-400 rounded-md">
                   <span className="px-2 text-gray-500">
                     <Calendar size={18} />
                   </span>
@@ -259,7 +260,7 @@ const Payment = () => {
                   />
                 </div>
               </div>
-              <div className="md:col-span-2 flex items-end">
+              <div className="md:col-span-4 flex items-end">
                 <button
                   className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition flex items-center justify-center"
                   onClick={handleApplyFilter}

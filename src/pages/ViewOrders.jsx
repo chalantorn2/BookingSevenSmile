@@ -21,9 +21,12 @@ import {
 import Layout from "../components/common/Layout";
 import BookingStatusLegend from "../components/booking/BookingStatusLegend";
 import { formatDate } from "../utils/dateUtils";
+import { useAlertDialogContext } from "../contexts/AlertDialogContext";
+import { useNotification } from "../hooks/useNotification";
 
 const ViewOrders = () => {
-  // State hooks
+  const { showSuccess, showError, showInfo } = useNotification();
+  const showAlert = useAlertDialogContext();
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,13 +50,6 @@ const ViewOrders = () => {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-
-  // Confirmations
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState(null);
-  const [showRemoveBookingConfirm, setShowRemoveBookingConfirm] =
-    useState(false);
-  const [bookingToRemove, setBookingToRemove] = useState(null);
 
   // Add booking modal
   const [showAddBookingModal, setShowAddBookingModal] = useState(false);
@@ -84,7 +80,6 @@ const ViewOrders = () => {
 
         result = await Promise.all(
           result.map(async (order) => {
-            // ดึงข้อมูล bookings ทั้งหมดของ order
             const { data: tourBookings } = await supabase
               .from("tour_bookings")
               .select("tour_date")
@@ -100,7 +95,6 @@ const ViewOrders = () => {
               ...(transferBookings || []).map((b) => new Date(b.transfer_date)),
             ].filter(Boolean);
 
-            // ตรวจสอบว่ามีวันที่ใดอยู่ในช่วงหรือไม่
             const isInRange = allDates.some(
               (date) => date >= start && date <= end
             );
@@ -109,42 +103,34 @@ const ViewOrders = () => {
           })
         );
 
-        result = result.filter(Boolean); // กรองเอาเฉพาะ order ที่ไม่เป็น null
+        result = result.filter(Boolean);
       }
 
-      // Filter by search term
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase();
         result = result.filter((order) => {
-          // Check reference_id
           if (
             order.reference_id &&
             order.reference_id.toLowerCase().includes(term)
           ) {
             return true;
           }
-
-          // Check customer name
           const customerName = `${order.first_name || ""} ${
             order.last_name || ""
           }`.toLowerCase();
           if (customerName.includes(term)) {
             return true;
           }
-
-          // Check agent name
           if (
             order.agent_name &&
             order.agent_name.toLowerCase().includes(term)
           ) {
             return true;
           }
-
           return false;
         });
       }
 
-      // Filter by invoice status
       if (filterType === "invoiced") {
         result = result.filter((order) => order.is_invoiced);
       } else if (filterType === "notInvoiced") {
@@ -162,13 +148,11 @@ const ViewOrders = () => {
     filterOrders();
   }, [orders, startDate, endDate, searchTerm, filterType]);
 
-  // Fetch orders with related bookings
   const fetchOrders = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Fetch all orders
       const { data: ordersData, error: ordersError } = await supabase
         .from("orders")
         .select("*")
@@ -176,10 +160,8 @@ const ViewOrders = () => {
 
       if (ordersError) throw ordersError;
 
-      // Process orders with bookings
       const processedOrders = await Promise.all(
         ordersData.map(async (order) => {
-          // Fetch tour bookings
           const { data: tourBookings, error: tourError } = await supabase
             .from("tour_bookings")
             .select("*")
@@ -187,7 +169,6 @@ const ViewOrders = () => {
 
           if (tourError) throw tourError;
 
-          // Fetch transfer bookings
           const { data: transferBookings, error: transferError } =
             await supabase
               .from("transfer_bookings")
@@ -196,16 +177,21 @@ const ViewOrders = () => {
 
           if (transferError) throw transferError;
 
-          // Combine all bookings
+          const { data: paymentData, error: paymentError } = await supabase
+            .from("payments")
+            .select("invoiced")
+            .eq("order_id", order.id)
+            .single();
+
+          const isInvoiced = paymentData?.invoiced === true;
+
           const allBookings = [
             ...(tourBookings || []),
             ...(transferBookings || []),
           ];
 
-          // Find earliest and latest dates
           const dates = allBookings
             .map((booking) => {
-              // Use tour_date or transfer_date depending on booking type
               return booking.tour_date || booking.transfer_date;
             })
             .filter(Boolean)
@@ -214,9 +200,6 @@ const ViewOrders = () => {
 
           const earliestDate = dates.length > 0 ? dates[0] : null;
           const latestDate = dates.length > 0 ? dates[dates.length - 1] : null;
-
-          // Check if order is invoiced (for now, default to false - you'll implement this later)
-          const isInvoiced = false; // Will be implemented when you have payments/invoices
 
           return {
             ...order,
@@ -248,10 +231,8 @@ const ViewOrders = () => {
     }
   };
 
-  // Fetch bookings not associated with any order
   const fetchAvailableBookings = async () => {
     try {
-      // Fetch tour bookings with no order_id
       const { data: tourBookings, error: tourError } = await supabase
         .from("tour_bookings")
         .select("*")
@@ -259,7 +240,6 @@ const ViewOrders = () => {
 
       if (tourError) throw tourError;
 
-      // Fetch transfer bookings with no order_id
       const { data: transferBookings, error: transferError } = await supabase
         .from("transfer_bookings")
         .select("*")
@@ -267,7 +247,6 @@ const ViewOrders = () => {
 
       if (transferError) throw transferError;
 
-      // Format tour bookings
       const formattedTours = (tourBookings || []).map((tour) => ({
         id: tour.id,
         type: "tour",
@@ -280,7 +259,6 @@ const ViewOrders = () => {
         pax: tour.pax || 0,
       }));
 
-      // Format transfer bookings
       const formattedTransfers = (transferBookings || []).map((transfer) => ({
         id: transfer.id,
         type: "transfer",
@@ -293,7 +271,6 @@ const ViewOrders = () => {
         pax: transfer.pax || 0,
       }));
 
-      // Combine and sort by date
       const combined = [...formattedTours, ...formattedTransfers].sort(
         (a, b) => {
           const dateA = new Date(a.date);
@@ -313,13 +290,11 @@ const ViewOrders = () => {
     }
   };
 
-  // Show order details modal
   const handleViewOrderDetails = async (order) => {
     setSelectedOrder(order);
     setLoading(true);
 
     try {
-      // Fetch tour bookings for this order
       const { data: tourBookings, error: tourError } = await supabase
         .from("tour_bookings")
         .select("*")
@@ -327,7 +302,6 @@ const ViewOrders = () => {
 
       if (tourError) throw tourError;
 
-      // Fetch transfer bookings for this order
       const { data: transferBookings, error: transferError } = await supabase
         .from("transfer_bookings")
         .select("*")
@@ -335,7 +309,6 @@ const ViewOrders = () => {
 
       if (transferError) throw transferError;
 
-      // Combine and format bookings for display
       const allBookings = [
         ...(tourBookings || []).map((booking) => ({
           ...booking,
@@ -351,7 +324,6 @@ const ViewOrders = () => {
         })),
       ];
 
-      // Sort by date and time
       allBookings.sort((a, b) => {
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
@@ -373,24 +345,33 @@ const ViewOrders = () => {
     }
   };
 
-  // Delete order
-  const handleConfirmDeleteOrder = async () => {
-    if (!orderToDelete) return;
+  const handleDeleteOrder = async (order) => {
+    if (loading) return;
+
+    const confirmed = await showAlert({
+      title: "ยืนยันการลบ Order",
+      description: `คุณต้องการลบ Order ${
+        order.reference_id || order.id
+      } ใช่หรือไม่? การลบจะทำให้ Booking ใน Order ถูกปลดออกทั้งหมด และ Order จะถูกลบถาวร`,
+      confirmText: "ลบ",
+      cancelText: "ยกเลิก",
+      actionVariant: "destructive",
+    });
+
+    if (!confirmed) return;
 
     setLoading(true);
     try {
-      // Get all bookings to update
       const { data: tourBookings } = await supabase
         .from("tour_bookings")
         .select("id")
-        .eq("order_id", orderToDelete.id);
+        .eq("order_id", order.id);
 
       const { data: transferBookings } = await supabase
         .from("transfer_bookings")
         .select("id")
-        .eq("order_id", orderToDelete.id);
+        .eq("order_id", order.id);
 
-      // Release bookings from this order
       for (const booking of tourBookings || []) {
         await supabase
           .from("tour_bookings")
@@ -405,78 +386,69 @@ const ViewOrders = () => {
           .eq("id", booking.id);
       }
 
-      // Delete the order
       const { error } = await supabase
         .from("orders")
         .delete()
-        .eq("id", orderToDelete.id);
+        .eq("id", order.id);
 
       if (error) throw error;
 
-      // Refresh data
       await fetchOrders();
       await fetchAvailableBookings();
 
-      // Close modal and reset
-      setShowDeleteConfirm(false);
-      setOrderToDelete(null);
-
-      // Show success message
-      showSuccessMessage("Order deleted successfully");
+      showSuccess("Order deleted successfully");
     } catch (error) {
       console.error("Error deleting order:", error);
-      showErrorMessage("Failed to delete order: " + error.message);
+      showError("Failed to delete order: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Remove booking from order
-  const handleConfirmRemoveBooking = async () => {
-    if (!bookingToRemove || !selectedOrder) return;
+  const handleRemoveBooking = async (bookingId, bookingType) => {
+    if (loading || !selectedOrder) return;
+
+    const confirmed = await showAlert({
+      title: "ยืนยันการนำ Booking ออกจาก Order",
+      description: "คุณต้องการเอาบุ๊คกิ้งนี้ออกจาก Order ใช่หรือไม่?",
+      confirmText: "ยืนยันการลบ",
+      cancelText: "ยกเลิก",
+      actionVariant: "destructive",
+    });
+
+    if (!confirmed) return;
 
     setLoading(true);
     try {
-      const { bookingId, bookingType } = bookingToRemove;
       const tableName =
         bookingType === "tour" ? "tour_bookings" : "transfer_bookings";
 
-      // Update booking to remove order_id
+      // เปลี่ยนจากการอัพเดต order_id เป็น null เป็นการลบข้อมูลทิ้ง
       const { error } = await supabase
         .from(tableName)
-        .update({ order_id: null })
+        .delete()
         .eq("id", bookingId);
 
       if (error) throw error;
 
-      // Refresh order details
       await handleViewOrderDetails(selectedOrder);
-
-      // Refresh all data
       await fetchOrders();
       await fetchAvailableBookings();
 
-      // Close modal and reset
-      setShowRemoveBookingConfirm(false);
-      setBookingToRemove(null);
-
-      // Show success message
-      showSuccessMessage("Booking removed successfully");
+      showSuccess("Booking removed successfully");
     } catch (error) {
       console.error("Error removing booking:", error);
-      showErrorMessage("Failed to remove booking: " + error.message);
+      showError("Failed to remove booking: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Add bookings to order
   const handleAddBookingsToOrder = async (orderId) => {
     if (!selectedBookingsToAdd.length || !orderId) return;
 
     setLoading(true);
     try {
-      // Update each selected booking with the order ID
       for (const booking of selectedBookingsToAdd) {
         const tableName =
           booking.type === "tour" ? "tour_bookings" : "transfer_bookings";
@@ -489,45 +461,36 @@ const ViewOrders = () => {
         if (error) throw error;
       }
 
-      // Refresh data
       await fetchOrders();
       await fetchAvailableBookings();
 
-      // If viewing order details, refresh them too
       if (selectedOrder && selectedOrder.id === orderId) {
         await handleViewOrderDetails(selectedOrder);
       }
 
-      // Close modal and reset
       setShowAddBookingModal(false);
       setSelectedBookingsToAdd([]);
 
-      // Show success message
-      showSuccessMessage(
-        `${selectedBookingsToAdd.length} bookings added to order`
-      );
+      showSuccess(`${selectedBookingsToAdd.length} bookings added to order`);
     } catch (error) {
       console.error("Error adding bookings to order:", error);
-      showErrorMessage("Failed to add bookings: " + error.message);
+      showError("Failed to add bookings: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle search input change
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
   };
 
-  // Handle filter type change
   const handleFilterTypeChange = (type) => {
     setFilterType(type);
   };
 
-  // ฟังก์ชัน applyFilters ที่แก้ไข
   const applyFilters = () => {
     if (!startDate || !endDate) {
-      showErrorMessage("Please select both start and end dates.");
+      showError("Please select both start and end dates.");
       return;
     }
 
@@ -535,33 +498,19 @@ const ViewOrders = () => {
     const end = new Date(endDate);
 
     if (start > end) {
-      showErrorMessage("Start date cannot be later than end date.");
+      showError("Start date cannot be later than end date.");
       return;
     }
 
-    // การกรองถูกจัดการใน useEffect แล้ว ดังนั้นที่นี่แค่แจ้งว่ากรองสำเร็จ
-    showSuccessMessage("Filters applied successfully.");
+    showSuccess("Filters applied successfully.");
   };
 
-  // Pagination helpers
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const paginatedOrders = filteredOrders.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
-  // Helper for showing messages
-  const showSuccessMessage = (message) => {
-    // You could implement a toast notification here
-    alert(message);
-  };
-
-  const showErrorMessage = (message) => {
-    // You could implement a toast notification here
-    alert("Error: " + message);
-  };
-
-  // Format date for display
   const formatDisplayDate = (dateStr) => {
     if (!dateStr) return "-";
 
@@ -580,7 +529,6 @@ const ViewOrders = () => {
     }
   };
 
-  // Date range display helper
   const getDateRangeDisplay = (order) => {
     const earliestDate = order.earliestDate
       ? formatDisplayDate(order.earliestDate)
@@ -599,7 +547,6 @@ const ViewOrders = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-6">
-        {/* Page Header */}
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800">จัดการ Order</h1>
           <p className="text-gray-600">ดูและจัดการ Order</p>
@@ -618,7 +565,7 @@ const ViewOrders = () => {
               >
                 From Date
               </label>
-              <div className="flex items-center border rounded-md">
+              <div className="flex items-center border border-gray-400 rounded-md">
                 <span className="px-2 text-gray-500">
                   <Calendar size={18} />
                 </span>
@@ -638,7 +585,7 @@ const ViewOrders = () => {
               >
                 To Date
               </label>
-              <div className="flex items-center border rounded-md">
+              <div className="flex items-center border border-gray-400 rounded-md">
                 <span className="px-2 text-gray-500">
                   <Calendar size={18} />
                 </span>
@@ -663,7 +610,7 @@ const ViewOrders = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mt-4">
             <div className="md:col-span-6">
-              <div className="flex items-center border rounded-md">
+              <div className="flex items-center border border-gray-400 rounded-md">
                 <span className="px-2 text-gray-500">
                   <Search size={18} />
                 </span>
@@ -679,7 +626,7 @@ const ViewOrders = () => {
             <div className="md:col-span-6 flex justify-end">
               <div className="flex rounded-md overflow-hidden">
                 <button
-                  className={`px-3 py-2 border rounded-l-md  ${
+                  className={`px-3 py-2 border rounded-l-md ${
                     filterType === "all"
                       ? "bg-gray-200 font-medium"
                       : "bg-white"
@@ -689,7 +636,7 @@ const ViewOrders = () => {
                   All Orders
                 </button>
                 <button
-                  className={`px-3 py-2 border ${
+                  className={`px-3 py-2 border border-gray-400 ${
                     filterType === "invoiced"
                       ? "bg-gray-200 font-medium"
                       : "bg-white"
@@ -699,7 +646,7 @@ const ViewOrders = () => {
                   Invoiced
                 </button>
                 <button
-                  className={`px-3 py-2 border rounded-r-md ${
+                  className={`px-3 py-2 border border-gray-400 rounded-r-md ${
                     filterType === "notInvoiced"
                       ? "bg-gray-200 font-medium"
                       : "bg-white"
@@ -712,28 +659,7 @@ const ViewOrders = () => {
             </div>
           </div>
         </div>
-        {/* Stats Summary */}
-        {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
-            <h5 className="text-gray-700 font-medium">Total Orders</h5>
-            <p className="text-4xl font-bold text-blue-600 mt-2">
-              {stats.totalOrders}
-            </p>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
-            <h5 className="text-gray-700 font-medium">Total Bookings</h5>
-            <p className="text-4xl font-bold text-green-600 mt-2">
-              {stats.totalBookings}
-            </p>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
-            <h5 className="text-gray-700 font-medium">Filtered Results</h5>
-            <p className="text-4xl font-bold text-indigo-600 mt-2">
-              {stats.filteredCount}
-            </p>
-          </div>
-        </div> */}
-        {/* No Orders Message */}
+
         {!loading && filteredOrders.length === 0 && (
           <div className="bg-blue-50 text-blue-800 p-4 rounded-md flex items-center justify-center mb-6">
             <AlertCircle size={20} className="mr-2" />
@@ -743,14 +669,14 @@ const ViewOrders = () => {
             </span>
           </div>
         )}
-        {/* Loading Indicator */}
+
         {loading && (
           <div className="text-center my-6">
             <div className="inline-block w-8 h-8 border-4 border-blue-500 border-opacity-25 rounded-full border-t-blue-500 animate-spin"></div>
             <p className="mt-2 text-gray-600">Loading orders...</p>
           </div>
         )}
-        {/* Orders List */}
+
         <div className="space-y-4">
           {paginatedOrders.map((order) => (
             <div
@@ -815,10 +741,8 @@ const ViewOrders = () => {
                     </button>
                     <button
                       className="px-3 py-1.5 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition flex items-center"
-                      onClick={() => {
-                        setOrderToDelete(order);
-                        setShowDeleteConfirm(true);
-                      }}
+                      onClick={() => handleDeleteOrder(order)}
+                      disabled={loading}
                     >
                       <Trash2 size={16} className="mr-1" />
                       Delete
@@ -829,7 +753,7 @@ const ViewOrders = () => {
             </div>
           ))}
         </div>
-        {/* Pagination */}
+
         {filteredOrders.length > 0 && (
           <div className="flex justify-between items-center mt-6">
             <div className="text-sm text-gray-600">
@@ -862,11 +786,9 @@ const ViewOrders = () => {
         )}
       </div>
 
-      {/* Order Details Modal */}
       {isModalOpen && selectedOrder && (
         <div className="fixed inset-0 z-50 overflow-auto modal-backdrop bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-            {/* Header */}
             <div className="px-6 py-4 bg-blue-600 text-white rounded-t-lg flex justify-between items-center">
               <h3 className="text-xl font-semibold">
                 Order #{selectedOrder.reference_id || selectedOrder.id}
@@ -892,9 +814,7 @@ const ViewOrders = () => {
               </button>
             </div>
 
-            {/* Content */}
             <div className="flex-1 overflow-y-auto p-6">
-              {/* Order Summary */}
               <div className="bg-gray-100 rounded-lg p-4 mb-6">
                 <h4 className="text-lg font-semibold text-gray-800 mb-3">
                   Order Summary
@@ -956,7 +876,6 @@ const ViewOrders = () => {
                 </div>
               </div>
 
-              {/* Bookings List */}
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="text-lg font-semibold text-gray-800">
@@ -985,7 +904,7 @@ const ViewOrders = () => {
                       return (
                         <div
                           key={booking.id}
-                          className="bg-white border rounded-lg shadow-sm overflow-hidden"
+                          className="bg-white border border-gray-300 rounded-lg shadow-sm overflow-hidden"
                         >
                           <div
                             className={`px-4 py-2 flex justify-between items-center ${
@@ -994,7 +913,7 @@ const ViewOrders = () => {
                           >
                             <div className="flex items-center gap-2">
                               <span className="font-medium">
-                                {isTour ? "Tour" : "Transfer"} #
+                                {booking.send_to || "#"} -{" "}
                                 {booking.reference_id || booking.id}
                               </span>
                               <span
@@ -1005,20 +924,19 @@ const ViewOrders = () => {
                             </div>
                             <button
                               className="text-red-600 hover:text-red-800"
-                              onClick={() => {
-                                setBookingToRemove({
-                                  bookingId: booking.id,
-                                  bookingType: booking.bookingType,
-                                });
-                                setShowRemoveBookingConfirm(true);
-                              }}
+                              onClick={() =>
+                                handleRemoveBooking(
+                                  booking.id,
+                                  booking.bookingType
+                                )
+                              }
+                              disabled={loading}
                             >
                               <Trash2 size={16} />
                             </button>
                           </div>
                           <div className="p-4">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              {/* Common Information */}
                               <div className="space-y-2">
                                 <p className="text-sm">
                                   <span className="font-medium">Date:</span>{" "}
@@ -1039,8 +957,6 @@ const ViewOrders = () => {
                                     : booking.send_to) || "-"}
                                 </p>
                               </div>
-
-                              {/* Specific Information */}
                               <div className="space-y-2">
                                 {isTour ? (
                                   <>
@@ -1096,8 +1012,6 @@ const ViewOrders = () => {
                                   </>
                                 )}
                               </div>
-
-                              {/* Additional Information */}
                               <div className="space-y-2">
                                 <p className="text-sm">
                                   <span className="font-medium">Details:</span>{" "}
@@ -1132,7 +1046,6 @@ const ViewOrders = () => {
               </div>
             </div>
 
-            {/* Footer */}
             <div className="px-6 py-4 bg-gray-50 border-t rounded-b-lg flex justify-between items-center">
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -1155,106 +1068,6 @@ const ViewOrders = () => {
         </div>
       )}
 
-      {/* ยืนยันการนำ Booking ออกจาก Order */}
-      {showRemoveBookingConfirm && (
-        <div className="fixed inset-0 z-50 modal-backdrop bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div className="px-6 py-4 border-b flex justify-between items-center bg-red-600 text-white rounded-t-lg">
-              <h3 className="text-xl font-semibold">Remove Booking</h3>
-              <button
-                onClick={() => setShowRemoveBookingConfirm(false)}
-                className="p-1 hover:bg-red-700 hover:bg-opacity-20 rounded-full transition-colors"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-            <div className="p-6">
-              <p className="text-gray-700 mb-4">
-                คุณต้องการเอา booking นี้ออกจาก Order ใช่หรือไม่?
-              </p>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowRemoveBookingConfirm(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  onClick={handleConfirmRemoveBooking}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-                >
-                  เอาออก
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ยืนยันการลบ Order */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 modal-backdrop bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div className="px-6 py-4 border-b flex justify-between items-center bg-red-600 text-white rounded-t-lg">
-              <h3 className="text-xl font-semibold">Delete Order</h3>
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="p-1 hover:bg-red-700 hover:bg-opacity-20 rounded-full transition-colors"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-            <div className="p-6">
-              <p className="text-gray-700 mb-4">
-                คุณต้องการลบออเดอร์นี้ใช่หรือไม่? การลบจะทำให้ Booking ใน Order
-                ถูกปลดออกทั้งหมด และ Order จะถูกลบถาวร
-              </p>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  onClick={handleConfirmDeleteOrder}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-                >
-                  ลบ
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* โมดัลสำหรับ Add Booking */}
       {showAddBookingModal && selectedOrder && (
         <div className="fixed inset-0 z-50 modal-backdrop bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-auto">
@@ -1284,7 +1097,6 @@ const ViewOrders = () => {
               </button>
             </div>
 
-            {/* ส่วนเลือก Booking ที่ว่างอยู่เพื่อนำมาใส่ Order */}
             <div className="p-6">
               <p className="mb-4 text-gray-700">
                 เลือก Booking ที่ต้องการเพิ่มในออเดอร์นี้
@@ -1314,7 +1126,6 @@ const ViewOrders = () => {
                           checked={isSelected}
                           onChange={() => {
                             if (isSelected) {
-                              // เอาออกจาก list
                               setSelectedBookingsToAdd((prev) =>
                                 prev.filter(
                                   (b) =>
@@ -1325,7 +1136,6 @@ const ViewOrders = () => {
                                 )
                               );
                             } else {
-                              // เพิ่มเข้า list
                               setSelectedBookingsToAdd((prev) => [
                                 ...prev,
                                 booking,
@@ -1353,7 +1163,6 @@ const ViewOrders = () => {
               )}
             </div>
 
-            {/* ปุ่มกดด้านล่างของ Modal */}
             <div className="px-6 py-4 border-t flex justify-end gap-2">
               <button
                 onClick={() => setShowAddBookingModal(false)}

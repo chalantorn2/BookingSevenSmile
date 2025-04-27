@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import supabase from "../../config/supabaseClient";
 import { formatDate } from "../../utils/dateUtils";
+import { useAlertDialogContext } from "../../contexts/AlertDialogContext";
 
 const BookingDetailModal = ({
   booking,
@@ -19,6 +20,7 @@ const BookingDetailModal = ({
   onSave,
   onDelete,
 }) => {
+  const showAlert = useAlertDialogContext();
   const [formData, setFormData] = useState({});
   const [statusMessage, setStatusMessage] = useState({ type: "", message: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -128,31 +130,35 @@ const BookingDetailModal = ({
 
   // จัดการการลบข้อมูล
   const handleDelete = async () => {
-    if (window.confirm("คุณต้องการลบรายการนี้ใช่หรือไม่?")) {
-      try {
-        const result = await onDelete(booking.id);
+    // เปลี่ยนจาก confirm เป็น showAlert
+    const confirmed = await showAlert({
+      title: "ยืนยันการลบ",
+      description: "คุณต้องการลบรายการนี้ใช่หรือไม่?",
+      confirmText: "ลบ",
+      cancelText: "ยกเลิก",
+      actionVariant: "destructive", // กำหนดสีปุ่มเป็นสีแดง
+    });
 
-        if (result.success) {
-          setStatusMessage({ type: "success", message: "ลบข้อมูลสำเร็จ" });
+    // ทำงานต่อเมื่อผู้ใช้กดยืนยันเท่านั้น
+    if (confirmed) {
+      setIsSubmitting(true);
 
-          // ปิด modal หลังจากลบสำเร็จ
-          setTimeout(() => {
-            onClose();
-          }, 1500);
-        } else {
-          setStatusMessage({
-            type: "error",
-            message: `เกิดข้อผิดพลาด: ${
-              result.error || "ไม่สามารถลบข้อมูลได้"
-            }`,
-          });
-        }
-      } catch (error) {
+      const result = await onDelete(booking.id);
+
+      if (result.success) {
+        setStatusMessage({ type: "success", message: "ลบข้อมูลสำเร็จ" });
+
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      } else {
         setStatusMessage({
           type: "error",
-          message: `เกิดข้อผิดพลาด: ${error.message}`,
+          message: `เกิดข้อผิดพลาด: ${result.error || "ไม่สามารถลบข้อมูลได้"}`,
         });
       }
+
+      setIsSubmitting(false);
     }
   };
 
