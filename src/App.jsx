@@ -20,7 +20,7 @@ import ViewPayment from "./pages/ViewPayment";
 import NotFound from "./pages/NotFound"; // Import the NotFound component
 import { AuthProvider } from "./contexts/AuthContext";
 import PrivateRoute from "./components/auth/PrivateRoute";
-import "./styles/invoice.css";
+// import "./styles/invoice.css";
 import { SnackbarProvider } from "notistack";
 // import { ConfirmProvider } from "material-ui-confirm"; // ลบออก
 import { AlertDialogProvider } from "./contexts/AlertDialogContext"; // เพิ่มเข้ามา

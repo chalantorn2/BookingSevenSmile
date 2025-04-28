@@ -86,6 +86,7 @@ const usePayments = () => {
   // ในฟังก์ชัน addBookingToPayment ของไฟล์ usePayments.js
 
   const addBookingToPayment = (booking, type) => {
+    const uniqueId = `${booking.id}-${Date.now()}`;
     // Check if booking is already added
     const existingIndex = selectedBookings.findIndex(
       (b) => b.id === booking.id && b.type === type
@@ -100,18 +101,18 @@ const usePayments = () => {
     } else {
       // Prepare booking data based on type
       const bookingData = {
-        id: booking.id,
-        dbKey: booking.id,
+        id: uniqueId, // ใช้ ID ที่ unique
+        dbKey: booking.id, // เก็บ ID จากฐานข้อมูลไว้
         type: type,
         date: type === "tour" ? booking.tour_date : booking.transfer_date,
         detail: type === "tour" ? booking.tour_detail : booking.transfer_detail,
         hotel: type === "tour" ? booking.tour_hotel : "",
-        sendTo: type === "tour" ? booking.send_to : booking.send_to,
+        sendTo: booking.send_to || "",
         pax: booking.pax || 1,
-        cost: booking.cost_price || 0, // ใช้ค่า cost_price ที่มากับ booking
+        cost: booking.cost_price || 0,
         quantity: booking.pax || 1,
-        sellingPrice: booking.selling_price || 0, // ใช้ค่า selling_price ที่มากับ booking
-        status: booking.payment_status === "paid" ? "paid" : "notPaid", // แปลงค่า payment_status
+        sellingPrice: booking.selling_price || 0,
+        status: booking.payment_status === "paid" ? "paid" : "notPaid",
         remark: "",
         bookingType: "",
         chosenCount: 1,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { format, isValid, parseISO } from "date-fns";
+import { format, isValid, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { th } from "date-fns/locale";
 import supabase from "../config/supabaseClient";
 import {
@@ -25,6 +25,7 @@ import { useAlertDialogContext } from "../contexts/AlertDialogContext";
 import { useNotification } from "../hooks/useNotification";
 
 const ViewOrders = () => {
+  const [orderBookingsCache, setOrderBookingsCache] = useState({});
   const { showSuccess, showError, showInfo } = useNotification();
   const showAlert = useAlertDialogContext();
   const [orders, setOrders] = useState([]);
@@ -37,12 +38,10 @@ const ViewOrders = () => {
 
   // Filter states
   const [startDate, setStartDate] = useState(() => {
-    const today = new Date();
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-    return format(firstDay, "yyyy-MM-dd");
+    return format(startOfMonth(new Date()), "yyyy-MM-dd");
   });
   const [endDate, setEndDate] = useState(() => {
-    return format(new Date(), "yyyy-MM-dd");
+    return format(endOfMonth(new Date()), "yyyy-MM-dd");
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all"); // all, invoiced, notInvoiced
@@ -292,31 +291,34 @@ const ViewOrders = () => {
 
   const handleViewOrderDetails = async (order) => {
     setSelectedOrder(order);
+    setIsModalOpen(true); // เปิด modal ทันที
+
+    // ถ้ามีข้อมูลใน cache แล้ว ให้ใช้ข้อมูลจาก cache
+    if (orderBookingsCache[order.id]) {
+      setOrderBookings(orderBookingsCache[order.id]);
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const { data: tourBookings, error: tourError } = await supabase
-        .from("tour_bookings")
-        .select("*")
-        .eq("order_id", order.id);
+      // ดึง tour bookings และ transfer bookings พร้อมกัน
+      const [tourResult, transferResult] = await Promise.all([
+        supabase.from("tour_bookings").select("*").eq("order_id", order.id),
+        supabase.from("transfer_bookings").select("*").eq("order_id", order.id),
+      ]);
 
-      if (tourError) throw tourError;
-
-      const { data: transferBookings, error: transferError } = await supabase
-        .from("transfer_bookings")
-        .select("*")
-        .eq("order_id", order.id);
-
-      if (transferError) throw transferError;
+      if (tourResult.error) throw tourResult.error;
+      if (transferResult.error) throw transferResult.error;
 
       const allBookings = [
-        ...(tourBookings || []).map((booking) => ({
+        ...(tourResult.data || []).map((booking) => ({
           ...booking,
           bookingType: "tour",
           date: booking.tour_date,
           time: booking.tour_pickup_time,
         })),
-        ...(transferBookings || []).map((booking) => ({
+        ...(transferResult.data || []).map((booking) => ({
           ...booking,
           bookingType: "transfer",
           date: booking.transfer_date,
@@ -324,6 +326,7 @@ const ViewOrders = () => {
         })),
       ];
 
+      // Sort bookings by date and time
       allBookings.sort((a, b) => {
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
@@ -335,11 +338,17 @@ const ViewOrders = () => {
         return dateA - dateB;
       });
 
+      // เก็บข้อมูลใน cache
+      setOrderBookingsCache((prev) => ({
+        ...prev,
+        [order.id]: allBookings,
+      }));
+
       setOrderBookings(allBookings);
-      setIsModalOpen(true);
     } catch (error) {
       console.error("Error fetching order details:", error);
       setError("Failed to load order details.");
+      showError?.("ไม่สามารถโหลดข้อมูล Order ได้");
     } finally {
       setLoading(false);
     }

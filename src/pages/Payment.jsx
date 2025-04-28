@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { format, isValid, parseISO } from "date-fns";
+import { format, isValid, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { th } from "date-fns/locale";
 import supabase from "../config/supabaseClient";
 import {
@@ -19,7 +19,7 @@ import usePayments from "../hooks/usePayments";
 import { useNotification } from "../hooks/useNotification";
 
 const Payment = () => {
-  // States for the page
+  const { showSuccess, showError, showInfo } = useNotification();
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -27,13 +27,11 @@ const Payment = () => {
 
   // Filter states
   const [startDate, setStartDate] = useState(() => {
-    const today = new Date();
-    const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    return formatDateForDatabase(firstDay);
+    return formatDateForDatabase(startOfMonth(new Date()));
   });
 
   const [endDate, setEndDate] = useState(() => {
-    return formatDateForDatabase(new Date());
+    return formatDateForDatabase(endOfMonth(new Date()));
   });
 
   // Use our custom hook for payment operations

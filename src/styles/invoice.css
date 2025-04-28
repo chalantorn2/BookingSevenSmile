@@ -1,153 +1,59 @@
-/* src/styles/invoice.css */
-/* ลบ CSS ที่ซ้ำซ้อนและจัดระเบียบใหม่ */
-
-@import url("https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap");
-
-body {
-  font-family: "Kanit", sans-serif;
-}
-
-.invoice-container {
-  max-width: 100%;
-  margin: 0 auto;
-}
-
 .invoice-title {
   font-size: 2rem;
   font-weight: 600;
 }
-
-.editable-cell,
-.ref-cell,
-.fee-cell {
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.editable-cell:hover,
-.ref-cell:hover,
-.fee-cell:hover {
-  background-color: rgba(0, 123, 255, 0.1);
-}
-
-.custom-bg {
-  background-color: #f8f9fa;
-  cursor: pointer;
-}
-
-/* แก้ไข CSS สำหรับการพิมพ์ */
 @media print {
   /* ซ่อนองค์ประกอบที่ไม่ต้องการพิมพ์ */
-  .sidebar,
-  .print-hidden,
-  .print\\:hidden,
-  nav,
-  aside,
-  [class*="sidebar"],
-  [id="sidebar"],
-  button:not(.print-show),
-  .no-print-element {
+  .no-print {
     display: none !important;
-    width: 0 !important;
-  }
-
-  /* ปรับพื้นที่แสดงผลให้เต็มหน้า */
-  body,
-  html {
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background-color: white !important;
-    font-size: 11pt !important;
-  }
-
-  .main-content,
-  main,
-  .content-area,
-  .flex-1,
-  [class*="content"] {
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    max-width: 100% !important;
-  }
-
-  .invoice-container {
-    padding: 0 !important;
-    max-width: 100% !important;
   }
 
   /* กำหนดขนาดและทิศทางหน้ากระดาษ */
   @page {
     size: A4 landscape;
-    margin: 0.5cm;
+    margin: 0.8cm;
   }
 
-  /* จัดการส่วนหัว Invoice */
-  .invoice-header-right {
-    text-align: right !important;
-    min-width: 200px !important;
-    padding-left: 30px !important;
-    white-space: nowrap !important;
-  }
-
-  .invoice-header-left {
-    max-width: 70% !important;
-  }
-
-  /* ปรับขนาดแบนเนอร์ */
-  #bannerImage {
-    max-width: 75% !important;
-    height: auto !important;
-  }
-
-  /* ส่วนหัวทั้งหมด */
-  .invoice-header {
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: flex-start !important;
-    margin-bottom: 20px !important;
+  /* กำหนดการแสดงผลของ body */
+  body {
     width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: white !important;
+    font-family: "Prompt", sans-serif !important;
   }
 
   /* จัดการตาราง */
   table {
     width: 100% !important;
     border-collapse: collapse !important;
-    page-break-inside: auto !important;
-    table-layout: fixed !important;
-    font-size: 9pt !important;
+    table-layout: fixed !important; /* กำหนดให้คงที่ */
   }
 
-  tr {
+  /* จัดการแถวและเซลล์ */
+  tr,
+  th,
+  td {
     page-break-inside: avoid !important;
-    page-break-after: auto !important;
+    border: 1px solid black !important;
   }
 
   th,
   td {
-    padding: 3px 4px !important;
-    border: 1px solid black !important;
+    padding: 4px !important;
+    font-size: 9pt !important;
     vertical-align: middle !important;
     word-wrap: break-word !important;
-    overflow-wrap: break-word !important;
-    font-size: 9pt !important;
   }
 
-  th {
-    background-color: #f2f2f2 !important;
-    font-weight: bold !important;
-    text-align: center !important;
-  }
-
-  /* กำหนดความกว้างของคอลัมน์อย่างชัดเจน */
+  /* กำหนดความกว้างของคอลัมน์ให้สมดุล */
   th:nth-child(1),
   td:nth-child(1) {
-    width: 3% !important;
+    width: 4% !important;
   } /* Item */
   th:nth-child(2),
   td:nth-child(2) {
-    width: 14% !important;
+    width: 15% !important;
   } /* NAME */
   th:nth-child(3),
   td:nth-child(3) {
@@ -163,7 +69,7 @@ body {
   } /* Date */
   th:nth-child(6),
   td:nth-child(6) {
-    width: 32% !important;
+    width: 40% !important;
   } /* TOUR INCLUDE */
   th:nth-child(7),
   td:nth-child(7) {
@@ -182,72 +88,102 @@ body {
     width: 7% !important;
   } /* TOTAL */
 
-  /* สำหรับแสดงต้นทุนและกำไร (เพิ่มคอลัมน์) */
-  table.show-cost-profit th:nth-child(7),
-  table.show-cost-profit td:nth-child(7) {
-    width: 6% !important;
-  } /* Cost */
-  table.show-cost-profit th:nth-child(8),
-  table.show-cost-profit td:nth-child(8) {
-    width: 6% !important;
-  } /* PRICE */
-  table.show-cost-profit th:nth-child(9),
-  table.show-cost-profit td:nth-child(9) {
-    width: 6% !important;
-  } /* Profit */
-  table.show-cost-profit th:nth-child(10),
-  table.show-cost-profit td:nth-child(10) {
-    width: 4% !important;
-  } /* Fee */
-  table.show-cost-profit th:nth-child(11),
-  table.show-cost-profit td:nth-child(11) {
-    width: 4% !important;
-  } /* Unit */
-  table.show-cost-profit th:nth-child(12),
-  table.show-cost-profit td:nth-child(12) {
-    width: 7% !important;
-  } /* TOTAL */
-
-  /* สไตล์สำหรับแถวแสดงผลรวม */
-  .total-row td {
-    font-weight: bold !important;
-    background-color: #f2f2f2 !important;
-  }
-
-  .grand-total-row td {
-    font-weight: bold !important;
-    background-color: #e6f2e6 !important;
-    color: #006600 !important;
-  }
-
-  /* สไตล์ส่วนท้าย */
-  .invoice-footer {
-    margin-top: 10px !important;
-    display: flex !important;
-    justify-content: space-between !important;
-  }
-
-  .invoice-footer .payment-info {
-    font-size: 10pt !important;
-  }
-
-  .invoice-footer .grand-total {
-    font-size: 12pt !important;
-    font-weight: bold !important;
-  }
-
   /* จัดการการแสดงผลข้อความ */
-  .text-left {
-    text-align: left !important;
+  .nameCell,
+  .hotelCell {
+    white-space: normal !important;
   }
-  .text-center {
-    text-align: center !important;
-  }
-  .text-right {
-    text-align: right !important;
-  }
-}
 
-.modal-backdrop.bg-black {
-  background-color: rgba(0, 0, 0, 0.5) !important;
+  .tour-include-cell {
+    text-align: left !important;
+    white-space: normal !important;
+  }
+
+  td:nth-child(1), /* Item */
+  td:nth-child(9), /* Unit */
+  th:nth-child(1),
+  th:nth-child(9) {
+    text-align: center !important;
+    vertical-align: middle !important;
+  }
+
+  /* จัดตำแหน่งราคาและยอดรวมให้ชิดขวา */
+  td:nth-child(7), /* PRICE */
+  td:nth-child(8), /* Fee */
+  td:nth-child(10), /* TOTAL */
+  th:nth-child(7),
+  th:nth-child(8),
+  th:nth-child(10) {
+    text-align: center !important;
+    vertical-align: middle !important;
+  }
+
+  /* จัดการส่วนหัวของเอกสาร */
+  .yes-print {
+    margin-bottom: 1cm !important;
+  }
+
+  #bannerImage {
+    max-width: 700px !important;
+    height: auto !important;
+  }
+
+  /* จัดการเลขหน้า */
+  @page {
+    @bottom-right {
+      content: "Page " counter(page) " of " counter(pages);
+      font-size: 9pt;
+    }
+  }
+
+  /* จัดการส่วนท้ายของเอกสาร */
+  #grandTotalDisplay {
+    text-align: right !important;
+    font-weight: bold !important;
+    font-size: 12pt !important;
+    margin-top: 10px !important;
+  }
+
+  /* ป้องกันการตัดแยกแถวสรุปยอดรวม */
+  tr:last-child {
+    page-break-inside: avoid !important;
+  }
+
+  /* ขยายพื้นที่แต่ละเซลล์เพื่อให้มีที่ว่างสำหรับข้อความ */
+  th,
+  td {
+    height: auto !important;
+    min-height: 20px !important;
+  }
+
+  /* ลบข้อจำกัดความสูงของแถว */
+  tr {
+    height: auto !important;
+  }
+
+  /* ลบความกว้างของคอนเทนเนอร์ที่อาจจำกัดความกว้างของตาราง */
+  .container,
+  .table-responsive {
+    max-width: none !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* แสดงรอยต่อระหว่างแถวให้ชัดเจน */
+  tbody tr {
+    border-bottom: 1px solid black !important;
+  }
+
+  /* ปรับแต่ง Total Amount */
+  tr.total-row td {
+    font-weight: bold !important;
+  }
+
+  /* ปรับแต่ง GRAND TOTAL */
+  tr.grand-total-row td {
+    font-weight: bold !important;
+    color: #198754 !important;
+    background-color: #f8f9fa !important;
+  }
 }

@@ -6,8 +6,10 @@ import { useInformation } from "../contexts/InformationContext";
 import AutocompleteInput from "../components/common/AutocompleteInput";
 import BookingDetailModal from "../components/booking/BookingDetailModal";
 import { useNotification } from "../hooks/useNotification";
+import { useAlertDialogContext } from "../contexts/AlertDialogContext";
 
 const ViewPayment = () => {
+  const showAlert = useAlertDialogContext();
   const { showSuccess, showError, showInfo } = useNotification();
   const [selectedType, setSelectedType] = useState("tour"); // 'tour' หรือ 'transfer'
   const [selectedRecipient, setSelectedRecipient] = useState("");
@@ -328,14 +330,21 @@ const ViewPayment = () => {
                         : "-"}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      {format(
-                        new Date(
-                          selectedType === "tour"
-                            ? booking.tour_date
-                            : booking.transfer_date
-                        ),
-                        "dd/MM/yyyy"
-                      )}
+                      {(() => {
+                        try {
+                          const dateValue =
+                            selectedType === "tour"
+                              ? booking.tour_date
+                              : booking.transfer_date;
+                          if (!dateValue) return "-";
+                          const date = new Date(dateValue);
+                          if (isNaN(date.getTime())) return "-";
+                          return format(date, "dd/MM/yyyy");
+                        } catch (error) {
+                          console.error("Date format error:", error);
+                          return "-";
+                        }
+                      })()}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-right">
                       {booking.cost_price
@@ -459,15 +468,60 @@ const ViewPayment = () => {
             setSelectedBooking(null);
           }}
           onSave={async (updatedBooking) => {
-            // Update booking data
-            await fetchBookings(currentPage);
-            setIsModalOpen(false);
-            return { success: true };
+            try {
+              // เรียกใช้ API เพื่ออัพเดทข้อมูลใน database
+              const table =
+                selectedType === "tour" ? "tour_bookings" : "transfer_bookings";
+              const { error } = await supabase
+                .from(table)
+                .update(updatedBooking)
+                .eq("id", updatedBooking.id);
+
+              if (error) throw error;
+
+              // รีเฟรชข้อมูลและปิด modal
+              await fetchBookings(currentPage);
+              setIsModalOpen(false);
+              showSuccess("อัพเดทข้อมูลเรียบร้อย");
+              return { success: true };
+            } catch (error) {
+              console.error("Error updating booking:", error);
+              showError("ไม่สามารถอัพเดทข้อมูลได้");
+              return { success: false, error: error.message };
+            }
           }}
-          onDelete={async () => {
-            // Don't allow delete from this view
-            showError("ไม่สามารถลบข้อมูลได้จากหน้านี้");
-            return { success: false };
+          onDelete={async (id) => {
+            // ถ้าคุณต้องการให้ลบได้ด้วย ให้แก้ไขส่วนนี้เป็น:
+            try {
+              const confirmed = await showAlert({
+                title: "ยืนยันการลบ",
+                description: "คุณต้องการลบรายการนี้ใช่หรือไม่?",
+                confirmText: "ลบ",
+                cancelText: "ยกเลิก",
+                actionVariant: "destructive",
+              });
+
+              if (!confirmed) return { success: false };
+
+              const table =
+                selectedType === "tour" ? "tour_bookings" : "transfer_bookings";
+              const { error } = await supabase
+                .from(table)
+                .delete()
+                .eq("id", id);
+
+              if (error) throw error;
+
+              // รีเฟรชข้อมูลและปิด modal
+              await fetchBookings(currentPage);
+              setIsModalOpen(false);
+              showSuccess("ลบข้อมูลเรียบร้อย");
+              return { success: true };
+            } catch (error) {
+              console.error("Error deleting booking:", error);
+              showError("ไม่สามารถลบข้อมูลได้");
+              return { success: false, error: error.message };
+            }
           }}
         />
       )}

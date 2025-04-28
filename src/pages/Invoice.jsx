@@ -115,6 +115,12 @@ const Invoice = () => {
       let startDate = null;
       let endDate = null;
 
+      // ประกาศตัวแปรเหล่านี้ก่อนนำไปใช้
+      let grandTotalSum = 0;
+      let costSum = 0;
+      let sellingSum = 0;
+      let profitSum = 0;
+
       if (payment.bookings && payment.bookings.length > 0) {
         payment.bookings.forEach((booking) => {
           const price = parseFloat(booking.sellingPrice) || 0;
@@ -160,7 +166,6 @@ const Invoice = () => {
 
     setPaymentsByMonth(byMonth);
   };
-
   // Open payment selection modal
   const handleOpenSelectModal = () => {
     setIsSelectModalOpen(true);
@@ -714,9 +719,11 @@ const Invoice = () => {
       itemCount++;
 
       // Get customer name and agent
+      // Get customer name and agent
       const nameText = `${payment.first_name || ""} ${
         payment.last_name || ""
-      } / ${payment.pax || ""}`.trim();
+      } / ${payment.pax || ""} (${payment.agent_name || ""})`.trim();
+
       const refValue = payment.ref || "-";
 
       // Find hotel from bookings
@@ -1241,8 +1248,8 @@ const Invoice = () => {
   useEffect(() => {
     loadInitialData();
   }, []);
+
   useEffect(() => {
-    // ลบการสร้าง style element ออก และใช้จาก invoice.css อย่างเดียว
     const handleBeforePrint = () => {
       // เพิ่ม class ให้ตารางเพื่อให้ CSS รองรับการแสดงคอลัมน์ต้นทุนและกำไร
       const table = document.getElementById("invoiceTable");
