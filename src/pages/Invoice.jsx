@@ -1,22 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import {
-  Search,
-  Calendar,
-  Save,
-  Eye,
-  Edit,
-  Trash2,
-  ArrowRight,
-  FileText,
-  Printer,
-  Download,
-  CheckSquare,
-  PlusCircle,
-  X,
-} from "lucide-react";
 import supabase from "../config/supabaseClient";
-import { formatDate } from "../utils/dateUtils";
+import { useNotification } from "../hooks/useNotification";
 import {
   fetchAllInvoices,
   createInvoice,
@@ -25,7 +10,19 @@ import {
   fetchInvoiceById,
 } from "../services/invoiceService";
 import "../styles/invoice.css";
-import { useNotification } from "../hooks/useNotification";
+import HeaderInvoice from "../components/invoice/HeaderInvoice";
+import InvoiceTable from "../components/invoice/InvoiceTable";
+import InvoiceFooter from "../components/invoice/InvoiceFooter";
+import SummarySection from "../components/invoice/SummarySection";
+import {
+  X,
+  CheckSquare,
+  Save,
+  Edit,
+  Download,
+  Eye,
+  Printer,
+} from "lucide-react";
 
 const formatNumberWithCommas = (num) => {
   if (num === null || num === undefined) return "0";
@@ -34,42 +31,31 @@ const formatNumberWithCommas = (num) => {
 
 const Invoice = () => {
   const { showSuccess, showError, showInfo } = useNotification();
-  // State variables
-  const [allPaymentsData, setAllPaymentsData] = useState({});
-  const [allTourBookings, setAllTourBookings] = useState([]);
-  const [allTransferBookings, setAllTransferBookings] = useState([]);
-
+  const [allPaymentsData, setAllPaymentsData] = useState([]);
   const [selectedPaymentIds, setSelectedPaymentIds] = useState([]);
   const [invoiceDate, setInvoiceDate] = useState(
     format(new Date(), "dd/MM/yyyy")
   );
   const [invoiceId, setInvoiceId] = useState("");
-
   const [showCostProfit, setShowCostProfit] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
   const [isSelectModalOpen, setIsSelectModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [invoicesList, setInvoicesList] = useState([]);
-
   const [paymentsByMonth, setPaymentsByMonth] = useState({});
-  const [currentEditingInvoice, setCurrentEditingInvoice] = useState(null);
-
   const [grandTotal, setGrandTotal] = useState(0);
   const [totalCost, setTotalCost] = useState(0);
   const [totalSellingPrice, setTotalSellingPrice] = useState(0);
   const [totalProfit, setTotalProfit] = useState(0);
-
   const [currentInvoice, setCurrentInvoice] = useState(null);
-
   const [isViewingExistingInvoice, setIsViewingExistingInvoice] =
     useState(false);
 
+  const printRef = useRef(null);
+
   const organizePaymentsByMonth = (payments) => {
     if (!payments || !Array.isArray(payments)) return;
-
     const months = [
       "January",
       "February",
@@ -84,13 +70,10 @@ const Invoice = () => {
       "November",
       "December",
     ];
-
     const byMonth = {};
 
     payments.forEach((payment) => {
-      if (payment.invoiced) return; // Skip already invoiced payments
-
-      // Get date from the first booking (if available)
+      if (payment.invoiced) return;
       let paymentDate = new Date();
       if (payment.bookings && payment.bookings.length > 0) {
         const firstBooking = payment.bookings[0];
@@ -98,60 +81,35 @@ const Invoice = () => {
           firstBooking.date ||
           firstBooking.tour_date ||
           firstBooking.transfer_date;
-        if (dateStr) {
-          paymentDate = new Date(dateStr);
-        }
+        if (dateStr) paymentDate = new Date(dateStr);
       }
 
       const monthKey = `${
         months[paymentDate.getMonth()]
       } ${paymentDate.getFullYear()}`;
+      if (!byMonth[monthKey]) byMonth[monthKey] = [];
 
-      if (!byMonth[monthKey]) {
-        byMonth[monthKey] = [];
-      }
-
-      // Extract date range from bookings
       let startDate = null;
       let endDate = null;
-
-      // ประกาศตัวแปรเหล่านี้ก่อนนำไปใช้
-      let grandTotalSum = 0;
-      let costSum = 0;
-      let sellingSum = 0;
-      let profitSum = 0;
-
       if (payment.bookings && payment.bookings.length > 0) {
         payment.bookings.forEach((booking) => {
-          const price = parseFloat(booking.sellingPrice) || 0;
-          const quantity = parseInt(booking.quantity) || 0;
-          const cost = parseFloat(booking.cost) || 0;
-
-          const rowTotal = price * quantity;
-          const rowCost = cost * quantity;
-          const rowProfit = rowTotal - rowCost; // คำนวณกำไรเป็นผลต่างระหว่างยอดขายกับต้นทุน
-
-          grandTotalSum += rowTotal;
-          costSum += rowCost;
-          sellingSum += rowTotal;
-          profitSum += rowProfit;
+          const dateStr =
+            booking.date || booking.tour_date || booking.transfer_date;
+          if (dateStr) {
+            const currentDate = new Date(dateStr);
+            if (!startDate || currentDate < startDate) startDate = currentDate;
+            if (!endDate || currentDate > endDate) endDate = currentDate;
+          }
         });
       }
 
-      // Format date range
       let dateRangeStr = "";
       if (startDate && endDate) {
-        const formatDateShort = (date) => {
-          return format(date, "dd/MM/yyyy");
-        };
-
-        if (startDate.getTime() === endDate.getTime()) {
-          dateRangeStr = ` / ${formatDateShort(startDate)}`;
-        } else {
-          dateRangeStr = ` / ${formatDateShort(startDate)} - ${formatDateShort(
-            endDate
-          )}`;
-        }
+        const formatDateShort = (date) => format(date, "dd/MM/yyyy");
+        dateRangeStr =
+          startDate.getTime() === endDate.getTime()
+            ? ` / ${formatDateShort(startDate)}`
+            : ` / ${formatDateShort(startDate)} - ${formatDateShort(endDate)}`;
       }
 
       byMonth[monthKey].push({
@@ -166,28 +124,18 @@ const Invoice = () => {
 
     setPaymentsByMonth(byMonth);
   };
-  // Open payment selection modal
-  const handleOpenSelectModal = () => {
-    setIsSelectModalOpen(true);
-  };
 
-  // Handle payment selection confirmation
+  const handleOpenSelectModal = () => setIsSelectModalOpen(true);
+
   const handleConfirmSelection = () => {
     setIsSelectModalOpen(false);
     buildInvoiceTable();
   };
 
-  // Build the invoice table with selected payments
-  // แก้ไขฟังก์ชัน buildInvoiceTable
   const buildInvoiceTable = () => {
-    if (selectedPaymentIds.length === 0) {
-      return;
-    }
-
+    if (selectedPaymentIds.length === 0) return;
     setLoading(true);
-
     try {
-      // ใช้ฟังก์ชัน calculateTotals ที่มีอยู่แล้วเพื่อคำนวณยอดรวม
       calculateTotals();
     } catch (error) {
       console.error("Error building invoice table:", error);
@@ -197,14 +145,11 @@ const Invoice = () => {
     }
   };
 
-  // แก้ไขฟังก์ชัน handleSaveInvoice
-  // แก้ไขฟังก์ชัน handleSaveInvoice ใน Invoice.jsx
   const handleSaveInvoice = async () => {
     if (selectedPaymentIds.length === 0) {
       setError("กรุณาเลือก Payment อย่างน้อย 1 รายการ");
       return;
     }
-
     if (!invoiceDate) {
       setError("กรุณากรอกวันที่ก่อนบันทึก Invoice");
       return;
@@ -220,8 +165,6 @@ const Invoice = () => {
     setError(null);
 
     try {
-      // จำกัดขนาดของตัวเลขเพื่อป้องกัน overflow
-      // แปลงเป็น Number และจำกัดทศนิยม 2 ตำแหน่ง
       const safeGrandTotal = Number(Number(grandTotal).toFixed(2));
       const safeTotalCost = Number(Number(totalCost).toFixed(2));
       const safeTotalSellingPrice = Number(
@@ -229,10 +172,7 @@ const Invoice = () => {
       );
       const safeTotalProfit = Number(Number(totalProfit).toFixed(2));
 
-      // ตรวจสอบว่าตัวเลขไม่เกินขีดจำกัดของ PostgreSQL numeric
-      // PostgreSQL มีขีดจำกัดประมาณ 10^38
       const MAX_NUMERIC_VALUE = 1e38;
-
       if (
         safeGrandTotal > MAX_NUMERIC_VALUE ||
         safeTotalCost > MAX_NUMERIC_VALUE ||
@@ -246,16 +186,14 @@ const Invoice = () => {
         invoice_name: invoiceName,
         invoice_date: invoiceDate,
         payment_ids: selectedPaymentIds,
-        total_amount: safeGrandTotal.toString(), // เก็บเป็น string
-        total_cost: safeTotalCost.toString(), // เก็บเป็น string
-        total_selling_price: safeTotalSellingPrice.toString(), // เก็บเป็น string
-        total_profit: safeTotalProfit.toString(), // เก็บเป็น string
+        total_amount: safeGrandTotal.toString(),
+        total_cost: safeTotalCost.toString(),
+        total_selling_price: safeTotalSellingPrice.toString(),
+        total_profit: safeTotalProfit.toString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      console.log("Saving invoice data:", invoiceData);
 
-      // ส่งข้อมูลไปบันทึก
       const { data, error } = await supabase
         .from("invoices")
         .insert(invoiceData)
@@ -264,28 +202,21 @@ const Invoice = () => {
 
       if (error) throw error;
 
-      // อัปเดตสถานะ payment เป็น invoiced = true
       for (const paymentId of selectedPaymentIds) {
         const { error: updateError } = await supabase
           .from("payments")
           .update({ invoiced: true })
           .eq("id", paymentId);
-
-        if (updateError) {
+        if (updateError)
           console.error(`Failed to update payment ${paymentId}:`, updateError);
-        }
       }
 
       showSuccess(`บันทึก Invoice เรียบร้อย! Invoice: ${invoiceName}`);
-
-      // รีเซ็ตหน้าจอ
       setSelectedPaymentIds([]);
       setGrandTotal(0);
       setTotalCost(0);
       setTotalSellingPrice(0);
       setTotalProfit(0);
-
-      // โหลดข้อมูลใหม่
       await loadInitialData();
     } catch (error) {
       console.error("Error saving invoice:", error);
@@ -296,13 +227,11 @@ const Invoice = () => {
   };
 
   const calculateTotals = () => {
-    // เริ่มต้นที่ 0
     let grandTotalSum = 0;
     let costSum = 0;
     let sellingSum = 0;
     let profitSum = 0;
 
-    // คำนวณสำหรับทุก payment ที่เลือก
     selectedPaymentIds.forEach((paymentId) => {
       const payment = allPaymentsData.find((p) => p.id === paymentId);
       if (!payment || !payment.bookings || !Array.isArray(payment.bookings))
@@ -337,18 +266,15 @@ const Invoice = () => {
     };
   };
 
-  // Load and view existing invoices
   const handleViewInvoices = async () => {
     setLoading(true);
     try {
       const { data, error } = await fetchAllInvoices();
       if (error) throw error;
-
       if (!data || data.length === 0) {
         setError("ไม่พบข้อมูล Invoice");
         return;
       }
-
       setInvoicesList(data);
       setIsViewModalOpen(true);
     } catch (error) {
@@ -359,145 +285,45 @@ const Invoice = () => {
     }
   };
 
-  // Handle selecting an invoice to view
   const handleViewSelectedInvoice = async (selectedInvoiceId) => {
     if (!selectedInvoiceId) {
       setError("กรุณาเลือก Invoice ก่อน");
       return;
     }
-
     setLoading(true);
     try {
       const { data, error } = await fetchInvoiceById(selectedInvoiceId);
       if (error) throw error;
-
       if (!data) {
         setError("ไม่พบข้อมูล Invoice");
         return;
       }
-      if (data) {
-        setCurrentInvoice(data);
-      }
-
-      // Set data for viewing/editing
+      setCurrentInvoice(data);
       setInvoiceId(selectedInvoiceId);
       setInvoiceDate(data.invoice_date || format(new Date(), "dd/MM/yyyy"));
       setSelectedPaymentIds(data.payment_ids || []);
-
-      // ตั้งค่ายอดรวมจากข้อมูลที่มีอยู่แล้ว
       setGrandTotal(parseFloat(data.total_amount) || 0);
       setTotalCost(parseFloat(data.total_cost) || 0);
       setTotalSellingPrice(parseFloat(data.total_selling_price) || 0);
       setTotalProfit(parseFloat(data.total_profit) || 0);
-
-      // Close modal and build invoice table
       setIsViewModalOpen(false);
-      // buildInvoiceTable(); => เราไม่ต้องเรียกฟังก์ชันนี้ซ้ำอีก เพราะเราได้ตั้งค่ายอดรวมแล้ว
     } catch (error) {
       console.error("Error loading invoice:", error);
       setError("ไม่สามารถโหลดข้อมูล Invoice ได้");
     } finally {
       setLoading(false);
+      setIsViewingExistingInvoice(true);
     }
-    setIsViewingExistingInvoice(true);
   };
 
-  // Open edit invoice modal
   const handleEditInvoice = () => {
     if (!invoiceId) {
       setError("กรุณาเลือก Invoice ที่จะแก้ไขก่อน");
       return;
     }
-
-    setCurrentEditingInvoice({
-      id: invoiceId,
-      payment_ids: [...selectedPaymentIds],
-    });
-
-    setIsEditModalOpen(true);
+    showInfo("ฟีเจอร์การแก้ไข Invoice กำลังพัฒนา");
   };
 
-  // Save edited invoice
-  const handleSaveEditInvoice = async () => {
-    if (!currentEditingInvoice || !currentEditingInvoice.id) {
-      setError("ไม่พบข้อมูล Invoice ที่แก้ไข");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Get original invoice to compare
-      const { data: originalInvoice } = await fetchInvoiceById(
-        currentEditingInvoice.id
-      );
-      if (!originalInvoice) {
-        throw new Error("ไม่พบข้อมูล Invoice เดิม");
-      }
-
-      const oldPaymentIds = originalInvoice.payment_ids || [];
-      const newPaymentIds = currentEditingInvoice.payment_ids;
-
-      // Find payments that were removed
-      const removedPaymentIds = oldPaymentIds.filter(
-        (id) => !newPaymentIds.includes(id)
-      );
-
-      // Find payments that were added
-      const addedPaymentIds = newPaymentIds.filter(
-        (id) => !oldPaymentIds.includes(id)
-      );
-
-      // Update removed payments to not invoiced
-      if (removedPaymentIds.length > 0) {
-        await updatePaymentsInvoiceStatus(removedPaymentIds, false);
-      }
-
-      // Update added payments to invoiced
-      if (addedPaymentIds.length > 0) {
-        await updatePaymentsInvoiceStatus(addedPaymentIds, true);
-      }
-
-      // Update invoice with new payment_ids
-      await updateInvoice(currentEditingInvoice.id, {
-        payment_ids: newPaymentIds,
-        updated_at: new Date().toISOString(),
-      });
-
-      showSuccess("บันทึกการแก้ไข Invoice เรียบร้อย");
-
-      // Refresh data and close modal
-      setIsEditModalOpen(false);
-      setCurrentEditingInvoice(null);
-      setInvoiceId(currentEditingInvoice.id);
-      setSelectedPaymentIds(newPaymentIds);
-      buildInvoiceTable();
-    } catch (error) {
-      console.error("Error saving invoice changes:", error);
-      setError("เกิดข้อผิดพลาดในการบันทึกการแก้ไข Invoice");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle printing the invoice
-  const handlePrint = () => {
-    // ไม่ต้องทำการเปลี่ยนสไตล์ให้มาก เพราะเรามี CSS ที่จัดการแล้ว
-    const table = document.getElementById("invoiceTable");
-    if (table) {
-      if (showCostProfit) {
-        table.classList.add("show-cost-profit");
-      } else {
-        table.classList.remove("show-cost-profit");
-      }
-    }
-
-    // เพิ่ม delay เล็กน้อยเพื่อให้ CSS ทำงาน
-    setTimeout(() => {
-      window.print();
-    }, 100);
-  };
-
-  // Export table to CSV
   const handleExportCsv = () => {
     try {
       const table = document.getElementById("invoiceTable");
@@ -505,42 +331,31 @@ const Invoice = () => {
         setError("ไม่พบตาราง Invoice");
         return;
       }
-
       let csv = [];
-
-      // Get all rows
       for (let i = 0; i < table.rows.length; i++) {
         let row = [];
-        // Get each cell in this row
         for (let j = 0; j < table.rows[i].cells.length; j++) {
           let text = table.rows[i].cells[j].innerText.replace(
             /(\r\n|\n|\r)/gm,
             " "
           );
-          text = text.replace(/"/g, '""'); // Escape double quotes
+          text = text.replace(/"/g, '""');
           row.push(`"${text}"`);
         }
         csv.push(row.join(","));
       }
-
       const csvString = csv.join("\n");
-
-      // Add UTF-8 BOM to ensure proper encoding for Thai characters
       const BOM = "\uFEFF";
       const finalCSV = BOM + csvString;
-
-      // Create a download link and trigger it
       const blob = new Blob([finalCSV], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
-
       link.setAttribute("href", url);
       link.setAttribute("download", "invoice_export.csv");
       link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
       showSuccess("นำออกข้อมูลเป็น CSV สำเร็จ");
     } catch (error) {
       console.error("Error exporting to CSV:", error);
@@ -548,28 +363,21 @@ const Invoice = () => {
     }
   };
 
-  // Toggle showing cost and profit columns
   const handleToggleCostProfit = () => {
     setShowCostProfit(!showCostProfit);
     buildInvoiceTable();
   };
 
-  // Edit reference number for a payment
   const handleEditRef = async (paymentId, currentRef) => {
     const newRefValue = prompt("กรุณากรอกเลข REF ใหม่:", currentRef || "");
-    if (newRefValue === null) return; // User canceled
-
+    if (newRefValue === null) return;
     try {
       setLoading(true);
-
-      // Update reference in database
       const { error } = await supabase
         .from("payments")
         .update({ ref: newRefValue })
         .eq("id", paymentId);
-
       if (error) throw error;
-
       showSuccess("อัปเดต REF เรียบร้อย");
       buildInvoiceTable();
     } catch (error) {
@@ -580,33 +388,22 @@ const Invoice = () => {
     }
   };
 
-  // Edit fee for a booking
   const handleEditFee = async (paymentId, bookingIndex, currentFee) => {
     const newFeeValue = prompt("กรุณากรอก Fee ใหม่:", currentFee || "0");
-    if (newFeeValue === null) return; // User canceled
-
+    if (newFeeValue === null) return;
     try {
       setLoading(true);
-
-      // Find the payment
       const payment = allPaymentsData.find((p) => p.id === paymentId);
       if (!payment || !payment.bookings || !payment.bookings[bookingIndex]) {
         throw new Error("ไม่พบข้อมูล Booking");
       }
-
-      // Create a deep copy of bookings
       const bookingsCopy = JSON.parse(JSON.stringify(payment.bookings));
-      // Update fee value
       bookingsCopy[bookingIndex].fee = parseFloat(newFeeValue) || 0;
-
-      // Update in database
       const { error } = await supabase
         .from("payments")
         .update({ bookings: bookingsCopy })
         .eq("id", paymentId);
-
       if (error) throw error;
-
       showSuccess("อัปเดต Fee เรียบร้อย");
       await loadInitialData();
       buildInvoiceTable();
@@ -618,20 +415,14 @@ const Invoice = () => {
     }
   };
 
-  // Edit invoice date
   const handleEditInvoiceDate = () => {
     const newDate = prompt("กรุณากรอกวันที่ Invoice:", invoiceDate);
     if (!newDate) return;
-
     setInvoiceDate(newDate);
-
-    // If this is an existing invoice, update it in the database
     if (invoiceId) {
       updateInvoice(invoiceId, { invoice_date: newDate })
         .then(({ success }) => {
-          if (success) {
-            showSuccess("อัปเดตวันที่ Invoice เรียบร้อย");
-          }
+          if (success) showSuccess("อัปเดตวันที่ Invoice เรียบร้อย");
         })
         .catch((error) => {
           console.error("Error updating invoice date:", error);
@@ -640,318 +431,361 @@ const Invoice = () => {
     }
   };
 
-  // Render payment selection by month
-  const renderPaymentsByMonth = () => {
-    const months = Object.keys(paymentsByMonth).sort();
+  const handlePrint = () => {
+    // สร้าง document ใหม่สำหรับการพิมพ์
+    const printWindow = window.open("", "_blank");
 
-    if (months.length === 0) {
-      return (
-        <div className="text-yellow-600 bg-yellow-100 p-3 rounded">
-          ไม่พบข้อมูล Payment
-        </div>
-      );
-    }
+    // สร้าง HTML สำหรับส่วนที่จะพิมพ์
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Invoice Print</title>
+        <style>
+          /* รีเซ็ตสไตล์ */
+          * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+          }
+          
+          /* สไตล์หลัก */
+          body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            padding: 10mm;
+          }
+          
+          /* สไตล์ตาราง */
+          table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          
+          th, td {
+            border: 1px solid #000;
+            padding: 3px;
+          }
+          
+          th {
+            background-color: #f3f4f6;
+            font-weight: bold;
+          }
+          
+          /* สไตล์ส่วนหัวและท้าย */
+          .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+          }
+          
+          .invoice-header-right {
+            text-align: right;
+          }
+          
+          .invoice-footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+          }
+          
+          /* สไตล์แถวสรุป */
+          .total-row {
+            background-color: #f8f9fa;
+            font-weight: bold;
+          }
+          
+          .grand-total-row {
+            background-color: #f0fff4;
+            font-weight: bold;
+          }
+          
+          /* การกำหนดขนาดคอลัมน์ */
+          table th:nth-child(1), table td:nth-child(1) { width: 30px; }  /* Item */
+          table th:nth-child(2), table td:nth-child(2) { width: 130px; } /* NAME */
+          table th:nth-child(3), table td:nth-child(3) { width: 40px; }  /* REF */
+          table th:nth-child(4), table td:nth-child(4) { width: 80px; }  /* Hotel */
+          table th:nth-child(5), table td:nth-child(5) { width: 70px; }  /* Date */
+          table th:nth-child(6), table td:nth-child(6) { width: 150px; } /* TOUR INCLUDE */
+          table th:nth-child(7), table td:nth-child(7) { width: 60px; }  /* PRICE */
+          table th:nth-child(8), table td:nth-child(8) { width: 40px; }  /* Fee */
+          table th:nth-child(9), table td:nth-child(9) { width: 30px; }  /* Unit */
+          table th:nth-child(10), table td:nth-child(10) { width: 60px; } /* TOTAL */
+          
+          @page {
+            size: landscape;
+            margin: 10mm;
+          }
+        </style>
+      </head>
+      <body onload="window.print(); window.setTimeout(function(){ window.close(); }, 500);">
+    `);
 
-    return (
-      <div className="space-y-3">
-        {months.map((month) => (
-          <div key={month}>
-            <h5 className="pb-2 border-b text-blue-600 font-medium">{month}</h5>
-            {paymentsByMonth[month].map((payment) => (
-              <label
-                key={payment.id}
-                className="flex items-center mb-2 pl-2 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  className="mr-2 rounded"
-                  value={payment.id}
-                  checked={selectedPaymentIds.includes(payment.id)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedPaymentIds([
-                        ...selectedPaymentIds,
-                        payment.id,
-                      ]);
-                    } else {
-                      setSelectedPaymentIds(
-                        selectedPaymentIds.filter((id) => id !== payment.id)
-                      );
-                    }
-                  }}
-                />
-                <span>
-                  {payment.displayName}
-                  {payment.dateRangeStr}
-                </span>
-              </label>
-            ))}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  // Render invoice table
-  const renderInvoiceTable = () => {
-    if (selectedPaymentIds.length === 0) {
-      return (
-        <tr>
-          <td
-            colSpan={showCostProfit ? 12 : 10}
-            className="text-center text-red-500 py-4"
-          >
-            ไม่มีรายการที่เลือก
-          </td>
-        </tr>
-      );
-    }
-
-    const tableRows = [];
-    let itemCount = 0;
-
-    // For each selected payment
-    selectedPaymentIds.forEach((paymentId) => {
-      const payment = allPaymentsData.find((p) => p.id === paymentId);
-      if (!payment || !payment.bookings || payment.bookings.length === 0)
-        return;
-
-      itemCount++;
-
-      // Get customer name and agent
-      // Get customer name and agent
-      const nameText = `${payment.first_name || ""} ${
-        payment.last_name || ""
-      } / ${payment.pax || ""} (${payment.agent_name || ""})`.trim();
-
-      const refValue = payment.ref || "-";
-
-      // Find hotel from bookings
-      let hotelText = "-";
-      for (const booking of payment.bookings) {
-        if (booking.tour_hotel) {
-          hotelText = booking.tour_hotel;
-          break;
-        } else if (booking.hotel) {
-          hotelText = booking.hotel;
-          break;
+    // เพิ่มส่วนหัว Invoice
+    printWindow.document.write(`
+      <style>
+        .invoice-header {
+          display: flex; /* ใช้ Flexbox เพื่อแบ่งสัดส่วน */
+          justify-content: space-between; /* ให้ช่องว่างระหว่างรูปและข้อความ */
+          align-items: center; /* จัดแนวให้อยู่กึ่งกลางในแนวตั้ง */
+          width: 100%; /* ใช้ความกว้างเต็ม */
         }
-      }
+        .invoice-header > div:first-child {
+          width: 60%; /* รูปภาพใช้ 60% ของความกว้าง */
+        }
+        .invoice-header > div:last-child {
+          width: 40%; /* ข้อความด้านขวาใช้ 40% ของความกว้าง */
+          text-align: right; /* จัดข้อความชิดขวา */
+        }
+        #bannerImage {
+          width: 100%; /* รูปภาพจะปรับให้เต็มความกว้างของ 60% */
+          height: auto; /* รักษาสัดส่วน */
+        }
+      </style>
+      <div class="invoice-header">
+        <div>
+          <img id="bannerImage" src="/src/assets/banner-06.png" alt="SevenSmile Tour & Ticket" />
+        </div>
+        <div class="invoice-header-right">
+          <h2 style="font-size: 18px; margin-bottom: 5px;">INVOICE</h2>
+          <p>ATTN: ACCOUNTING DEPT.</p>
+          <p>DATE: ${invoiceDate}</p>
+        </div>
+      </div>
+    `);
 
-      const rowSpanCount = payment.bookings.length;
-      // Subtotals for this payment
-      let paymentRowTotal = 0;
-      let paymentCostTotal = 0;
-      let paymentProfitTotal = 0;
+    // เริ่มตาราง
+    printWindow.document.write(`
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>NAME</th>
+            <th>REF.</th>
+            <th>Hotel</th>
+            <th>Date in PHUKET</th>
+            <th>TOUR INCLUDE</th>
+            ${
+              showCostProfit
+                ? `<th>Cost</th>
+               <th>PRICE</th>
+               <th>Profit</th>`
+                : `<th>PRICE</th>`
+            }
+            <th>Fee</th>
+            <th>Unit</th>
+            <th>TOTAL</th>
+          </tr>
+        </thead>
+        <tbody>
+    `);
 
-      // Sort bookings by date
-      const sortedBookings = [...payment.bookings].sort((a, b) => {
-        const dateA = a.date || a.tour_date || a.transfer_date || "";
-        const dateB = b.date || b.tour_date || b.transfer_date || "";
-        if (!dateA) return 1;
-        if (!dateB) return -1;
-        return new Date(dateA) - new Date(dateB);
+    // สร้างแถวของตาราง
+    if (selectedPaymentIds.length > 0) {
+      let itemCount = 0;
+
+      selectedPaymentIds.forEach((paymentId) => {
+        const payment = allPaymentsData.find((p) => p.id === paymentId);
+        if (!payment || !payment.bookings || payment.bookings.length === 0)
+          return;
+
+        itemCount++;
+        const nameText = `${payment.first_name || ""} ${
+          payment.last_name || ""
+        } / ${payment.pax || ""} (${payment.agent_name || ""})`.trim();
+        const refValue = payment.ref || "-";
+
+        let hotelText = "-";
+        for (const booking of payment.bookings) {
+          if (booking.tour_hotel) {
+            hotelText = booking.tour_hotel;
+            break;
+          } else if (booking.hotel) {
+            hotelText = booking.hotel;
+            break;
+          }
+        }
+
+        const rowSpanCount = payment.bookings.length;
+        let paymentRowTotal = 0;
+        let paymentCostTotal = 0;
+        let paymentProfitTotal = 0;
+
+        const sortedBookings = [...payment.bookings].sort((a, b) => {
+          const dateA = a.date || a.tour_date || a.transfer_date || "";
+          const dateB = b.date || b.tour_date || b.transfer_date || "";
+          if (!dateA) return 1;
+          if (!dateB) return -1;
+          return new Date(dateA) - new Date(dateB);
+        });
+
+        sortedBookings.forEach((booking, index) => {
+          const unitVal = booking.quantity || 0;
+          const priceVal = booking.sellingPrice || 0;
+          const costVal = booking.cost || 0;
+          const rowTotal = priceVal * unitVal;
+          const rowCostTotal = costVal * unitVal;
+          const profitVal = priceVal - costVal;
+          const feeVal = booking.fee || 0;
+
+          paymentRowTotal += rowTotal;
+          paymentCostTotal += costVal * unitVal;
+          paymentProfitTotal += profitVal * unitVal;
+
+          const detailText =
+            booking.detail ||
+            booking.tour_detail ||
+            booking.transfer_detail ||
+            "-";
+          const bookingDate =
+            booking.date || booking.tour_date || booking.transfer_date || "-";
+          const formattedDate =
+            bookingDate !== "-"
+              ? format(new Date(bookingDate), "dd MMM yy").toUpperCase()
+              : "-";
+
+          printWindow.document.write("<tr>");
+
+          if (index === 0) {
+            printWindow.document.write(`
+              <td rowspan="${rowSpanCount}" style="text-align: center;">${itemCount}</td>
+              <td rowspan="${rowSpanCount}">${nameText}</td>
+              <td rowspan="${rowSpanCount}" style="text-align: center;">${refValue}</td>
+              <td rowspan="${rowSpanCount}">${hotelText}</td>
+            `);
+          }
+
+          printWindow.document.write(`
+            <td style="text-align: center;">${formattedDate}</td>
+            <td>${detailText}</td>
+          `);
+
+          if (showCostProfit) {
+            printWindow.document.write(`
+              <td style="text-align: right;">${formatNumberWithCommas(
+                costVal
+              )}</td>
+              <td style="text-align: right;">${formatNumberWithCommas(
+                priceVal
+              )}</td>
+              <td style="text-align: right;">${formatNumberWithCommas(
+                profitVal
+              )}</td>
+            `);
+          } else {
+            printWindow.document.write(`
+              <td style="text-align: right;">${formatNumberWithCommas(
+                priceVal
+              )}</td>
+            `);
+          }
+
+          printWindow.document.write(`
+            <td style="text-align: center;">${formatNumberWithCommas(
+              feeVal
+            )}</td>
+            <td style="text-align: center;">${unitVal}</td>
+            <td style="text-align: right;">${formatNumberWithCommas(
+              rowTotal
+            )}</td>
+          `);
+
+          printWindow.document.write("</tr>");
+        });
+
+        // Add subtotal row for cost/profit if showing those columns
+        if (showCostProfit) {
+          printWindow.document.write(`
+            <tr class="total-row">
+              <td colspan="6" style="text-align: right; font-weight: bold;">Sub-Total (Cost/Price/Profit)</td>
+              <td style="text-align: right; font-weight: bold;">${formatNumberWithCommas(
+                paymentCostTotal
+              )}</td>
+              <td style="text-align: right; font-weight: bold;">${formatNumberWithCommas(
+                paymentRowTotal
+              )}</td>
+              <td style="text-align: right; font-weight: bold;">${formatNumberWithCommas(
+                paymentProfitTotal
+              )}</td>
+              <td colspan="3"></td>
+            </tr>
+          `);
+        }
+
+        // Add total row for this payment
+        printWindow.document.write(`
+          <tr class="total-row">
+            <td colspan="${
+              showCostProfit ? 10 : 8
+            }" style="text-align: right; font-weight: bold;">Total Amount</td>
+            <td colspan="2" style="text-align: right; font-weight: bold;">${formatNumberWithCommas(
+              paymentRowTotal
+            )}</td>
+          </tr>
+        `);
       });
 
-      // Add rows for each booking
-      sortedBookings.forEach((booking, index) => {
-        const unitVal = booking.quantity || 0;
-        const priceVal = booking.sellingPrice || 0;
-        const costVal = booking.cost || 0;
-        const rowTotal = priceVal * unitVal;
-        const rowCostTotal = costVal * unitVal;
-        // ในไฟล์ Invoice.jsx ในฟังก์ชัน renderInvoiceTable
-        // แก้การคำนวณ profitVal จากเดิม
-        const profitVal = priceVal - costVal;
-        const feeVal = booking.fee || 0;
-
-        paymentRowTotal += rowTotal;
-        paymentCostTotal += costVal * unitVal;
-        paymentProfitTotal += profitVal * unitVal;
-
-        const detailText =
-          booking.detail ||
-          booking.tour_detail ||
-          booking.transfer_detail ||
-          "-";
-        const bookingDate =
-          booking.date || booking.tour_date || booking.transfer_date || "-";
-
-        const formattedDate =
-          bookingDate !== "-"
-            ? format(new Date(bookingDate), "dd MMM yy").toUpperCase()
-            : "-";
-
-        const tr = (
-          <tr
-            key={`${paymentId}-${index}`}
-            className="border-b last:border-b-0"
-          >
-            {index === 0 && (
-              <>
-                <td rowSpan={rowSpanCount} className="px-2 py-2 border-r">
-                  {itemCount}
-                </td>
-                <td rowSpan={rowSpanCount} className="px-2 py-2 border-r">
-                  {nameText}
-                </td>
-                <td
-                  rowSpan={rowSpanCount}
-                  className="px-2 py-2 border-r cursor-pointer "
-                  onClick={() => handleEditRef(paymentId, refValue)}
-                >
-                  {refValue}
-                </td>
-                <td rowSpan={rowSpanCount} className="px-2 py-2 border-r">
-                  {hotelText}
-                </td>
-              </>
-            )}
-            <td className="px-2 py-2 border-r">{formattedDate}</td>
-            <td className="px-2 py-2 border-r text-left">{detailText}</td>
-            {showCostProfit ? (
-              <>
-                <td className="px-2 py-2 border-r text-right">
-                  {formatNumberWithCommas(costVal)}
-                </td>
-                <td className="px-2 py-2 border-r text-right">
-                  {formatNumberWithCommas(priceVal)}
-                </td>
-                <td className="px-2 py-2 border-r text-right">
-                  {formatNumberWithCommas(profitVal)}
-                </td>
-              </>
-            ) : (
-              <td className="px-2 py-2 border-r text-right">
-                {formatNumberWithCommas(priceVal)}
-              </td>
-            )}
-            <td
-              className="px-2 py-2 border-r text-center cursor-pointer "
-              onClick={() => handleEditFee(paymentId, index, feeVal)}
-            >
-              {formatNumberWithCommas(feeVal)}
-            </td>
-            <td className="px-2 py-2 border-r text-center">{unitVal}</td>
-            <td className="px-2 py-2 text-right">
-              {formatNumberWithCommas(rowTotal)}
-            </td>
+      // Add grand total row
+      if (grandTotal !== undefined && grandTotal !== null) {
+        printWindow.document.write(`
+          <tr class="grand-total-row">
+            <td colspan="${
+              showCostProfit ? 10 : 8
+            }" style="text-align: right; font-weight: bold;">GRAND TOTAL</td>
+            <td colspan="2" style="text-align: right; font-weight: bold;">${formatNumberWithCommas(
+              grandTotal
+            )}</td>
           </tr>
-        );
-        tableRows.push(tr);
-      });
-
-      // เพิ่ม Subtotal row
-      if (showCostProfit) {
-        const subtotalRow = (
-          <tr
-            key={`${paymentId}-subtotal`}
-            className="border-b bg-gray-50 total-row"
-          >
-            <td
-              colSpan={6}
-              className="px-2 py-2 text-right font-bold text-gray-600"
-            >
-              Sub-Total (Cost/Price/Profit)
-            </td>
-            <td className="px-2 py-2 font-bold text-blue-500 text-right">
-              {formatNumberWithCommas(paymentCostTotal)}
-            </td>
-            <td className="px-2 py-2 font-bold text-blue-700 text-right">
-              {formatNumberWithCommas(paymentRowTotal)}
-            </td>
-            <td className="px-2 py-2 font-bold text-green-600 text-right">
-              {formatNumberWithCommas(paymentProfitTotal)}
-            </td>
-            <td colSpan={3}></td>
-          </tr>
-        );
-        tableRows.push(subtotalRow);
+        `);
       }
-
-      // เพิ่ม Total row สำหรับ payment นี้
-      const totalRow = (
-        <tr
-          key={`${paymentId}-total`}
-          className="border-b bg-gray-100 total-row"
-        >
-          <td
-            colSpan={showCostProfit ? 10 : 8}
-            className="px-2 py-2 text-right font-bold"
-          >
-            Total Amount
-          </td>
-          <td colSpan={2} className="px-2 py-2 font-bold text-right">
-            {formatNumberWithCommas(paymentRowTotal)}
-          </td>
-        </tr>
-      );
-
-      tableRows.push(totalRow);
-    });
-
-    // เพิ่ม Grand Total row ด้านล่างสุด
-    const grandRow = (
-      <tr key="grand-total" className="bg-green-50 grand-total-row">
-        <td
-          colSpan={showCostProfit ? 10 : 8}
-          className="px-2 py-2 text-right font-bold text-green-700"
-        >
-          GRAND TOTAL
-        </td>
-        <td
-          colSpan={2}
-          className="px-2 py-2 font-bold text-green-700 text-right"
-        >
-          {formatNumberWithCommas(grandTotal)}
-        </td>
-      </tr>
-    );
-    if (grandTotal !== undefined && grandTotal !== null) {
-      const grandRow = (
-        <tr key="grand-total" className="bg-green-50 grand-total-row">
-          <td
-            colSpan={showCostProfit ? 10 : 8}
-            className="px-2 py-2 text-right font-bold text-green-700"
-          >
-            GRAND TOTAL
-          </td>
-          <td
-            colSpan={2}
-            className="px-2 py-2 font-bold text-green-700 text-right"
-          >
-            {formatNumberWithCommas(grandTotal)}
-          </td>
-        </tr>
-      );
-      tableRows.push(grandRow);
     }
 
-    return tableRows;
+    // ปิดตาราง
+    printWindow.document.write("</tbody></table>");
+
+    // เพิ่มส่วนท้าย Invoice
+    printWindow.document.write(`
+      <div class="invoice-footer">
+        <div>
+          <p style="font-weight: bold; margin-bottom: 5px;">PAYMENT TO SEVENSMILE</p>
+          <p>KBank 0000-000-0000</p>
+          <p>ACCT : SEVENSMILE CO., LTD.</p>
+        </div>
+        <div style="text-align: right;">
+          <p style="font-weight: bold; font-size: 14px;">GRAND TOTAL: ${formatNumberWithCommas(
+            grandTotal || 0
+          )} THB</p>
+        </div>
+      </div>
+    `);
+
+    // ปิด document
+    printWindow.document.write("</body></html>");
+    printWindow.document.close();
   };
 
-  // Render payment selection modal
-  const renderSelectModal = () => {
+  const loadInitialData = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.from("payments").select("*");
+      if (error) throw error;
+      setAllPaymentsData(data || []);
+      organizePaymentsByMonth(data);
+    } catch (error) {
+      console.error("Error loading initial data:", error);
+      setError("ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // แสดง Payment Select Modal
+  const PaymentSelectModal = () => {
+    if (!isSelectModalOpen) return null;
+
     return (
-      <div
-        className={`${
-          isSelectModalOpen
-            ? "fixed inset-0 z-50 flex items-center justify-center"
-            : "hidden"
-        }`}
-      >
-        {/* Backdrop */}
-        {isSelectModalOpen && (
-          <div
-            className="absolute inset-0 modal-backdrop"
-            onClick={() => setIsSelectModalOpen(false)}
-          />
-        )}
-        {/* Modal Content */}
-        <div
-          className="relative bg-white rounded shadow-lg max-w-4xl w-full p-4"
-          onClick={(e) => e.stopPropagation()}
-        >
+      <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+        <div className="bg-white rounded-lg shadow-lg max-w-4xl w-full p-4">
           <div className="flex items-center justify-between mb-4">
             <h5 className="text-lg font-bold">
               เลือก Payments ที่ต้องการสร้าง Invoice
@@ -964,7 +798,54 @@ const Invoice = () => {
             </button>
           </div>
           <div className="max-h-[70vh] overflow-y-auto">
-            {renderPaymentsByMonth()}
+            {Object.keys(paymentsByMonth).length === 0 ? (
+              <div className="text-yellow-600 bg-yellow-100 p-3 rounded">
+                ไม่พบข้อมูล Payment
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {Object.keys(paymentsByMonth)
+                  .sort()
+                  .map((month) => (
+                    <div key={month}>
+                      <h5 className="pb-2 border-b text-blue-600 font-medium">
+                        {month}
+                      </h5>
+                      {paymentsByMonth[month].map((payment) => (
+                        <label
+                          key={payment.id}
+                          className="flex items-center mb-2 pl-2 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            className="mr-2 rounded"
+                            value={payment.id}
+                            checked={selectedPaymentIds.includes(payment.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedPaymentIds([
+                                  ...selectedPaymentIds,
+                                  payment.id,
+                                ]);
+                              } else {
+                                setSelectedPaymentIds(
+                                  selectedPaymentIds.filter(
+                                    (id) => id !== payment.id
+                                  )
+                                );
+                              }
+                            }}
+                          />
+                          <span>
+                            {payment.displayName}
+                            {payment.dateRangeStr}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
           <div className="flex justify-end space-x-2 mt-4">
             <button
@@ -985,40 +866,13 @@ const Invoice = () => {
     );
   };
 
-  // Render view invoices modal
-  // Replace the existing renderViewModal function in Invoice.jsx with this updated version:
-  const renderViewModal = () => {
-    const [searchInvoiceQuery, setSearchInvoiceQuery] = useState("");
-    const filteredInvoiceList = searchInvoiceQuery
-      ? invoicesList.filter(
-          (invoice) =>
-            (invoice.invoice_name || "")
-              .toLowerCase()
-              .includes(searchInvoiceQuery.toLowerCase()) ||
-            (invoice.invoice_date || "").includes(searchInvoiceQuery)
-        )
-      : invoicesList.slice(0, 3); // แสดงเพียง 3 รายการล่าสุด
+  // แสดง View Invoices Modal
+  const ViewInvoicesModal = () => {
+    if (!isViewModalOpen) return null;
 
     return (
-      <div
-        className={`${
-          isViewModalOpen
-            ? "fixed inset-0 z-50 flex items-center justify-center"
-            : "hidden"
-        }`}
-      >
-        {/* Backdrop */}
-        {isViewModalOpen && (
-          <div
-            className="absolute inset-0 modal-backdrop bg-black"
-            onClick={() => setIsViewModalOpen(false)}
-          />
-        )}
-        {/* Modal Content */}
-        <div
-          className="relative bg-white rounded shadow-lg max-w-md w-full p-4"
-          onClick={(e) => e.stopPropagation()}
-        >
+      <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+        <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-4">
           <div className="flex items-center justify-between mb-4">
             <h5 className="text-lg font-bold">เลือก Invoice</h5>
             <button
@@ -1028,29 +882,14 @@ const Invoice = () => {
               <X size={20} />
             </button>
           </div>
-          <div className="mb-4">
-            <div className="relative">
-              <Search
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={18}
-              />
-              <input
-                type="text"
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded"
-                placeholder="ค้นหาตามชื่อหรือวันที่..."
-                value={searchInvoiceQuery}
-                onChange={(e) => setSearchInvoiceQuery(e.target.value)}
-              />
-            </div>
-          </div>
           <div className="max-h-60 overflow-y-auto mb-4">
-            {filteredInvoiceList.length === 0 ? (
+            {invoicesList.length === 0 ? (
               <div className="text-center py-4 text-gray-500">
-                ไม่พบ Invoice ที่ตรงกับคำค้นหา
+                ไม่พบข้อมูล Invoice
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredInvoiceList.map((invoice) => (
+                {invoicesList.map((invoice) => (
                   <div
                     key={invoice.id}
                     onClick={() => handleViewSelectedInvoice(invoice.id)}
@@ -1083,237 +922,25 @@ const Invoice = () => {
     );
   };
 
-  // Render edit invoice modal
-  const renderEditModal = () => {
-    if (!currentEditingInvoice) return null;
-
-    return (
-      <div
-        className={`${
-          isEditModalOpen
-            ? "fixed inset-0 z-50 flex items-center justify-center"
-            : "hidden"
-        }`}
-      >
-        {/* Backdrop */}
-        {isEditModalOpen && (
-          <div
-            className="absolute inset-0 modal-backdrop"
-            onClick={() => setIsEditModalOpen(false)}
-          />
-        )}
-        {/* Modal Content */}
-        <div
-          className="relative bg-white rounded shadow-lg max-w-5xl w-full p-4"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h5 className="text-lg font-bold">แก้ไข Invoice</h5>
-            <button
-              className="text-gray-500 hover:text-gray-700"
-              onClick={() => setIsEditModalOpen(false)}
-            >
-              <X size={20} />
-            </button>
-          </div>
-          <div className="mb-4">
-            <h6 className="font-semibold mb-2">รายการ Payment ที่เลือก</h6>
-            <ul className="border border-gray-200 rounded divide-y divide-gray-200">
-              {currentEditingInvoice.payment_ids.map((paymentId, index) => {
-                const payment = allPaymentsData.find((p) => p.id === paymentId);
-                const displayName = payment
-                  ? `${payment.first_name || ""} ${
-                      payment.last_name || ""
-                    }`.trim()
-                  : `Payment #${paymentId}`;
-
-                return (
-                  <li
-                    key={paymentId}
-                    className="p-2 flex items-center justify-between"
-                  >
-                    <div>
-                      <span className="mr-2">{displayName}</span>
-                      <button
-                        className="text-sm text-red-500 hover:underline"
-                        onClick={() => {
-                          const newPaymentIds = [
-                            ...currentEditingInvoice.payment_ids,
-                          ];
-                          newPaymentIds.splice(index, 1);
-                          setCurrentEditingInvoice({
-                            ...currentEditingInvoice,
-                            payment_ids: newPaymentIds,
-                          });
-                        }}
-                      >
-                        ลบออก
-                      </button>
-                    </div>
-                    <div className="flex space-x-2">
-                      <button
-                        className={`text-sm bg-gray-300 px-2 py-1 rounded hover:bg-gray-400 ${
-                          index === 0 ? "opacity-50 cursor-not-allowed" : ""
-                        }`}
-                        onClick={() => {
-                          if (index === 0) return;
-                          const newPaymentIds = [
-                            ...currentEditingInvoice.payment_ids,
-                          ];
-                          const temp = newPaymentIds[index];
-                          newPaymentIds[index] = newPaymentIds[index - 1];
-                          newPaymentIds[index - 1] = temp;
-                          setCurrentEditingInvoice({
-                            ...currentEditingInvoice,
-                            payment_ids: newPaymentIds,
-                          });
-                        }}
-                      >
-                        ขึ้น
-                      </button>
-                      <button
-                        className={`text-sm bg-gray-300 px-2 py-1 rounded hover:bg-gray-400 ${
-                          index === currentEditingInvoice.payment_ids.length - 1
-                            ? "opacity-50 cursor-not-allowed"
-                            : ""
-                        }`}
-                        onClick={() => {
-                          if (
-                            index ===
-                            currentEditingInvoice.payment_ids.length - 1
-                          )
-                            return;
-                          const newPaymentIds = [
-                            ...currentEditingInvoice.payment_ids,
-                          ];
-                          const temp = newPaymentIds[index];
-                          newPaymentIds[index] = newPaymentIds[index + 1];
-                          newPaymentIds[index + 1] = temp;
-                          setCurrentEditingInvoice({
-                            ...currentEditingInvoice,
-                            payment_ids: newPaymentIds,
-                          });
-                        }}
-                      >
-                        ลง
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-          <div>
-            <button
-              className="inline-flex items-center space-x-1 px-3 py-2 rounded bg-green-600 text-white hover:bg-green-700"
-              onClick={() => {
-                // Show payments that aren't already in the invoice
-                const availablePayments = allPaymentsData.filter(
-                  (p) =>
-                    !p.invoiced ||
-                    currentEditingInvoice.payment_ids.includes(p.id)
-                );
-
-                if (availablePayments.length === 0) {
-                  showInfo("ไม่มี Payment ที่สามารถเพิ่มได้");
-                  return;
-                }
-                // Show modal to select additional payments (future feature)
-                showInfo("ฟังก์ชันนี้จะมีการพัฒนาในอนาคต");
-              }}
-            >
-              <PlusCircle size={16} />
-              <span>เพิ่ม Payment</span>
-            </button>
-          </div>
-          <div className="flex justify-end space-x-2 mt-4">
-            <button
-              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-              onClick={() => setIsEditModalOpen(false)}
-            >
-              ยกเลิก
-            </button>
-            <button
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              onClick={handleSaveEditInvoice}
-            >
-              บันทึกการแก้ไข
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   useEffect(() => {
     loadInitialData();
   }, []);
 
-  useEffect(() => {
-    const handleBeforePrint = () => {
-      // เพิ่ม class ให้ตารางเพื่อให้ CSS รองรับการแสดงคอลัมน์ต้นทุนและกำไร
-      const table = document.getElementById("invoiceTable");
-      if (table) {
-        if (showCostProfit) {
-          table.classList.add("show-cost-profit");
-        } else {
-          table.classList.remove("show-cost-profit");
-        }
-      }
-    };
-
-    const handleAfterPrint = () => {
-      // คืนค่าการแสดงผลหลังพิมพ์ (ถ้าจำเป็น)
-    };
-
-    window.addEventListener("beforeprint", handleBeforePrint);
-    window.addEventListener("afterprint", handleAfterPrint);
-
-    return () => {
-      window.removeEventListener("beforeprint", handleBeforePrint);
-      window.removeEventListener("afterprint", handleAfterPrint);
-    };
-  }, [showCostProfit]);
-
-  // Load payments and bookings data
-  const loadInitialData = async () => {
-    setLoading(true);
-    try {
-      const [paymentsSnap, tourSnap, transferSnap] = await Promise.all([
-        supabase.from("payments").select("*"),
-        supabase.from("tour_bookings").select("*"),
-        supabase.from("transfer_bookings").select("*"),
-      ]);
-
-      if (paymentsSnap.error) throw paymentsSnap.error;
-      if (tourSnap.error) throw tourSnap.error;
-      if (transferSnap.error) throw transferSnap.error;
-
-      setAllPaymentsData(paymentsSnap.data || []);
-      setAllTourBookings(tourSnap.data || []);
-      setAllTransferBookings(transferSnap.data || []);
-
-      organizePaymentsByMonth(paymentsSnap.data);
-    } catch (error) {
-      console.error("Error loading initial data:", error);
-      setError("ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="container mx-auto px-4 py-6 bg-gray-50 min-h-screen">
-      <div className="text-center mb-6">
+      <div className="text-center mb-6 print:hidden">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Invoice</h1>
         <p className="text-gray-600 mb-4">รายละเอียด Order / Payment ทั้งหมด</p>
       </div>
-      <div className="max-w-7xl mx-auto p-4 rounded-lg shadow-md  bg-white print:max-w-full print:w-full print:p-0 print:m-0">
-        {/* Modals backdrop (Tailwind) */}
-        {renderSelectModal()}
-        {renderViewModal()}
-        {renderEditModal()}
 
+      <div className="max-w-7xl mx-auto p-4 rounded-lg shadow-md bg-white print:p-0 print:m-0 print:w-full">
+        {/* Payment Selection Modal */}
+        <PaymentSelectModal />
+
+        {/* View Invoices Modal */}
+        <ViewInvoicesModal />
+
+        {/* Invoice Controls - ซ่อนเมื่อพิมพ์ */}
         <div className="print:hidden text-center mb-4 space-x-2">
           {isViewingExistingInvoice && (
             <div className="text-center mb-4 bg-blue-100 text-blue-700 p-2 rounded">
@@ -1321,6 +948,7 @@ const Invoice = () => {
               อยู่
             </div>
           )}
+
           <button
             className="inline-flex items-center px-3 py-2 rounded bg-yellow-500 text-white hover:bg-yellow-600 mr-2"
             onClick={handleOpenSelectModal}
@@ -1332,7 +960,7 @@ const Invoice = () => {
           <button
             className="inline-flex items-center px-3 py-2 rounded bg-green-500 text-white hover:bg-green-600 mr-2"
             onClick={handleSaveInvoice}
-            disabled={isViewingExistingInvoice} // เพิ่ม disabled attribute
+            disabled={isViewingExistingInvoice}
           >
             <Save size={16} className="mr-1" />
             บันทึก Invoice
@@ -1369,59 +997,22 @@ const Invoice = () => {
             <Printer size={16} className="mr-1" />
             พิมพ์
           </button>
-        </div>
 
-        <div className="print:hidden text-center mb-4">
-          <label className="inline-flex items-center space-x-2">
-            <input
-              className="rounded"
-              type="checkbox"
-              id="showCostProfitCheckbox"
-              checked={showCostProfit}
-              onChange={handleToggleCostProfit}
-            />
-            <span>แสดงต้นทุน (Cost) และกำไร (Profit)</span>
-          </label>
-        </div>
-
-        {/* เนื้อหาส่วน Invoice ที่จะแสดงเมื่อพิมพ์ */}
-        <div className="print:block">
-          {/* ส่วนหัว Invoice */}
-          <div className="grid grid-cols-3 print:flex print:justify-between mb-3">
-            <div className="col-span-2">
-              <img
-                id="bannerImage"
-                src="/src/assets/banner-06.png"
-                alt="Banner"
-                style={{ maxWidth: "80%" }}
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.style.display = "none";
-                  e.target.parentNode.innerHTML =
-                    '<div class="p-4 text-xl font-bold">SevenSmile Tour & Ticket</div>';
-                }}
+          <div className="text-center mb-4 mt-4">
+            <label className="inline-flex items-center space-x-2">
+              <input
+                className="rounded"
+                type="checkbox"
+                checked={showCostProfit}
+                onChange={handleToggleCostProfit}
               />
-            </div>
-            <div className="invoice-header-right col-span-1 text-right">
-              <h2 className="font-bold text-xl mb-1">INVOICE</h2>
-              <div className="mb-1">ATTN : ACCOUNTING DEPT.</div>
-              <div>
-                DATE:{" "}
-                <span
-                  id="invoiceDateSpan"
-                  className="font-semibold italic text-gray-700 border border-gray-300 rounded px-2 cursor-pointer"
-                  onClick={handleEditInvoiceDate}
-                >
-                  {invoiceDate}
-                </span>
-              </div>
-            </div>
+              <span>แสดงต้นทุน (Cost) และกำไร (Profit)</span>
+            </label>
           </div>
         </div>
 
-        {/* Error message */}
         {error && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-3 relative rounded">
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-3 relative rounded print:hidden">
             <strong className="font-bold mr-1">ข้อผิดพลาด:</strong> {error}
             <button
               className="absolute top-2 right-2 text-red-500 hover:text-red-600"
@@ -1432,105 +1023,39 @@ const Invoice = () => {
           </div>
         )}
 
-        {/* Invoice table */}
-        <div className="overflow-x-auto">
-          <table
-            className="min-w-full border border-gray-300 text-center align-middle"
-            id="invoiceTable"
-          >
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="py-2 px-2 border-b border-r">Item</th>
-                <th className="py-2 px-2 border-b border-r">NAME</th>
-                <th className="py-2 px-2 border-b border-r">REF.</th>
-                <th className="py-2 px-2 border-b border-r">Hotel</th>
-                <th className="py-2 px-2 border-b border-r">Date in PHUKET</th>
-                <th className="py-2 px-2 border-b border-r ">TOUR INCLUDE</th>
-                {showCostProfit ? (
-                  <>
-                    <th className="py-2 px-2 border-b border-r">Cost</th>
-                    <th className="py-2 px-2 border-b border-r">PRICE</th>
-                    <th className="py-2 px-2 border-b border-r">Profit</th>
-                  </>
-                ) : (
-                  <th className="py-2 px-2 border-b border-r">PRICE</th>
-                )}
-                <th className="py-2 px-2 border-b border-r">Fee</th>
-                <th className="py-2 px-2 border-b border-r">Unit</th>
-                <th className="py-2 px-2 border-b">TOTAL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan={showCostProfit ? 12 : 10}
-                    className="py-4 text-center"
-                  >
-                    <div className="inline-block w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                    <p className="mt-2 text-sm text-gray-700">
-                      กำลังโหลดข้อมูล...
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                renderInvoiceTable()
-              )}
-            </tbody>
-          </table>
+        <div ref={printRef}>
+          {/* Invoice Content - แสดงเสมอ */}
+          <HeaderInvoice
+            invoiceDate={invoiceDate}
+            handleEditInvoiceDate={handleEditInvoiceDate}
+          />
+
+          <InvoiceTable
+            selectedPaymentIds={selectedPaymentIds}
+            allPaymentsData={allPaymentsData}
+            showCostProfit={showCostProfit}
+            handleEditRef={handleEditRef}
+            handleEditFee={handleEditFee}
+            grandTotal={grandTotal}
+            loading={loading}
+            formatNumberWithCommas={formatNumberWithCommas}
+          />
+
+          <InvoiceFooter
+            grandTotal={grandTotal}
+            formatNumberWithCommas={formatNumberWithCommas}
+          />
         </div>
 
-        {/* Footer information */}
-        <div className="invoice-footer flex flex-wrap mt-4">
-          <div className="w-full md:w-1/2 text-left">
-            <p className="mb-1 font-bold">PAYMENT TO SEVENSMILE</p>
-            <p className="mb-1">KBank 0000-000-0000</p>
-            <p className="mb-1">ACCT : SEVENSMILE CO., LTD.</p>
-          </div>
-          <div className="w-full md:w-1/2 text-right">
-            <div
-              className="mt-1 text-lg font-bold text-gray-700"
-              id="grandTotalDisplay"
-            >
-              GRAND TOTAL: {formatNumberWithCommas(grandTotal || 0)} THB
-            </div>
-          </div>
-        </div>
-
-        {/* Summary section for cost/profit */}
-        {showCostProfit && selectedPaymentIds.length > 0 && (
-          <div className="print:hidden mt-6">
-            <div className="flex flex-wrap text-center">
-              <div className="w-full md:w-1/3 mb-4">
-                <p>
-                  <strong>รวมต้นทุนทั้งหมด:</strong>
-                  <br />
-                  <span className="text-2xl font-bold text-blue-500">
-                    {formatNumberWithCommas(totalCost)}
-                  </span>
-                </p>
-              </div>
-              <div className="w-full md:w-1/3 mb-4">
-                <p>
-                  <strong>รวมราคาขายทั้งหมด:</strong>
-                  <br />
-                  <span className="text-2xl font-bold text-blue-700">
-                    {formatNumberWithCommas(totalSellingPrice)}
-                  </span>
-                </p>
-              </div>
-              <div className="w-full md:w-1/3 mb-4">
-                <p>
-                  <strong>กำไรรวมทั้งหมด:</strong>
-                  <br />
-                  <span className="text-2xl font-bold text-green-600">
-                    {formatNumberWithCommas(totalProfit)}
-                  </span>
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Summary Section - ซ่อนเมื่อพิมพ์ */}
+        <SummarySection
+          showCostProfit={showCostProfit}
+          selectedPaymentIds={selectedPaymentIds}
+          totalCost={totalCost}
+          totalSellingPrice={totalSellingPrice}
+          totalProfit={totalProfit}
+          formatNumberWithCommas={formatNumberWithCommas}
+        />
       </div>
     </div>
   );

@@ -1,189 +1,121 @@
+/* src/styles/invoice.css */
+
+/* สไตล์ทั่วไป */
 .invoice-title {
   font-size: 2rem;
   font-weight: 600;
 }
+
+/* สไตล์สำหรับการพิมพ์ */
 @media print {
-  /* ซ่อนองค์ประกอบที่ไม่ต้องการพิมพ์ */
-  .no-print {
+  /* รีเซ็ตทุกอย่าง */
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    color: black !important;
+    background-color: white !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ซ่อนองค์ประกอบที่ไม่จำเป็นสำหรับการพิมพ์ */
+  .print\\:hidden,
+  .print-hidden,
+  button,
+  .container,
+  nav,
+  footer,
+  .bg-gray-50,
+  .py-6,
+  .shadow-md,
+  .rounded-lg,
+  .text-center {
     display: none !important;
   }
 
-  /* กำหนดขนาดและทิศทางหน้ากระดาษ */
-  @page {
-    size: A4 landscape;
-    margin: 0.8cm;
-  }
-
-  /* กำหนดการแสดงผลของ body */
-  body {
+  body,
+  html {
     width: 100% !important;
+    height: auto !important;
     margin: 0 !important;
     padding: 0 !important;
     background-color: white !important;
-    font-family: "Prompt", sans-serif !important;
+    font-family: "Kanit", sans-serif !important;
+    font-size: 12pt !important;
+    overflow: visible !important;
   }
 
-  /* จัดการตาราง */
+  /* จัดการหน้ากระดาษ */
+  @page {
+    size: landscape;
+    margin: 0.8cm;
+  }
+
+  /* แสดง/ซ่อนองค์ประกอบตามต้องการ */
+  #printRef,
+  #printRef * {
+    visibility: visible !important;
+    display: block !important;
+  }
+
+  /* สไตล์ตาราง */
   table {
     width: 100% !important;
     border-collapse: collapse !important;
-    table-layout: fixed !important; /* กำหนดให้คงที่ */
+    page-break-inside: auto !important;
   }
 
-  /* จัดการแถวและเซลล์ */
   tr,
+  td,
   th,
-  td {
-    page-break-inside: avoid !important;
-    border: 1px solid black !important;
+  thead,
+  tbody {
+    visibility: visible !important;
   }
 
-  th,
-  td {
-    padding: 4px !important;
-    font-size: 9pt !important;
-    vertical-align: middle !important;
-    word-wrap: break-word !important;
-  }
-
-  /* กำหนดความกว้างของคอลัมน์ให้สมดุล */
-  th:nth-child(1),
-  td:nth-child(1) {
-    width: 4% !important;
-  } /* Item */
-  th:nth-child(2),
-  td:nth-child(2) {
-    width: 15% !important;
-  } /* NAME */
-  th:nth-child(3),
-  td:nth-child(3) {
-    width: 4% !important;
-  } /* REF */
-  th:nth-child(4),
-  td:nth-child(4) {
-    width: 10% !important;
-  } /* Hotel */
-  th:nth-child(5),
-  td:nth-child(5) {
-    width: 7% !important;
-  } /* Date */
-  th:nth-child(6),
-  td:nth-child(6) {
-    width: 40% !important;
-  } /* TOUR INCLUDE */
-  th:nth-child(7),
-  td:nth-child(7) {
-    width: 7% !important;
-  } /* PRICE */
-  th:nth-child(8),
-  td:nth-child(8) {
-    width: 4% !important;
-  } /* Fee */
-  th:nth-child(9),
-  td:nth-child(9) {
-    width: 4% !important;
-  } /* Unit */
-  th:nth-child(10),
-  td:nth-child(10) {
-    width: 7% !important;
-  } /* TOTAL */
-
-  /* จัดการการแสดงผลข้อความ */
-  .nameCell,
-  .hotelCell {
-    white-space: normal !important;
-  }
-
-  .tour-include-cell {
-    text-align: left !important;
-    white-space: normal !important;
-  }
-
-  td:nth-child(1), /* Item */
-  td:nth-child(9), /* Unit */
-  th:nth-child(1),
-  th:nth-child(9) {
-    text-align: center !important;
-    vertical-align: middle !important;
-  }
-
-  /* จัดตำแหน่งราคาและยอดรวมให้ชิดขวา */
-  td:nth-child(7), /* PRICE */
-  td:nth-child(8), /* Fee */
-  td:nth-child(10), /* TOTAL */
-  th:nth-child(7),
-  th:nth-child(8),
-  th:nth-child(10) {
-    text-align: center !important;
-    vertical-align: middle !important;
-  }
-
-  /* จัดการส่วนหัวของเอกสาร */
-  .yes-print {
-    margin-bottom: 1cm !important;
-  }
-
-  #bannerImage {
-    max-width: 700px !important;
-    height: auto !important;
-  }
-
-  /* จัดการเลขหน้า */
-  @page {
-    @bottom-right {
-      content: "Page " counter(page) " of " counter(pages);
-      font-size: 9pt;
-    }
-  }
-
-  /* จัดการส่วนท้ายของเอกสาร */
-  #grandTotalDisplay {
-    text-align: right !important;
-    font-weight: bold !important;
-    font-size: 12pt !important;
-    margin-top: 10px !important;
-  }
-
-  /* ป้องกันการตัดแยกแถวสรุปยอดรวม */
-  tr:last-child {
-    page-break-inside: avoid !important;
-  }
-
-  /* ขยายพื้นที่แต่ละเซลล์เพื่อให้มีที่ว่างสำหรับข้อความ */
-  th,
-  td {
-    height: auto !important;
-    min-height: 20px !important;
-  }
-
-  /* ลบข้อจำกัดความสูงของแถว */
   tr {
-    height: auto !important;
+    page-break-inside: avoid !important;
   }
 
-  /* ลบความกว้างของคอนเทนเนอร์ที่อาจจำกัดความกว้างของตาราง */
-  .container,
-  .table-responsive {
-    max-width: none !important;
-    width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
+  thead {
+    display: table-header-group !important;
   }
 
-  /* แสดงรอยต่อระหว่างแถวให้ชัดเจน */
-  tbody tr {
-    border-bottom: 1px solid black !important;
+  th,
+  td {
+    border: 1px solid black !important;
+    padding: 4px !important;
+    font-size: 10pt !important;
+    vertical-align: middle !important;
   }
 
-  /* ปรับแต่ง Total Amount */
+  /* สไตล์แถวสรุป */
   tr.total-row td {
     font-weight: bold !important;
+    background-color: #f8f9fa !important;
   }
 
-  /* ปรับแต่ง GRAND TOTAL */
   tr.grand-total-row td {
     font-weight: bold !important;
-    color: #198754 !important;
-    background-color: #f8f9fa !important;
+    background-color: #f0fff4 !important;
+  }
+
+  /* จัดการการจัดตำแหน่ง */
+  .text-right {
+    text-align: right !important;
+  }
+
+  .text-center {
+    text-align: center !important;
+  }
+
+  /* จัดการส่วนหัวและท้าย */
+  .invoice-header-right {
+    text-align: right !important;
+  }
+
+  .invoice-footer {
+    page-break-inside: avoid !important;
+    margin-top: 1cm !important;
   }
 }

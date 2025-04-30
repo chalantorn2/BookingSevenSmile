@@ -127,7 +127,7 @@ export const InformationProvider = ({ children }) => {
     if (!Array.isArray(items)) return [];
 
     // เพิ่ม console.log เพื่อตรวจสอบข้อมูลที่นำเข้า
-    console.log("Formatting items:", items);
+    // console.log("Formatting items:", items);
 
     return items.map((item) => ({
       id: item.id,
