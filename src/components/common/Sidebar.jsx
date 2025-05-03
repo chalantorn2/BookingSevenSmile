@@ -15,6 +15,8 @@ import {
   LogOut,
   User,
   DollarSign,
+  Printer,
+  Ticket,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -42,6 +44,12 @@ const Sidebar = () => {
       path: "/view-payment",
       label: "View Payment",
       icon: <DollarSign size={20} />,
+      permission: null,
+    },
+    {
+      path: "/voucher",
+      label: "Voucher",
+      icon: <Ticket size={20} />,
       permission: null,
     },
     {

@@ -14,16 +14,15 @@ import { InformationProvider } from "./contexts/InformationContext";
 import ViewOrders from "./pages/ViewOrders";
 import Payment from "./pages/Payment";
 import Invoice from "./pages/Invoice";
+import Voucher from "./pages/Voucher"; // Import หน้า Voucher ที่สร้างขึ้นใหม่
 import Login from "./pages/Login";
 import UserManagement from "./pages/UserManagement";
 import ViewPayment from "./pages/ViewPayment";
-import NotFound from "./pages/NotFound"; // Import the NotFound component
+import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./contexts/AuthContext";
 import PrivateRoute from "./components/auth/PrivateRoute";
-// import "./styles/invoice.css";
 import { SnackbarProvider } from "notistack";
-// import { ConfirmProvider } from "material-ui-confirm"; // ลบออก
-import { AlertDialogProvider } from "./contexts/AlertDialogContext"; // เพิ่มเข้ามา
+import { AlertDialogProvider } from "./contexts/AlertDialogContext";
 
 const App = () => {
   return (
@@ -53,12 +52,12 @@ const App = () => {
                     <Route path="/invoice" element={<Invoice />} />
                     <Route path="/information" element={<Information />} />
                     <Route path="/view-payment" element={<ViewPayment />} />
-
+                    <Route path="/voucher" element={<Voucher />} />{" "}
+                    {/* เพิ่มเส้นทางไปยังหน้า Voucher */}
                     {/* Admin Routes - เฉพาะ admin และ dev เท่านั้น */}
                     <Route element={<PrivateRoute requiredRole="admin" />}>
                       <Route path="/users" element={<UserManagement />} />
                     </Route>
-
                     {/* Under Development - อยู่ระหว่างพัฒนา */}
                     <Route
                       path="/dashboard"

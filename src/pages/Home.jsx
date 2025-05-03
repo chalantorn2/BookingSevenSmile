@@ -6,6 +6,7 @@ import BookingDetailModal from "../components/booking/BookingDetailModal";
 import BookingStatusLegend from "../components/booking/BookingStatusLegend";
 import CalendarHighlight from "../components/booking/CalendarHighlight";
 import { useNotification } from "../hooks/useNotification";
+import domtoimage from "dom-to-image";
 import {
   Plus,
   Printer,
@@ -15,6 +16,7 @@ import {
   Download,
   CalendarDays,
   MapPin,
+  Camera,
 } from "lucide-react";
 
 const Home = () => {
@@ -39,7 +41,6 @@ const Home = () => {
     fetchBookings(queryDate);
   }, [queryDate]);
 
-  // Home.jsx
   const fetchBookings = async (date) => {
     setIsLoading(true);
     setError(null);
@@ -48,7 +49,7 @@ const Home = () => {
       // Fetch tour bookings
       const { data: tourData, error: tourError } = await supabase
         .from("tour_bookings")
-        .select("*, orders(first_name, last_name, pax)") // เพิ่ม pax ที่นี่
+        .select("*, orders(first_name, last_name, pax)")
         .eq("tour_date", date);
 
       if (tourError) throw tourError;
@@ -56,7 +57,7 @@ const Home = () => {
       // Fetch transfer bookings
       const { data: transferData, error: transferError } = await supabase
         .from("transfer_bookings")
-        .select("*, orders(first_name, last_name, pax)") // เพิ่ม pax ที่นี่
+        .select("*, orders(first_name, last_name, pax)")
         .eq("transfer_date", date);
 
       if (transferError) throw transferError;
@@ -140,8 +141,37 @@ const Home = () => {
   };
 
   const handleExport = () => {
-    // This would be implemented with html2canvas or similar library
-    showInfo("ฟังก์ชันส่งออกภาพจะถูกพัฒนาในเวอร์ชันถัดไป");
+    const captureArea = document.getElementById("captureArea");
+    if (!captureArea) {
+      showError("ไม่พบพื้นที่ที่จะแคปภาพ");
+      return;
+    }
+
+    showInfo("กำลังสร้างภาพ กรุณารอสักครู่...");
+
+    domtoimage
+      .toBlob(captureArea, {
+        bgcolor: "#ffffff",
+        style: {
+          "background-color": "#ffffff",
+        },
+        width: captureArea.scrollWidth,
+        height: captureArea.scrollHeight,
+        quality: 1,
+      })
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "booking-screenshot.png";
+        link.click();
+        window.URL.revokeObjectURL(url);
+        showSuccess("บันทึกภาพสำเร็จ");
+      })
+      .catch((error) => {
+        console.error("เกิดข้อผิดพลาดในการสร้างภาพ:", error);
+        showError("เกิดข้อผิดพลาดในการสร้างภาพ: " + error.message);
+      });
   };
 
   // คำนวณยอดรวมจำนวนคน
@@ -159,6 +189,48 @@ const Home = () => {
     filter === "all"
       ? transferBookings
       : transferBookings.filter((booking) => booking.status === filter);
+
+  const captureAndCopyScreenshot = () => {
+    const captureArea = document.getElementById("captureArea");
+    if (!captureArea) {
+      showError("ไม่พบพื้นที่ที่จะแคปภาพ");
+      return;
+    }
+
+    showInfo("กำลังคัดลอกภาพ กรุณารอสักครู่...");
+
+    domtoimage
+      .toBlob(captureArea, {
+        bgcolor: "#ffffff",
+        style: {
+          "background-color": "#ffffff",
+        },
+        width: captureArea.scrollWidth,
+        height: captureArea.scrollHeight,
+        quality: 1,
+      })
+      .then((blob) => {
+        try {
+          const item = new ClipboardItem({ "image/png": blob });
+          navigator.clipboard
+            .write([item])
+            .then(() => showSuccess("คัดลอกรูปภาพไปยังคลิปบอร์ดแล้ว"))
+            .catch((error) => {
+              console.error("ไม่สามารถคัดลอกไปยังคลิปบอร์ดได้:", error);
+              showError("ไม่สามารถคัดลอกไปยังคลิปบอร์ดได้: " + error.message);
+            });
+        } catch (error) {
+          console.error("เกิดข้อผิดพลาดในการคัดลอก:", error);
+          showError(
+            "เบราว์เซอร์ของคุณไม่รองรับการคัดลอกรูปภาพ: " + error.message
+          );
+        }
+      })
+      .catch((error) => {
+        console.error("เกิดข้อผิดพลาดในการสร้างภาพ:", error);
+        showError("เกิดข้อผิดพลาดในการสร้างภาพ: " + error.message);
+      });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -178,9 +250,19 @@ const Home = () => {
             <div className="p-4">
               {/* ส่วนแสดงวันที่และตัวกรองสถานะ */}
               <div className="flex flex-col sm:flex-row justify-between items-center mb-6 bg-white rounded-lg p-4 border border-gray-100">
-                <h2 className="text-3xl font-bold text-red-600 mb-2 sm:mb-0">
-                  {formattedDate}
-                </h2>
+                <div className="flex items-center gap-2 mb-2 sm:mb-0">
+                  <h2 className="text-3xl font-bold text-red-600">
+                    {formattedDate}
+                  </h2>
+                  <button
+                    onClick={captureAndCopyScreenshot}
+                    className="ml-2 bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-all tooltip-container"
+                    title="คัดลอกภาพรายการจอง"
+                  >
+                    <Camera size={20} />
+                    {/* <span className="tooltip">คัดลอกรายการจอง</span> */}
+                  </button>
+                </div>
 
                 <div className="flex flex-wrap justify-center gap-2">
                   <button
