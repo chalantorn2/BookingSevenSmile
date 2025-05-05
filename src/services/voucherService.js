@@ -1,11 +1,5 @@
-// src/services/voucherService.js
 import supabase from "../config/supabaseClient";
 
-/**
- * ดึงข้อมูล voucher ตาม ID
- * @param {string} voucherId - ID ของ voucher
- * @returns {Promise<{data: Object|null, error: string|null}>}
- */
 export const fetchVoucherById = async (voucherId) => {
   try {
     const { data, error } = await supabase
@@ -22,10 +16,6 @@ export const fetchVoucherById = async (voucherId) => {
   }
 };
 
-/**
- * ดึงข้อมูล voucher ทั้งหมด
- * @returns {Promise<{data: Array|null, error: string|null}>}
- */
 export const fetchAllVouchers = async () => {
   try {
     const { data, error } = await supabase
@@ -41,14 +31,8 @@ export const fetchAllVouchers = async () => {
   }
 };
 
-/**
- * สร้าง voucher ใหม่
- * @param {Object} voucherData - ข้อมูล voucher ที่จะสร้าง
- * @returns {Promise<{data: Object|null, error: string|null}>}
- */
 export const createVoucher = async (voucherData) => {
   try {
-    // ตรวจสอบว่า Booking มี Voucher อยู่แล้วหรือไม่
     const { data: existingVoucher, error: voucherError } = await supabase
       .from("vouchers")
       .select("id")
@@ -63,7 +47,6 @@ export const createVoucher = async (voucherData) => {
       throw voucherError;
     }
 
-    // หาเลขที่ voucher ล่าสุดในปีปัจจุบัน
     const currentYear = new Date().getFullYear();
     const { data: sequenceData, error: sequenceError } = await supabase
       .from("sequences")
@@ -123,6 +106,24 @@ export const createVoucher = async (voucherData) => {
         .from(tableName)
         .update({ voucher_created: true })
         .eq("id", voucherData.booking_id);
+
+      // อัพเดต customer_signature ในตาราง orders
+      if (voucherData.customer_signature) {
+        const { data: bookingData, error: bookingError } = await supabase
+          .from(tableName)
+          .select("order_id")
+          .eq("id", voucherData.booking_id)
+          .single();
+
+        if (bookingError) throw bookingError;
+
+        const { error: orderError } = await supabase
+          .from("orders")
+          .update({ customer_signature: voucherData.customer_signature })
+          .eq("id", bookingData.order_id);
+
+        if (orderError) throw orderError;
+      }
     }
 
     return { data, error: null };
@@ -132,12 +133,6 @@ export const createVoucher = async (voucherData) => {
   }
 };
 
-/**
- * อัพเดต voucher
- * @param {string} voucherId - ID ของ voucher
- * @param {Object} updateData - ข้อมูลที่จะอัพเดต
- * @returns {Promise<{success: boolean, error: string|null}>}
- */
 export const updateVoucher = async (voucherId, updateData) => {
   try {
     const { error } = await supabase
@@ -146,6 +141,34 @@ export const updateVoucher = async (voucherId, updateData) => {
       .eq("id", voucherId);
 
     if (error) throw error;
+
+    // อัพเดต customer_signature ในตาราง orders
+    if (
+      updateData.customer_signature &&
+      updateData.booking_id &&
+      updateData.booking_type
+    ) {
+      const tableName =
+        updateData.booking_type === "tour"
+          ? "tour_bookings"
+          : "transfer_bookings";
+
+      const { data: bookingData, error: bookingError } = await supabase
+        .from(tableName)
+        .select("order_id")
+        .eq("id", updateData.booking_id)
+        .single();
+
+      if (bookingError) throw bookingError;
+
+      const { error: orderError } = await supabase
+        .from("orders")
+        .update({ customer_signature: updateData.customer_signature })
+        .eq("id", bookingData.order_id);
+
+      if (orderError) throw orderError;
+    }
+
     return { success: true, error: null };
   } catch (error) {
     console.error("Error updating voucher:", error);
@@ -153,14 +176,8 @@ export const updateVoucher = async (voucherId, updateData) => {
   }
 };
 
-/**
- * ลบ voucher
- * @param {string} voucherId - ID ของ voucher
- * @returns {Promise<{success: boolean, error: string|null}>}
- */
 export const deleteVoucher = async (voucherId) => {
   try {
-    // ดึงข้อมูล voucher เพื่อหา booking ที่เกี่ยวข้อง
     const { data: voucher, error: fetchError } = await supabase
       .from("vouchers")
       .select("*")
@@ -169,7 +186,6 @@ export const deleteVoucher = async (voucherId) => {
 
     if (fetchError) throw fetchError;
 
-    // อัพเดตสถานะ voucher_created ใน booking กลับเป็น false
     if (voucher.booking_id && voucher.booking_type) {
       const tableName =
         voucher.booking_type === "tour" ? "tour_bookings" : "transfer_bookings";
@@ -180,7 +196,6 @@ export const deleteVoucher = async (voucherId) => {
         .eq("id", voucher.booking_id);
     }
 
-    // ลบ voucher
     const { error } = await supabase
       .from("vouchers")
       .delete()

@@ -256,7 +256,7 @@ const BookingDetailModal = ({
                 "bg-green-50 border-green-300 text-green-800 font-bold",
               labelClass: "text-green-700 font-semibold",
             },
-            { name: "pax", label: "จำนวนคน", type: "number" },
+            { name: "pax", label: "จำนวนคน", type: "text" },
             {
               name: "tour_hotel",
               label: "โรงแรม",
@@ -340,7 +340,7 @@ const BookingDetailModal = ({
               label: "รายละเอียด",
               type: "textarea",
             },
-            { name: "pax", label: "จำนวนคน", type: "number" },
+            { name: "pax", label: "จำนวนคน", type: "text" },
             {
               name: "pickup_location",
               label: "สถานที่รับ",

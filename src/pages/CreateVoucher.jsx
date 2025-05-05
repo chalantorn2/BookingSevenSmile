@@ -1,4 +1,3 @@
-// src/pages/CreateVoucher.jsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { createVoucher, updateVoucher } from "../services/voucherService";
@@ -15,7 +14,8 @@ import {
   MapPin,
 } from "lucide-react";
 import supabase from "../config/supabaseClient";
-import VoucherForm from "../components/voucher/VoucherForm";
+import TourVoucherForm from "../components/voucher/TourVoucherForm";
+import TransferVoucherForm from "../components/voucher/TransferVoucherForm";
 import { useNotification } from "../hooks/useNotification";
 import { format, parseISO, isValid } from "date-fns";
 import { useAlertDialogContext } from "../contexts/AlertDialogContext";
@@ -23,21 +23,19 @@ import { useAlertDialogContext } from "../contexts/AlertDialogContext";
 const CreateVoucher = () => {
   const { bookingId, bookingType } = useParams();
   const navigate = useNavigate();
-  const location = useLocation(); // ใช้เพื่อตรวจสอบ ?edit=true
+  const location = useLocation();
   const { showSuccess, showError, showInfo } = useNotification();
   const showAlert = useAlertDialogContext();
 
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [voucherData, setVoucherData] = useState(null); // เพิ่ม state สำหรับ voucherData
-  const [isSaving, setIsSaving] = useState(false); // เพิ่ม state สำหรับการบันทึก
+  const [voucherData, setVoucherData] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // ตรวจสอบว่าเป็นโหมดแก้ไขหรือไม่
   const isEditMode =
     new URLSearchParams(location.search).get("edit") === "true";
 
-  // โหลดข้อมูล booking และ voucher (ถ้าเป็นโหมดแก้ไข)
   useEffect(() => {
     const fetchBookingDetails = async () => {
       setLoading(true);
@@ -48,7 +46,6 @@ const CreateVoucher = () => {
           throw new Error("ไม่พบรหัส Booking หรือประเภท Booking");
         }
 
-        // ดึงข้อมูล booking
         const tableName =
           bookingType === "tour" ? "tour_bookings" : "transfer_bookings";
         const { data, error } = await supabase
@@ -65,7 +62,6 @@ const CreateVoucher = () => {
         if (error) throw error;
         if (!data) throw new Error("ไม่พบข้อมูล Booking");
 
-        // ถ้าเป็นโหมดแก้ไข ดึงข้อมูล voucher
         let initialVoucherData = {};
         if (isEditMode) {
           const { data: existingVoucher, error: voucherError } = await supabase
@@ -80,7 +76,6 @@ const CreateVoucher = () => {
             initialVoucherData = existingVoucher;
           }
         } else {
-          // ดึงเลขลำดับล่าสุดจาก sequences
           const currentYear = new Date().getFullYear();
           const { data: sequenceData, error: sequenceError } = await supabase
             .from("sequences")
@@ -112,7 +107,6 @@ const CreateVoucher = () => {
     fetchBookingDetails();
   }, [bookingId, bookingType, isEditMode]);
 
-  // บันทึก voucher
   const handleSaveVoucher = async (voucherData) => {
     if (isSaving) return;
 
@@ -120,7 +114,6 @@ const CreateVoucher = () => {
     try {
       let result;
       if (isEditMode) {
-        // ตรวจสอบว่า voucherData.id มีอยู่
         if (!voucherData.id) throw new Error("Voucher ID is missing");
         result = await updateVoucher(voucherData.id, {
           ...voucherData,
@@ -148,7 +141,7 @@ const CreateVoucher = () => {
       setIsSaving(false);
     }
   };
-  // ฟังก์ชันแปลงสถานะเป็นภาษาไทย
+
   const getStatusText = (status) => {
     const statusMap = {
       pending: "รอดำเนินการ",
@@ -160,7 +153,6 @@ const CreateVoucher = () => {
     return statusMap[status] || status;
   };
 
-  // ฟังก์ชันสร้างสี badge ตามสถานะ
   const getStatusBadgeClass = (status) => {
     switch (status) {
       case "pending":
@@ -178,7 +170,6 @@ const CreateVoucher = () => {
     }
   };
 
-  // Format date for display
   const formatDateDisplay = (dateStr) => {
     if (!dateStr) return "-";
     try {
@@ -192,7 +183,6 @@ const CreateVoucher = () => {
     }
   };
 
-  // แสดงข้อมูล booking แบบละเอียด
   const renderBookingDetails = () => {
     if (!booking) return null;
 
@@ -222,7 +212,6 @@ const CreateVoucher = () => {
         </div>
 
         <div className="p-6">
-          {/* ข้อมูล Order */}
           {booking.orders && (
             <div className="bg-gray-50 border border-gray-200 rounded-md p-4 mb-6">
               <div className="flex items-center justify-between mb-2">
@@ -254,7 +243,6 @@ const CreateVoucher = () => {
             </div>
           )}
 
-          {/* รายละเอียดข้อมูล Booking */}
           <div>
             <h4 className="text-lg font-medium mb-3 pb-2 border-b border-gray-200 flex items-center">
               <Calendar size={18} className="mr-2 text-blue-600" />
@@ -351,7 +339,7 @@ const CreateVoucher = () => {
               )}
             </div>
           </div>
-          {/* ราคาและหมายเหตุ */}
+
           <div className="mt-6">
             <h4 className="text-lg font-medium mb-3 pb-2 border-b border-gray-200 flex items-center">
               <FileText size={18} className="mr-2 text-blue-600" />
@@ -418,12 +406,19 @@ const CreateVoucher = () => {
       ) : (
         <>
           {renderBookingDetails()}
-          <VoucherForm
-            booking={booking}
-            bookingType={bookingType}
-            voucherData={voucherData} // ส่ง voucherData ไปยัง VoucherForm
-            onSave={handleSaveVoucher}
-          />
+          {bookingType === "tour" ? (
+            <TourVoucherForm
+              booking={booking}
+              voucherData={voucherData}
+              onSave={handleSaveVoucher}
+            />
+          ) : (
+            <TransferVoucherForm
+              booking={booking}
+              voucherData={voucherData}
+              onSave={handleSaveVoucher}
+            />
+          )}
         </>
       )}
     </div>

@@ -4,7 +4,8 @@ import { format, startOfMonth, endOfMonth } from "date-fns";
 import supabase from "../config/supabaseClient";
 import { useNotification } from "../hooks/useNotification";
 import { useAlertDialogContext } from "../contexts/AlertDialogContext";
-import { Search, Calendar, Filter, RefreshCcw } from "lucide-react";
+import { Search, Calendar, Filter, RefreshCcw, Plus } from "lucide-react";
+
 import VoucherTable from "../components/voucher/VoucherTable";
 import Pagination from "../components/voucher/Pagination";
 
@@ -12,41 +13,35 @@ const Voucher = () => {
   const showAlert = useAlertDialogContext();
   const { showSuccess, showError, showInfo } = useNotification();
   const navigate = useNavigate();
-  // State variables
-  const [allBookings, setAllBookings] = useState([]); // เก็บ bookings ทั้งหมดก่อนแบ่งหน้า
-  const [bookings, setBookings] = useState([]); // เก็บ bookings ที่แสดงในหน้าปัจจุบัน
+  const [allBookings, setAllBookings] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Filter and sorting states
   const [startDate, setStartDate] = useState(() => {
-    return format(startOfMonth(new Date()), "yyyy-MM-dd"); // วันแรกของเดือนปัจจุบัน
+    return format(startOfMonth(new Date()), "yyyy-MM-dd");
   });
   const [endDate, setEndDate] = useState(() => {
-    return format(endOfMonth(new Date()), "yyyy-MM-dd"); // วันสุดท้ายของเดือนปัจจุบัน
+    return format(endOfMonth(new Date()), "yyyy-MM-dd");
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("created_at");
   const [sortDirection, setSortDirection] = useState("desc");
-  const [filterType, setFilterType] = useState("all"); // 'all', 'tour', 'transfer'
-  const [voucherStatus, setVoucherStatus] = useState("all"); // 'all', 'created', 'not_created'
+  const [filterType, setFilterType] = useState("all");
+  const [voucherStatus, setVoucherStatus] = useState("all");
 
-  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Load bookings on initial render and when filters change
   useEffect(() => {
     fetchBookings();
   }, [startDate, endDate, filterType, voucherStatus, sortField, sortDirection]);
 
-  // อัพเดตหน้าเมื่อเปลี่ยน currentPage
   useEffect(() => {
     paginateBookings();
   }, [currentPage, allBookings]);
 
-  // Fetch bookings from database
   const fetchBookings = async () => {
     setLoading(true);
     setError(null);
@@ -134,7 +129,6 @@ const Voucher = () => {
 
       let combinedBookings = [...tourBookings, ...transferBookings];
 
-      // Apply search filter if needed
       if (searchTerm) {
         combinedBookings = combinedBookings.filter((booking) => {
           const customerName = booking.orders
@@ -158,7 +152,6 @@ const Voucher = () => {
         });
       }
 
-      // Sort the bookings
       combinedBookings.sort((a, b) => {
         let valueA, valueB;
         switch (sortField) {
@@ -211,7 +204,6 @@ const Voucher = () => {
     }
   };
 
-  // แบ่งหน้า bookings
   const paginateBookings = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedBookings = allBookings.slice(
@@ -221,7 +213,6 @@ const Voucher = () => {
     setBookings(paginatedBookings);
   };
 
-  // Handle sorting
   const handleSort = (field) => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
@@ -232,36 +223,34 @@ const Voucher = () => {
     setCurrentPage(1);
   };
 
-  // Handle searching
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
     setCurrentPage(1);
   };
 
-  // Apply date filters
   const applyDateFilter = () => {
     setCurrentPage(1);
     fetchBookings();
   };
 
-  // Handle pagination
   const changePage = (newPage) => {
     setCurrentPage(newPage);
   };
 
-  // Handle create voucher
   const handleCreateVoucher = async (booking) => {
     showInfo(`กำลังสร้าง Voucher สำหรับการจอง ID: ${booking.reference_id}`);
     navigate(`/create-voucher/${booking.type}/${booking.id}`);
   };
 
-  // Handle edit voucher
   const handleEditVoucher = async (booking) => {
     showInfo(`กำลังแก้ไข Voucher สำหรับการจอง ID: ${booking.reference_id}`);
     navigate(`/create-voucher/${booking.type}/${booking.id}?edit=true`);
   };
 
-  // Format date for display
+  const handleOtherVouchers = () => {
+    navigate("/other-vouchers");
+  };
+
   const formatDateDisplay = (dateStr) => {
     if (!dateStr) return "-";
     try {
@@ -271,7 +260,6 @@ const Voucher = () => {
     }
   };
 
-  // Display customer name
   const getCustomerName = (booking) => {
     if (!booking.orders) return "-";
     return (
@@ -288,12 +276,10 @@ const Voucher = () => {
         <p className="text-gray-600">ค้นหาและจัดการ Voucher สำหรับการจอง</p>
       </div>
 
-      {/* Filter section */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">ค้นหาและกรอง</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-          {/* Date filters */}
           <div className="md:col-span-3">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               วันที่เริ่มต้น
@@ -330,7 +316,6 @@ const Voucher = () => {
             </div>
           </div>
 
-          {/* Type filter */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               ประเภท
@@ -349,7 +334,6 @@ const Voucher = () => {
             </select>
           </div>
 
-          {/* Voucher status filter */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               สถานะ Voucher
@@ -368,7 +352,6 @@ const Voucher = () => {
             </select>
           </div>
 
-          {/* Apply button */}
           <div className="md:col-span-2 flex items-end">
             <button
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition flex items-center justify-center"
@@ -380,7 +363,6 @@ const Voucher = () => {
           </div>
         </div>
 
-        {/* Search */}
         <div className="relative">
           <Search
             size={18}
@@ -396,17 +378,25 @@ const Voucher = () => {
         </div>
       </div>
 
-      {/* Bookings table */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold">รายการการจองทั้งหมด</h2>
-          <button
-            className="px-4 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition flex items-center"
-            onClick={() => fetchBookings()}
-          >
-            <RefreshCcw size={16} className="mr-2" />
-            รีเฟรช
-          </button>
+          <div className="flex space-x-2">
+            <button
+              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition flex items-center"
+              onClick={() => fetchBookings()}
+            >
+              <RefreshCcw size={16} className="mr-2" />
+              รีเฟรช
+            </button>
+            <button
+              className="px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition flex items-center"
+              onClick={handleOtherVouchers}
+            >
+              <Plus size={16} className="mr-2" />
+              Voucher อื่นๆ
+            </button>
+          </div>
         </div>
 
         <VoucherTable
