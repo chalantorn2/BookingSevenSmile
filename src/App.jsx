@@ -14,7 +14,8 @@ import { InformationProvider } from "./contexts/InformationContext";
 import ViewOrders from "./pages/ViewOrders";
 import Payment from "./pages/Payment";
 import Invoice from "./pages/Invoice";
-import Voucher from "./pages/Voucher"; // Import หน้า Voucher ที่สร้างขึ้นใหม่
+import Voucher from "./pages/Voucher";
+import CreateVoucher from "./pages/CreateVoucher"; // เพิ่มการ import
 import Login from "./pages/Login";
 import UserManagement from "./pages/UserManagement";
 import ViewPayment from "./pages/ViewPayment";
@@ -52,8 +53,13 @@ const App = () => {
                     <Route path="/invoice" element={<Invoice />} />
                     <Route path="/information" element={<Information />} />
                     <Route path="/view-payment" element={<ViewPayment />} />
-                    <Route path="/voucher" element={<Voucher />} />{" "}
-                    {/* เพิ่มเส้นทางไปยังหน้า Voucher */}
+                    <Route path="/voucher" element={<Voucher />} />
+                    {/* เพิ่มเส้นทางไปยังหน้า CreateVoucher */}
+                    <Route
+                      path="/create-voucher/:bookingType/:bookingId"
+                      element={<CreateVoucher />}
+                    />
+
                     {/* Admin Routes - เฉพาะ admin และ dev เท่านั้น */}
                     <Route element={<PrivateRoute requiredRole="admin" />}>
                       <Route path="/users" element={<UserManagement />} />

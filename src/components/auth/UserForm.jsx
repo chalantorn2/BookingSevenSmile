@@ -1,9 +1,10 @@
-// src/components/auth/UserForm.jsx
 import React, { useState, useEffect } from "react";
 import { X, Save, User, Eye, EyeOff } from "lucide-react";
 import { validatePassword } from "../../utils/passwordUtils";
+import { useAuth } from "../../contexts/AuthContext"; // เพิ่มการ import useAuth
 
 const UserForm = ({ user, onSave, onClose }) => {
+  const { user: currentUser } = useAuth(); // เพิ่มการเรียกใช้ useAuth
   const [formData, setFormData] = useState({
     username: "",
     password: "",
@@ -98,8 +99,6 @@ const UserForm = ({ user, onSave, onClose }) => {
         active: formData.active, // เพิ่มค่า active!
       };
 
-      await onSave(userData, user ? user.id : null);
-
       // เพิ่มรหัสผ่านเฉพาะเมื่อเพิ่มผู้ใช้ใหม่
       if (!user && formData.password) {
         userData.password = formData.password;
@@ -137,6 +136,36 @@ const UserForm = ({ user, onSave, onClose }) => {
       console.error("Error saving user:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ตรวจสอบบทบาทของผู้ใช้ปัจจุบัน สำหรับการแสดงตัวเลือกที่เหมาะสม
+  const renderRoleOptions = () => {
+    // ถ้าผู้ใช้ปัจจุบันเป็น dev สามารถเลือกได้ทุกบทบาท
+    if (currentUser.role === "dev") {
+      return (
+        <>
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+          <option value="dev">Developer</option>
+        </>
+      );
+    } else if (currentUser.role === "admin") {
+      // ถ้าเป็น admin สามารถเลือกได้แค่ user
+      return <option value="user">User</option>;
+    } else {
+      // กรณีอื่นๆ ไม่ควรแก้ไข role ได้เลย
+      return (
+        <option value={formData.role}>
+          {formData.role === "user"
+            ? "User"
+            : formData.role === "admin"
+            ? "Admin"
+            : formData.role === "dev"
+            ? "Developer"
+            : formData.role}
+        </option>
+      );
     }
   };
 
@@ -285,11 +314,19 @@ const UserForm = ({ user, onSave, onClose }) => {
                 value={formData.role}
                 onChange={handleChange}
                 className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={
+                  currentUser.role !== "dev" &&
+                  user &&
+                  (user.role === "admin" || user.role === "dev")
+                }
               >
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
-                <option value="dev">Developer</option>
+                {renderRoleOptions()}
               </select>
+              {currentUser.role === "admin" && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Admin สามารถกำหนดได้เฉพาะสิทธิ์ User เท่านั้น
+                </p>
+              )}
             </div>
 
             <div>

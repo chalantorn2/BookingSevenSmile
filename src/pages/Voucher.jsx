@@ -1,5 +1,6 @@
 // src/pages/Voucher.jsx
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import supabase from "../config/supabaseClient";
 import { useNotification } from "../hooks/useNotification";
@@ -23,7 +24,7 @@ import {
 const Voucher = () => {
   const showAlert = useAlertDialogContext();
   const { showSuccess, showError, showInfo } = useNotification();
-
+  const navigate = useNavigate();
   // State variables
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +69,6 @@ const Voucher = () => {
     setError(null);
 
     try {
-      // Fetch tour bookings
       const tourPromise = supabase
         .from("tour_bookings")
         .select(
@@ -82,7 +82,6 @@ const Voucher = () => {
         .gte("tour_date", startDate)
         .lte("tour_date", endDate);
 
-      // Fetch transfer bookings
       const transferPromise = supabase
         .from("transfer_bookings")
         .select(
@@ -96,35 +95,42 @@ const Voucher = () => {
         .gte("transfer_date", startDate)
         .lte("transfer_date", endDate);
 
-      // Apply filter by type
-      if (filterType === "tour") {
-        transferPromise.limit(0);
-      } else if (filterType === "transfer") {
-        tourPromise.limit(0);
-      }
-
-      // Apply filter by voucher status if needed
-      // Assuming we have voucher_status field or similar
-      if (voucherStatus === "created") {
-        tourPromise.eq("voucher_created", true);
-        transferPromise.eq("voucher_created", true);
-      } else if (voucherStatus === "not_created") {
-        tourPromise.eq("voucher_created", false).is("voucher_created", null);
-        transferPromise
-          .eq("voucher_created", false)
-          .is("voucher_created", null);
-      }
-
-      // Execute both promises
+      // หลังจากได้ผลลัพธ์แล้ว ให้ดึง vouchers แยกต่างหาก
       const [tourResult, transferResult] = await Promise.all([
         tourPromise,
         transferPromise,
       ]);
 
-      if (tourResult.error) throw tourResult.error;
-      if (transferResult.error) throw transferResult.error;
+      // ถ้าต้องการตรวจสอบ voucher ให้ดึงข้อมูล vouchers แยกต่างหาก
+      const tourIds = tourResult.data.map((booking) => booking.id);
+      const transferIds = transferResult.data.map((booking) => booking.id);
 
-      // Process and combine the results
+      // ดึงข้อมูล vouchers สำหรับทัวร์
+      const { data: tourVouchers } = await supabase
+        .from("vouchers")
+        .select("id, booking_id")
+        .eq("booking_type", "tour")
+        .in("booking_id", tourIds);
+
+      // ดึงข้อมูล vouchers สำหรับการรับส่ง
+      const { data: transferVouchers } = await supabase
+        .from("vouchers")
+        .select("id, booking_id")
+        .eq("booking_type", "transfer")
+        .in("booking_id", transferIds);
+
+      // สร้าง map ของ voucher ID
+      const tourVoucherMap = {};
+      tourVouchers.forEach((v) => {
+        tourVoucherMap[v.booking_id] = v.id;
+      });
+
+      const transferVoucherMap = {};
+      transferVouchers.forEach((v) => {
+        transferVoucherMap[v.booking_id] = v.id;
+      });
+
+      // แล้วนำ voucher ID มาเชื่อมกับข้อมูล booking
       const tourBookings = (tourResult.data || []).map((booking) => ({
         ...booking,
         type: "tour",
@@ -132,8 +138,8 @@ const Voucher = () => {
         booking_type: booking.tour_type,
         recipient: booking.send_to,
         created_at: booking.created_at,
-        // Set voucher status (assuming we have these fields, adjust as needed)
-        voucher_status: booking.voucher_created ? "created" : "not_created",
+        voucher_status: tourVoucherMap[booking.id] ? "created" : "not_created",
+        voucher_id: tourVoucherMap[booking.id] || null,
       }));
 
       const transferBookings = (transferResult.data || []).map((booking) => ({
@@ -143,8 +149,10 @@ const Voucher = () => {
         booking_type: booking.transfer_type,
         recipient: booking.send_to,
         created_at: booking.created_at,
-        // Set voucher status (assuming we have these fields, adjust as needed)
-        voucher_status: booking.voucher_created ? "created" : "not_created",
+        voucher_status: transferVoucherMap[booking.id]
+          ? "created"
+          : "not_created",
+        voucher_id: transferVoucherMap[booking.id] || null,
       }));
 
       // Combine bookings
@@ -273,16 +281,14 @@ const Voucher = () => {
 
   // Handle create voucher
   const handleCreateVoucher = async (booking) => {
-    // Navigate to Create Voucher page or open modal
     showInfo(`กำลังสร้าง Voucher สำหรับการจอง ID: ${booking.reference_id}`);
-    // TODO: Implement create voucher functionality
+    navigate(`/create-voucher/${booking.type}/${booking.id}`);
   };
 
   // Handle edit voucher
   const handleEditVoucher = async (booking) => {
-    // Navigate to Edit Voucher page or open modal
-    showInfo(`กำลังแก้ไข Voucher สำหรับการจอง ID: ${booking.id}`);
-    // TODO: Implement edit voucher functionality
+    showInfo(`กำลังแก้ไข Voucher สำหรับการจอง ID: ${booking.reference_id}`);
+    navigate(`/create-voucher/${booking.type}/${booking.id}?edit=true`);
   };
 
   // Format date for display
@@ -555,10 +561,7 @@ const Voucher = () => {
                     </div>
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    สร้าง Voucher
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    แก้ไข Voucher
+                    จัดการ Voucher
                   </th>
                 </tr>
               </thead>
@@ -618,34 +621,34 @@ const Voucher = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                      {booking.voucher_status !== "created" && (
-                        <button
-                          onClick={() => handleCreateVoucher(booking)}
-                          className={`px-3 py-1 rounded ${
-                            booking.type === "tour"
-                              ? "bg-green-600 hover:bg-green-700 text-white"
-                              : "bg-blue-600 hover:bg-blue-700 text-white"
-                          }`}
-                        >
-                          <span className="flex items-center">
-                            <Plus size={14} className="mr-1" />
-                            สร้าง
-                          </span>
-                        </button>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                      {booking.voucher_status === "created" && (
-                        <button
-                          onClick={() => handleEditVoucher(booking)}
-                          className="px-3 py-1 rounded bg-yellow-500 hover:bg-yellow-600 text-white"
-                        >
-                          <span className="flex items-center">
+                      <button
+                        onClick={() => {
+                          if (booking.voucher_status === "created") {
+                            handleEditVoucher(booking);
+                          } else {
+                            handleCreateVoucher(booking);
+                          }
+                        }}
+                        className={`px-3 py-1 rounded flex items-center justify-center ${
+                          booking.voucher_status === "created"
+                            ? "bg-yellow-500 hover:bg-yellow-600 text-white"
+                            : booking.type === "tour"
+                            ? "bg-green-600 hover:bg-green-700 text-white"
+                            : "bg-blue-600 hover:bg-blue-700 text-white"
+                        }`}
+                      >
+                        {booking.voucher_status === "created" ? (
+                          <>
                             <Edit size={14} className="mr-1" />
                             แก้ไข
-                          </span>
-                        </button>
-                      )}
+                          </>
+                        ) : (
+                          <>
+                            <Plus size={14} className="mr-1" />
+                            สร้าง
+                          </>
+                        )}
+                      </button>
                     </td>
                   </tr>
                 ))}

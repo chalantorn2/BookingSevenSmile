@@ -99,9 +99,31 @@ const UserManagement = () => {
     }
   };
 
-  // บันทึกข้อมูลผู้ใช้ (เพิ่ม/แก้ไข)
-  // แก้ไขในฟังก์ชัน handleSaveUser ในไฟล์ UserManagement.jsx
+  // ฟังก์ชัน handleSaveUser - เพิ่มการตรวจสอบสิทธิ์สำหรับการกำหนด role
   const handleSaveUser = async (formData, userId = null) => {
+    // ตรวจสอบสิทธิ์ในการตั้งค่า role เป็น dev หรือ admin
+    if (formData.role === "dev" && currentLoggedUser.role !== "dev") {
+      showError("เฉพาะ Developer เท่านั้นที่สามารถกำหนดสิทธิ์ Developer ได้");
+      return;
+    }
+
+    if (formData.role === "admin" && currentLoggedUser.role !== "dev") {
+      showError("เฉพาะ Developer เท่านั้นที่สามารถกำหนดสิทธิ์ Admin ได้");
+      return;
+    }
+
+    // ถ้าผู้ใช้ปัจจุบันเป็น admin และพยายามแก้ไขผู้ใช้ที่เป็น admin หรือ dev
+    if (currentLoggedUser.role === "admin" && userId) {
+      const targetUser = users.find((u) => u.id === parseInt(userId));
+      if (
+        targetUser &&
+        (targetUser.role === "admin" || targetUser.role === "dev")
+      ) {
+        showError("Admin ไม่สามารถแก้ไขข้อมูลของ Admin หรือ Developer ได้");
+        return;
+      }
+    }
+
     setLoading(true);
     setError(null);
 
@@ -141,7 +163,9 @@ const UserManagement = () => {
       setShowUserForm(false);
       setCurrentUser(null);
 
-      // alert(userId ? "อัปเดตผู้ใช้เรียบร้อย" : "เพิ่มผู้ใช้ใหม่เรียบร้อย");
+      showSuccess(
+        userId ? "อัปเดตผู้ใช้เรียบร้อย" : "เพิ่มผู้ใช้ใหม่เรียบร้อย"
+      );
     } catch (err) {
       console.error("Error saving user:", err);
       setError(err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
@@ -157,8 +181,10 @@ const UserManagement = () => {
     if (!passwordUser) return;
 
     // ตรวจสอบสิทธิ์
-    if (!canEditPassword(passwordUser)) {
-      setError("คุณไม่มีสิทธิ์เปลี่ยนรหัสผ่าน");
+    if (currentLoggedUser.role !== "dev") {
+      setError(
+        "คุณไม่มีสิทธิ์เปลี่ยนรหัสผ่าน เฉพาะ Developer เท่านั้นที่สามารถเปลี่ยนรหัสผ่านของผู้ใช้อื่นได้"
+      );
       return;
     }
 
@@ -241,9 +267,8 @@ const UserManagement = () => {
     }
   };
 
-  // สามารถจัดการ (แก้ไข/ลบ) ผู้ใช้หรือไม่
   const canManageUser = (targetUser) => {
-    // ถ้าเป็น developer สามารถจัดการได้ทุกคน ยกเว้นตัวเอง (สำหรับการลบ)
+    // ถ้าเป็น dev สามารถจัดการได้ทุกคน ยกเว้นตัวเอง (สำหรับการลบ)
     if (currentLoggedUser.role === "dev") {
       return true;
     }
@@ -257,7 +282,7 @@ const UserManagement = () => {
     return false;
   };
 
-  // ฟังก์ชันตรวจสอบสิทธิ์ในการเปลี่ยนรหัสผ่าน
+  // ฟังก์ชัน canEditPassword - แก้ไขให้เฉพาะ developer เท่านั้นที่แก้ไขรหัสผ่านได้
   const canEditPassword = (targetUser) => {
     // เฉพาะ developer เท่านั้นที่แก้ไขได้ทุกคน
     return currentLoggedUser.role === "dev";
