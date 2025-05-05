@@ -133,7 +133,7 @@ const VoucherForm = ({
   // Preload the logo image to ensure it's ready for screenshot
   useEffect(() => {
     const img = new Image();
-    img.src = "/src/assets/Tour and Ticket 5.png";
+    img.src = "../../assets/Tour and Ticket 5.png";
     img.onload = () => setImageLoaded(true);
     img.onerror = () => {
       console.error("Failed to load logo image");
@@ -236,111 +236,98 @@ const VoucherForm = ({
 
     showInfo("กำลังคัดลอกภาพ กรุณารอสักครู่...");
 
-    setTimeout(() => {
-      const captureWidth = printRef.current.scrollWidth;
-      const captureHeight = printRef.current.scrollHeight;
+    const captureArea = printRef.current;
+    const options = {
+      bgcolor: "#ffffff",
+      style: {
+        "background-color": "#ffffff",
+      },
+      width: captureArea.scrollWidth,
+      height: captureArea.scrollHeight,
+      quality: 1,
+    };
 
-      console.log(`Capturing dimensions: ${captureWidth}x${captureHeight}`);
-
-      const options = {
-        bgcolor: "#ffffff",
-        style: {
-          "background-color": "#ffffff",
-          overflow: "visible",
-          width: `${captureWidth}px`,
-          height: `${captureHeight}px`,
-        },
-        width: captureWidth,
-        height: captureHeight,
-        quality: 1,
-        scale: 2,
-      };
-
-      domtoimage
-        .toBlob(printRef.current, options)
-        .then((blob) => {
-          try {
-            const item = new ClipboardItem({ "image/png": blob });
-            navigator.clipboard
-              .write([item])
-              .then(() => showSuccess("คัดลอกรูปภาพไปยังคลิปบอร์ดแล้ว"))
-              .catch((error) => {
-                console.error("ไม่สามารถคัดลอกไปยังคลิปบอร์ดได้:", error);
-                showError("ไม่สามารถคัดลอกไปยังคลิปบอร์ดได้: " + error.message);
-
+    domtoimage
+      .toBlob(captureArea, options)
+      .then((blob) => {
+        try {
+          const item = new ClipboardItem({ "image/png": blob });
+          navigator.clipboard
+            .write([item])
+            .then(() => showSuccess("คัดลอกรูปภาพไปยังคลิปบอร์ดแล้ว"))
+            .catch((error) => {
+              console.error("ไม่สามารถคัดลอกไปยังคลิปบอร์ดได้:", error);
+              // Fallback to download
+              const url = window.URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = `voucher_${
+                voucherData.year_number || new Date().getFullYear()
+              }_${voucherData.sequence_number || "0001"}.png`;
+              link.click();
+              window.URL.revokeObjectURL(url);
+              showSuccess("บันทึกรูปภาพแทนการคัดลอก");
+            });
+        } catch (error) {
+          console.error("เกิดข้อผิดพลาดในการคัดลอก:", error);
+          showError("เบราว์เซอร์ของคุณไม่รองรับการคัดลอกรูปภาพ");
+          // Fallback to download
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `voucher_${
+            voucherData.year_number || new Date().getFullYear()
+          }_${voucherData.sequence_number || "0001"}.png`;
+          link.click();
+          window.URL.revokeObjectURL(url);
+          showSuccess("บันทึกรูปภาพแทนการคัดลอก");
+        }
+      })
+      .catch((error) => {
+        console.error("เกิดข้อผิดพลาดในการสร้างภาพ:", error);
+        showError("เกิดข้อผิดพลาดในการสร้างภาพ: " + error.message);
+        // Try html2canvas as a fallback
+        html2canvas(captureArea, {
+          backgroundColor: "#ffffff",
+          width: captureArea.scrollWidth,
+          height: captureArea.scrollHeight,
+          scale: 2,
+        })
+          .then((canvas) => {
+            canvas.toBlob((blob) => {
+              try {
+                const item = new ClipboardItem({ "image/png": blob });
+                navigator.clipboard
+                  .write([item])
+                  .then(() => showSuccess("คัดลอกรูปภาพไปยังคลิปบอร์ดแล้ว"))
+                  .catch(() => {
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = `voucher_${
+                      voucherData.year_number || new Date().getFullYear()
+                    }_${voucherData.sequence_number || "0001"}.png`;
+                    link.click();
+                    window.URL.revokeObjectURL(url);
+                    showSuccess("บันทึกรูปภาพแทนการคัดลอก");
+                  });
+              } catch (e) {
                 const url = window.URL.createObjectURL(blob);
                 const link = document.createElement("a");
                 link.href = url;
-                link.download = `voucher_${new Date().getTime()}.png`;
-                document.body.appendChild(link);
+                link.download = `voucher_${
+                  voucherData.year_number || new Date().getFullYear()
+                }_${voucherData.sequence_number || "0001"}.png`;
                 link.click();
-                document.body.removeChild(link);
                 window.URL.revokeObjectURL(url);
                 showSuccess("บันทึกรูปภาพแทนการคัดลอก");
-              });
-          } catch (error) {
-            console.error("เกิดข้อผิดพลาดในการคัดลอก:", error);
-            showError(
-              "เบราว์เซอร์ของคุณไม่รองรับการคัดลอกรูปภาพ: " + error.message
-            );
-
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = `voucher_${new Date().getTime()}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
-            showSuccess("บันทึกรูปภาพแทนการคัดลอก");
-          }
-        })
-        .catch((error) => {
-          console.error("เกิดข้อผิดพลาดในการสร้างภาพ:", error);
-          showError("เกิดข้อผิดพลาดในการสร้างภาพ: " + error.message);
-
-          html2canvas(printRef.current, {
-            scrollX: 0,
-            scrollY: 0,
-            width: captureWidth,
-            height: captureHeight,
-            scale: 2,
-            backgroundColor: "#ffffff",
-            allowTaint: true,
-            useCORS: true,
-          })
-            .then((canvas) => {
-              canvas.toBlob((blob) => {
-                try {
-                  const item = new ClipboardItem({ "image/png": blob });
-                  navigator.clipboard
-                    .write([item])
-                    .then(() => showSuccess("คัดลอกรูปภาพไปยังคลิปบอร์ดแล้ว"))
-                    .catch((err) => {
-                      const url = URL.createObjectURL(blob);
-                      const link = document.createElement("a");
-                      link.href = url;
-                      link.download = `voucher_${new Date().getTime()}.png`;
-                      link.click();
-                      URL.revokeObjectURL(url);
-                      showSuccess("บันทึกรูปภาพแทนการคัดลอก");
-                    });
-                } catch (e) {
-                  const url = URL.createObjectURL(blob);
-                  const link = document.createElement("a");
-                  link.href = url;
-                  link.download = `voucher_${new Date().getTime()}.png`;
-                  link.click();
-                  URL.revokeObjectURL(url);
-                  showSuccess("บันทึกรูปภาพแทนการคัดลอก");
-                }
-              });
-            })
-            .catch((err) => {
-              showError("ไม่สามารถสร้างภาพได้: " + err.message);
+              }
             });
-        });
-    }, 1000); // เพิ่มเวลารอให้มากขึ้นเป็น 1000ms
+          })
+          .catch((err) => {
+            showError("ไม่สามารถสร้างภาพได้: " + err.message);
+          });
+      });
   };
 
   return (
@@ -380,7 +367,7 @@ const VoucherForm = ({
         <div className="flex flex-col sm:flex-row justify-between mb-6">
           <div className="flex items-center mb-4 sm:mb-0">
             <img
-              src="/src/assets/Tour and Ticket 5.png"
+              src="../../assets/Tour and Ticket 5.png"
               alt="SevenSmile Logo"
               className="h-16 mr-4"
             />

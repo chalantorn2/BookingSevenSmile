@@ -544,7 +544,7 @@ const Invoice = () => {
       </style>
       <div class="invoice-header">
         <div>
-          <img id="bannerImage" src="/src/assets/banner-06.png" alt="SevenSmile Tour & Ticket" />
+          <img id="bannerImage" src="../../assets/banner-06.png" alt="SevenSmile Tour & Ticket" />
         </div>
         <div class="invoice-header-right">
           <h2 style="font-size: 18px; margin-bottom: 5px;">INVOICE</h2>

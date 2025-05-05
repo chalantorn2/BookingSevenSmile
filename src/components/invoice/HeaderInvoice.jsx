@@ -6,7 +6,7 @@ const HeaderInvoice = ({ invoiceDate, handleEditInvoiceDate }) => {
       <div className="col-span-2">
         <img
           id="bannerImage"
-          src="/src/assets/banner-06.png"
+          src="../../assets/banner-06.png"
           alt="SevenSmile Tour & Ticket"
           style={{ maxWidth: "80%" }}
           onError={(e) => {
