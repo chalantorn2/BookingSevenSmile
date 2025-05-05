@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { Printer, Download, Check, Camera } from "lucide-react";
-import { useInformation } from "../../contexts/InformationContext";
 import { useNotification } from "../../hooks/useNotification";
 import domtoimage from "dom-to-image";
 import html2canvas from "html2canvas";
@@ -23,14 +22,14 @@ const VoucherInput = ({
     disabled={disabled}
     className={`border-b border-gray-500 focus:outline-none ${width} text-center ${
       disabled ? "bg-gray-100 text-gray-400" : ""
-    }`}
+    } font-kanit`}
   />
 );
 
 // Component สำหรับแสดงรายการใน Service Option
 const ServiceItem = ({ label, name, value, onChange, disabled }) => {
   return (
-    <div className="flex items-start mb-3">
+    <div className="flex items-start mb-3 font-kanit">
       <span className="min-w-[80px] inline-block text-left">{label}:</span>
       <input
         type="text"
@@ -40,7 +39,7 @@ const ServiceItem = ({ label, name, value, onChange, disabled }) => {
         disabled={disabled}
         className={`border-b border-gray-500 focus:outline-none w-4/5 text-center ${
           disabled ? "bg-gray-100 text-gray-400" : ""
-        }`}
+        } font-kanit`}
       />
     </div>
   );
@@ -55,6 +54,7 @@ const VoucherForm = ({
   const { showSuccess, showError, showInfo } = useNotification();
   const printRef = useRef(null);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [fontLoaded, setFontLoaded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const [voucherData, setVoucherData] = useState({
@@ -90,7 +90,7 @@ const VoucherForm = ({
     issue_by: "",
     year_number: new Date().getFullYear().toString(),
     sequence_number: "0001",
-    ...(initialVoucherData || {}), // แก้ไขที่นี่
+    ...(initialVoucherData || {}),
   });
 
   useEffect(() => {
@@ -130,15 +130,31 @@ const VoucherForm = ({
     }
   }, [booking, bookingType, initialVoucherData]);
 
-  // Preload the logo image to ensure it's ready for screenshot
+  // Preload logo image and Kanit font
   useEffect(() => {
     const img = new Image();
     img.src = "../../assets/Tour and Ticket 5.png";
     img.onload = () => setImageLoaded(true);
     img.onerror = () => {
       console.error("Failed to load logo image");
-      setImageLoaded(true); // Proceed even if image fails
+      setImageLoaded(true);
     };
+
+    // โหลดฟอนต์ Kanit
+    const font = new FontFace(
+      "Kanit",
+      "url(https://fonts.googleapis.com/css2?family=Kanit:wght@400;700&display=swap)"
+    );
+    font
+      .load()
+      .then(() => {
+        document.fonts.add(font);
+        setFontLoaded(true);
+      })
+      .catch((error) => {
+        console.error("Failed to load Kanit font:", error);
+        setFontLoaded(true); // ดำเนินการต่อแม้ฟอนต์โหลดไม่สำเร็จ
+      });
   }, []);
 
   // อัพเดตข้อมูลในฟอร์ม
@@ -192,8 +208,8 @@ const VoucherForm = ({
   };
 
   const handleDownloadImage = () => {
-    if (!printRef.current || !imageLoaded) {
-      showError("กรุณารอโหลดข้อมูลให้ครบก่อนบันทึก");
+    if (!printRef.current || !imageLoaded || !fontLoaded) {
+      showError("กรุณารอโหลดข้อมูลและฟอนต์ให้ครบก่อนบันทึก");
       return;
     }
 
@@ -201,14 +217,15 @@ const VoucherForm = ({
 
     domtoimage
       .toBlob(printRef.current, {
-        /* options */
+        style: {
+          fontFamily: "Kanit, sans-serif",
+        },
       })
       .then((blob) => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
 
-        // ปรับการสร้างชื่อไฟล์ ไม่ใช้ voucherNumber ซึ่งอาจไม่มี
         const filename = `voucher_${
           voucherData.year_number || new Date().getFullYear()
         }_${voucherData.sequence_number || "0001"}${
@@ -229,8 +246,8 @@ const VoucherForm = ({
   };
 
   const captureAndCopyScreenshot = () => {
-    if (!printRef.current || !imageLoaded) {
-      showError("กรุณารอโหลดข้อมูลให้ครบก่อนแคปภาพ");
+    if (!printRef.current || !imageLoaded || !fontLoaded) {
+      showError("กรุณารอโหลดข้อมูลและฟอนต์ให้ครบก่อนแคปภาพ");
       return;
     }
 
@@ -241,6 +258,7 @@ const VoucherForm = ({
       bgcolor: "#ffffff",
       style: {
         "background-color": "#ffffff",
+        fontFamily: "Kanit, sans-serif",
       },
       width: captureArea.scrollWidth,
       height: captureArea.scrollHeight,
@@ -257,7 +275,6 @@ const VoucherForm = ({
             .then(() => showSuccess("คัดลอกรูปภาพไปยังคลิปบอร์ดแล้ว"))
             .catch((error) => {
               console.error("ไม่สามารถคัดลอกไปยังคลิปบอร์ดได้:", error);
-              // Fallback to download
               const url = window.URL.createObjectURL(blob);
               const link = document.createElement("a");
               link.href = url;
@@ -271,7 +288,6 @@ const VoucherForm = ({
         } catch (error) {
           console.error("เกิดข้อผิดพลาดในการคัดลอก:", error);
           showError("เบราว์เซอร์ของคุณไม่รองรับการคัดลอกรูปภาพ");
-          // Fallback to download
           const url = window.URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
@@ -286,7 +302,6 @@ const VoucherForm = ({
       .catch((error) => {
         console.error("เกิดข้อผิดพลาดในการสร้างภาพ:", error);
         showError("เกิดข้อผิดพลาดในการสร้างภาพ: " + error.message);
-        // Try html2canvas as a fallback
         html2canvas(captureArea, {
           backgroundColor: "#ffffff",
           width: captureArea.scrollWidth,
@@ -331,12 +346,12 @@ const VoucherForm = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+    <div className="bg-white rounded-lg shadow-md p-6 mb-6 font-kanit">
       <div className="flex justify-center gap-4 mb-6 print:hidden">
         <button
           className={`px-4 py-2 bg-green-600 text-white rounded-md flex items-center ${
             isSaving ? "opacity-50 cursor-not-allowed" : "hover:bg-green-700"
-          }`}
+          } font-kanit`}
           onClick={handleSaveVoucher}
           disabled={isSaving}
         >
@@ -345,7 +360,7 @@ const VoucherForm = ({
         </button>
 
         <button
-          className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center"
+          className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center font-kanit"
           onClick={captureAndCopyScreenshot}
         >
           <Camera size={18} className="mr-2" />
@@ -355,13 +370,14 @@ const VoucherForm = ({
 
       <div
         ref={printRef}
-        className="border border-gray-300 rounded-lg p-6 bg-white mx-auto"
+        className="border border-gray-300 rounded-lg p-6 bg-white mx-auto font-kanit"
         style={{
           pageBreakInside: "avoid",
           breakInside: "avoid",
           minHeight: "100%",
           overflow: "visible",
           width: "100%",
+          fontFamily: "Kanit, sans-serif",
         }}
       >
         <div className="flex flex-col sm:flex-row justify-between mb-6">
@@ -372,24 +388,24 @@ const VoucherForm = ({
               className="h-16 mr-4"
             />
             <div>
-              <h2 className="text-xl font-bold">
+              <h2 className="text-xl font-bold font-kanit">
                 หจก.พิกรพร ธุรกิจ / เซเว่นสไมล์ ทัวร์ แอนด์ ทิคเก็ต
               </h2>
-              <p className="text-sm">
+              <p className="text-sm font-kanit">
                 33 ถ.มหาราช ซอย 8 ต.ปากน้ำ อ.เมือง จ.กระบี่ 8100
               </p>
-              <p className="text-sm">095 265 5516, 083 969 1300</p>
-              <p className="text-sm">TAT License No. 31/00878</p>
+              <p className="text-sm font-kanit">095 265 5516, 083 969 1300</p>
+              <p className="text-sm font-kanit">TAT License No. 31/00878</p>
             </div>
           </div>
           <div className="flex flex-col justify-start">
             <div className="bg-blue-600 text-white p-2 text-center mb-2">
-              <span className="block font-bold">
+              <span className="block font-bold font-kanit">
                 เลขที่: {voucherData.year_number || new Date().getFullYear()}
               </span>
             </div>
             <div className="bg-blue-600 text-white p-2 text-center">
-              <span className="block font-bold">
+              <span className="block font-bold font-kanit">
                 เลขที่: {voucherData.sequence_number || "0001"}
               </span>
             </div>
@@ -398,29 +414,31 @@ const VoucherForm = ({
 
         <div className="flex flex-col sm:flex-row justify-between mb-6">
           <div className="mb-4 sm:mb-0 flex-1">
-            <span className="font-bold">Customer's name:</span>
+            <span className="font-bold font-kanit">Customer's name:</span>
             <input
               type="text"
               name="customer_name"
               value={voucherData.customer_name}
               onChange={handleInputChange}
-              className="border-b border-gray-500 focus:outline-none ml-2 w-4/5 text-center"
+              className="border-b border-gray-500 focus:outline-none ml-2 w-4/5 text-center font-kanit"
             />
           </div>
           <div className="flex-1">
-            <span className="font-bold">Contact person:</span>
+            <span className="font-bold font-kanit">Contact person:</span>
             <input
               type="text"
               name="contact_person"
               value={voucherData.contact_person}
               onChange={handleInputChange}
-              className="border-b border-gray-500 focus:outline-none ml-2 w-4/5 text-center"
+              className="border-b border-gray-500 focus:outline-none ml-2 w-4/5 text-center font-kanit"
             />
           </div>
         </div>
 
         <div className="text-center mb-4">
-          <h2 className="text-2xl font-bold">Sevice Order for Tour</h2>
+          <h2 className="text-2xl font-bold font-kanit">
+            Sevice Order for Tour
+          </h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -434,7 +452,10 @@ const VoucherForm = ({
                 onChange={handleInputChange}
                 className="mr-2 h-5 w-5"
               />
-              <label htmlFor="accommodation" className="text-lg font-bold">
+              <label
+                htmlFor="accommodation"
+                className="text-lg font-bold font-kanit"
+              >
                 Accommodation
               </label>
             </div>
@@ -508,7 +529,10 @@ const VoucherForm = ({
                 onChange={handleInputChange}
                 className="mr-2 h-5 w-5"
               />
-              <label htmlFor="transfer" className="text-lg font-bold">
+              <label
+                htmlFor="transfer"
+                className="text-lg font-bold font-kanit"
+              >
                 Transfer
               </label>
             </div>
@@ -582,7 +606,7 @@ const VoucherForm = ({
                 onChange={handleInputChange}
                 className="mr-2 h-5 w-5"
               />
-              <label htmlFor="tour" className="text-lg font-bold">
+              <label htmlFor="tour" className="text-lg font-bold font-kanit">
                 Tour
               </label>
             </div>
@@ -651,7 +675,7 @@ const VoucherForm = ({
                   onChange={() => handlePaymentOptionChange("no_payment")}
                   className="mr-2 h-5 w-5 mt-1"
                 />
-                <label htmlFor="no_payment" className="text-base">
+                <label htmlFor="no_payment" className="text-base font-kanit">
                   ไม่ต้องเก็บเงินใดๆ จากผู้เดินทางอีก <br />
                   The clients do not have to pay any more
                 </label>
@@ -669,7 +693,10 @@ const VoucherForm = ({
                     onChange={() => handlePaymentOptionChange("pay_at_office")}
                     className="mr-2 h-5 w-5 mt-1"
                   />
-                  <label htmlFor="pay_at_office" className="text-base">
+                  <label
+                    htmlFor="pay_at_office"
+                    className="text-base font-kanit"
+                  >
                     ผู้เดินทางต้องชำระเงิน ก่อนเข้ารับบริการอีกเป็นจำนวนเงิน{" "}
                     <br />
                     The clients are to pay at the referred office. the unpaid
@@ -684,7 +711,7 @@ const VoucherForm = ({
                       name="payment_amount"
                       value={voucherData.payment_amount}
                       onChange={handleInputChange}
-                      className="border-b border-gray-500 focus:outline-none w-full text-center"
+                      className="border-b border-gray-500 focus:outline-none w-full text-center font-kanit"
                       placeholder="ระบุจำนวนเงิน / Enter amount"
                     />
                   </div>
@@ -696,13 +723,13 @@ const VoucherForm = ({
 
         <div className="mb-6">
           <div className="flex mb-2">
-            <span className="font-bold">Remark:</span>
+            <span className="font-bold font-kanit">Remark:</span>
             <input
               type="text"
               name="remark"
               value={voucherData.remark}
               onChange={handleInputChange}
-              className="border-b border-gray-500 focus:outline-none ml-2 flex-1 text-center"
+              className="border-b border-gray-500 focus:outline-none ml-2 flex-1 text-center font-kanit"
             />
           </div>
         </div>
@@ -710,7 +737,7 @@ const VoucherForm = ({
         <div className="flex justify-between mt-12">
           <div className="text-center">
             <div className="border-t border-gray-500 w-48 mx-auto mt-12"></div>
-            <p className="font-medium mt-2">Customer's signature</p>
+            <p className="font-medium mt-2 font-kanit">Customer's signature</p>
           </div>
 
           <div className="text-center">
@@ -719,15 +746,15 @@ const VoucherForm = ({
               name="issue_by"
               value={voucherData.issue_by}
               onChange={handleInputChange}
-              className="border-b border-gray-500 focus:outline-none w-48 mx-auto text-center"
+              className="border-b border-gray-500 focus:outline-none w-48 mx-auto text-center font-kanit"
             />
             <div className="border-t border-gray-500 w-48 mx-auto"></div>
-            <p className="font-medium mt-2">Issue by</p>
+            <p className="font-medium mt-2 font-kanit">Issue by</p>
           </div>
         </div>
 
         <div className="text-center mt-6 text-sm">
-          <p>
+          <p className="font-kanit">
             *** This voucher-ticket is non refundable and can use on the
             specific date and the time only. ***
           </p>

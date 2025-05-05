@@ -1,43 +1,29 @@
-// src/pages/Voucher.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import supabase from "../config/supabaseClient";
 import { useNotification } from "../hooks/useNotification";
 import { useAlertDialogContext } from "../contexts/AlertDialogContext";
-import {
-  Search,
-  Calendar,
-  Filter,
-  RefreshCcw,
-  Plus,
-  Edit,
-  FileText,
-  ChevronLeft,
-  ChevronRight,
-  ArrowUp,
-  ArrowDown,
-  CheckCircle,
-  XCircle,
-} from "lucide-react";
+import { Search, Calendar, Filter, RefreshCcw } from "lucide-react";
+import VoucherTable from "../components/voucher/VoucherTable";
+import Pagination from "../components/voucher/Pagination";
 
 const Voucher = () => {
   const showAlert = useAlertDialogContext();
   const { showSuccess, showError, showInfo } = useNotification();
   const navigate = useNavigate();
   // State variables
-  const [bookings, setBookings] = useState([]);
+  const [allBookings, setAllBookings] = useState([]); // เก็บ bookings ทั้งหมดก่อนแบ่งหน้า
+  const [bookings, setBookings] = useState([]); // เก็บ bookings ที่แสดงในหน้าปัจจุบัน
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Filter and sorting states
   const [startDate, setStartDate] = useState(() => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - 1); // ย้อนหลัง 1 เดือน
-    return format(date, "yyyy-MM-dd");
+    return format(startOfMonth(new Date()), "yyyy-MM-dd"); // วันแรกของเดือนปัจจุบัน
   });
   const [endDate, setEndDate] = useState(() => {
-    return format(new Date(), "yyyy-MM-dd");
+    return format(endOfMonth(new Date()), "yyyy-MM-dd"); // วันสุดท้ายของเดือนปัจจุบัน
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("created_at");
@@ -53,15 +39,12 @@ const Voucher = () => {
   // Load bookings on initial render and when filters change
   useEffect(() => {
     fetchBookings();
-  }, [
-    startDate,
-    endDate,
-    filterType,
-    voucherStatus,
-    sortField,
-    sortDirection,
-    currentPage,
-  ]);
+  }, [startDate, endDate, filterType, voucherStatus, sortField, sortDirection]);
+
+  // อัพเดตหน้าเมื่อเปลี่ยน currentPage
+  useEffect(() => {
+    paginateBookings();
+  }, [currentPage, allBookings]);
 
   // Fetch bookings from database
   const fetchBookings = async () => {
@@ -95,31 +78,26 @@ const Voucher = () => {
         .gte("transfer_date", startDate)
         .lte("transfer_date", endDate);
 
-      // หลังจากได้ผลลัพธ์แล้ว ให้ดึง vouchers แยกต่างหาก
       const [tourResult, transferResult] = await Promise.all([
         tourPromise,
         transferPromise,
       ]);
 
-      // ถ้าต้องการตรวจสอบ voucher ให้ดึงข้อมูล vouchers แยกต่างหาก
       const tourIds = tourResult.data.map((booking) => booking.id);
       const transferIds = transferResult.data.map((booking) => booking.id);
 
-      // ดึงข้อมูล vouchers สำหรับทัวร์
       const { data: tourVouchers } = await supabase
         .from("vouchers")
         .select("id, booking_id")
         .eq("booking_type", "tour")
         .in("booking_id", tourIds);
 
-      // ดึงข้อมูล vouchers สำหรับการรับส่ง
       const { data: transferVouchers } = await supabase
         .from("vouchers")
         .select("id, booking_id")
         .eq("booking_type", "transfer")
         .in("booking_id", transferIds);
 
-      // สร้าง map ของ voucher ID
       const tourVoucherMap = {};
       tourVouchers.forEach((v) => {
         tourVoucherMap[v.booking_id] = v.id;
@@ -130,7 +108,6 @@ const Voucher = () => {
         transferVoucherMap[v.booking_id] = v.id;
       });
 
-      // แล้วนำ voucher ID มาเชื่อมกับข้อมูล booking
       const tourBookings = (tourResult.data || []).map((booking) => ({
         ...booking,
         type: "tour",
@@ -155,7 +132,6 @@ const Voucher = () => {
         voucher_id: transferVoucherMap[booking.id] || null,
       }));
 
-      // Combine bookings
       let combinedBookings = [...tourBookings, ...transferBookings];
 
       // Apply search filter if needed
@@ -164,7 +140,6 @@ const Voucher = () => {
           const customerName = booking.orders
             ? `${booking.orders.first_name} ${booking.orders.last_name}`.toLowerCase()
             : "";
-
           return (
             customerName.includes(searchTerm.toLowerCase()) ||
             (booking.recipient &&
@@ -186,8 +161,6 @@ const Voucher = () => {
       // Sort the bookings
       combinedBookings.sort((a, b) => {
         let valueA, valueB;
-
-        // Determine the values to compare based on sortField
         switch (sortField) {
           case "recipient":
             valueA = a.recipient || "";
@@ -219,8 +192,6 @@ const Voucher = () => {
             valueB = b.created_at || "";
             break;
         }
-
-        // Perform the comparison
         if (valueA < valueB) {
           return sortDirection === "asc" ? -1 : 1;
         }
@@ -230,25 +201,24 @@ const Voucher = () => {
         return 0;
       });
 
-      // Calculate pagination
-      const totalItems = combinedBookings.length;
-      const totalPages = Math.ceil(totalItems / itemsPerPage);
-      setTotalPages(totalPages);
-
-      // Get current page items
-      const startIndex = (currentPage - 1) * itemsPerPage;
-      const paginatedBookings = combinedBookings.slice(
-        startIndex,
-        startIndex + itemsPerPage
-      );
-
-      setBookings(paginatedBookings);
+      setAllBookings(combinedBookings);
+      setTotalPages(Math.ceil(combinedBookings.length / itemsPerPage));
     } catch (error) {
       console.error("Error fetching bookings:", error);
       setError("ไม่สามารถโหลดข้อมูลการจองได้");
     } finally {
       setLoading(false);
     }
+  };
+
+  // แบ่งหน้า bookings
+  const paginateBookings = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedBookings = allBookings.slice(
+      startIndex,
+      startIndex + itemsPerPage
+    );
+    setBookings(paginatedBookings);
   };
 
   // Handle sorting
@@ -259,18 +229,18 @@ const Voucher = () => {
       setSortField(field);
       setSortDirection("asc");
     }
-    setCurrentPage(1); // Reset to first page when sort changes
+    setCurrentPage(1);
   };
 
   // Handle searching
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
-    setCurrentPage(1); // Reset to first page when search term changes
+    setCurrentPage(1);
   };
 
   // Apply date filters
   const applyDateFilter = () => {
-    setCurrentPage(1); // Reset to first page when filter changes
+    setCurrentPage(1);
     fetchBookings();
   };
 
@@ -439,286 +409,29 @@ const Voucher = () => {
           </button>
         </div>
 
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-solid border-blue-500 border-r-transparent"></div>
-            <p className="mt-2 text-gray-600">กำลังโหลดข้อมูล...</p>
-          </div>
-        ) : error ? (
-          <div className="text-center py-8 text-red-500">
-            <p>{error}</p>
-          </div>
-        ) : bookings.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <p>ไม่พบข้อมูลการจอง</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  {/* Column headers with sorting */}
-                  <th
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                    onClick={() => handleSort("created_at")}
-                  >
-                    <div className="flex items-center">
-                      <span>ลำดับ</span>
-                      {sortField === "created_at" && (
-                        <span className="ml-1">
-                          {sortDirection === "asc" ? (
-                            <ArrowUp size={14} />
-                          ) : (
-                            <ArrowDown size={14} />
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                    onClick={() => handleSort("recipient")}
-                  >
-                    <div className="flex items-center">
-                      <span>ส่งใคร</span>
-                      {sortField === "recipient" && (
-                        <span className="ml-1">
-                          {sortDirection === "asc" ? (
-                            <ArrowUp size={14} />
-                          ) : (
-                            <ArrowDown size={14} />
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                    onClick={() => handleSort("customer")}
-                  >
-                    <div className="flex items-center">
-                      <span>ชื่อลูกค้า</span>
-                      {sortField === "customer" && (
-                        <span className="ml-1">
-                          {sortDirection === "asc" ? (
-                            <ArrowUp size={14} />
-                          ) : (
-                            <ArrowDown size={14} />
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                    onClick={() => handleSort("booking_type")}
-                  >
-                    <div className="flex items-center">
-                      <span>ประเภท</span>
-                      {sortField === "booking_type" && (
-                        <span className="ml-1">
-                          {sortDirection === "asc" ? (
-                            <ArrowUp size={14} />
-                          ) : (
-                            <ArrowDown size={14} />
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                    onClick={() => handleSort("booking_date")}
-                  >
-                    <div className="flex items-center">
-                      <span>วันที่</span>
-                      {sortField === "booking_date" && (
-                        <span className="ml-1">
-                          {sortDirection === "asc" ? (
-                            <ArrowUp size={14} />
-                          ) : (
-                            <ArrowDown size={14} />
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                  <th
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                    onClick={() => handleSort("voucher_status")}
-                  >
-                    <div className="flex items-center">
-                      <span>สถานะ Voucher</span>
-                      {sortField === "voucher_status" && (
-                        <span className="ml-1">
-                          {sortDirection === "asc" ? (
-                            <ArrowUp size={14} />
-                          ) : (
-                            <ArrowDown size={14} />
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    จัดการ Voucher
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {bookings.map((booking, index) => (
-                  <tr
-                    key={`${booking.type}-${booking.id}`}
-                    className={
-                      booking.type === "tour" ? "bg-green-50" : "bg-blue-50"
-                    }
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {(currentPage - 1) * itemsPerPage + index + 1}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {booking.recipient || "-"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                      {getCustomerName(booking)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                      <span
-                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          booking.type === "tour"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-blue-100 text-blue-800"
-                        }`}
-                      >
-                        {booking.booking_type ||
-                          (booking.type === "tour" ? "Tour" : "Transfer")}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                      {formatDateDisplay(booking.booking_date)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      <span
-                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          booking.voucher_status === "created"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        <span className="flex items-center">
-                          {booking.voucher_status === "created" ? (
-                            <>
-                              <CheckCircle size={14} className="mr-1" />
-                              สร้างแล้ว
-                            </>
-                          ) : (
-                            <>
-                              <XCircle size={14} className="mr-1" />
-                              ยังไม่สร้าง
-                            </>
-                          )}
-                        </span>
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                      <button
-                        onClick={() => {
-                          if (booking.voucher_status === "created") {
-                            handleEditVoucher(booking);
-                          } else {
-                            handleCreateVoucher(booking);
-                          }
-                        }}
-                        className={`px-3 py-1 rounded flex items-center justify-center ${
-                          booking.voucher_status === "created"
-                            ? "bg-yellow-500 hover:bg-yellow-600 text-white"
-                            : booking.type === "tour"
-                            ? "bg-green-600 hover:bg-green-700 text-white"
-                            : "bg-blue-600 hover:bg-blue-700 text-white"
-                        }`}
-                      >
-                        {booking.voucher_status === "created" ? (
-                          <>
-                            <Edit size={14} className="mr-1" />
-                            แก้ไข
-                          </>
-                        ) : (
-                          <>
-                            <Plus size={14} className="mr-1" />
-                            สร้าง
-                          </>
-                        )}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <VoucherTable
+          bookings={bookings}
+          loading={loading}
+          error={error}
+          currentPage={currentPage}
+          itemsPerPage={itemsPerPage}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+          onCreateVoucher={handleCreateVoucher}
+          onEditVoucher={handleEditVoucher}
+          formatDateDisplay={formatDateDisplay}
+          getCustomerName={getCustomerName}
+        />
 
-        {/* Pagination */}
         {totalPages > 1 && (
-          <div className="px-6 py-4 bg-gray-50 border-t flex justify-between items-center">
-            <div className="text-sm text-gray-600">
-              แสดง {(currentPage - 1) * itemsPerPage + 1} ถึง{" "}
-              {Math.min(
-                currentPage * itemsPerPage,
-                bookings.length + (currentPage - 1) * itemsPerPage
-              )}{" "}
-              จากทั้งหมด {totalPages * itemsPerPage} รายการ
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => changePage(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-1 border rounded-md flex items-center disabled:opacity-50"
-              >
-                <ChevronLeft size={16} className="mr-1" />
-                ก่อนหน้า
-              </button>
-
-              {/* Page numbers */}
-              <div className="flex space-x-1">
-                {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                  let pageNum;
-
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => changePage(pageNum)}
-                      className={`w-8 h-8 flex items-center justify-center rounded-md ${
-                        currentPage === pageNum
-                          ? "bg-blue-600 text-white"
-                          : "border text-gray-700 hover:bg-gray-100"
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <button
-                onClick={() => changePage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 border rounded-md flex items-center disabled:opacity-50"
-              >
-                ถัดไป
-                <ChevronRight size={16} className="ml-1" />
-              </button>
-            </div>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={changePage}
+            itemsPerPage={itemsPerPage}
+            totalItems={allBookings.length}
+          />
         )}
       </div>
     </div>
