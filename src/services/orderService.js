@@ -2,7 +2,7 @@ import supabase from "../config/supabaseClient";
 import { generateOrderID } from "../utils/idGenerator";
 
 /**
- * ดึงข้อมูล orders ทั้งหมด
+ * ดึงข้อมูล orders ทั้งหมด พร้อมจำนวน bookings และ vouchers
  * @returns {Promise<{orders: Array, error: string|null}>}
  */
 export const fetchAllOrders = async () => {
@@ -14,7 +14,68 @@ export const fetchAllOrders = async () => {
 
     if (error) throw error;
 
-    return { orders: data || [], error: null };
+    // Process orders to include booking counts and vouchers
+    const processedOrders = await Promise.all(
+      data.map(async (order) => {
+        // Count tour bookings
+        const { data: tourBookings, error: tourError } = await supabase
+          .from("tour_bookings")
+          .select("id")
+          .eq("order_id", order.id);
+
+        if (tourError) throw tourError;
+
+        // Count transfer bookings
+        const { data: transferBookings, error: transferError } = await supabase
+          .from("transfer_bookings")
+          .select("id")
+          .eq("order_id", order.id);
+
+        if (transferError) throw transferError;
+
+        // Get vouchers related to this order's bookings
+        const tourIds = (tourBookings || []).map((b) => b.id);
+        const transferIds = (transferBookings || []).map((b) => b.id);
+
+        let vouchers = [];
+
+        if (tourIds.length > 0) {
+          const { data: tourVouchers } = await supabase
+            .from("vouchers")
+            .select("*")
+            .eq("booking_type", "tour")
+            .in("booking_id", tourIds);
+
+          if (tourVouchers) {
+            vouchers = [...vouchers, ...tourVouchers];
+          }
+        }
+
+        if (transferIds.length > 0) {
+          const { data: transferVouchers } = await supabase
+            .from("vouchers")
+            .select("*")
+            .eq("booking_type", "transfer")
+            .in("booking_id", transferIds);
+
+          if (transferVouchers) {
+            vouchers = [...vouchers, ...transferVouchers];
+          }
+        }
+
+        return {
+          ...order,
+          tourCount: tourBookings ? tourBookings.length : 0,
+          transferCount: transferBookings ? transferBookings.length : 0,
+          bookingsCount:
+            (tourBookings ? tourBookings.length : 0) +
+            (transferBookings ? transferBookings.length : 0),
+          vouchers,
+        };
+      })
+    );
+
+    return { orders: processedOrders || [], error: null };
   } catch (error) {
     console.error("Error fetching orders:", error);
     return { orders: [], error: error.message };
@@ -22,7 +83,7 @@ export const fetchAllOrders = async () => {
 };
 
 /**
- * ดึงข้อมูล order ตาม ID
+ * ดึงข้อมูล order ตาม ID พร้อมข้อมูลการจองและ vouchers
  * @param {number} id - ID ของ order
  * @returns {Promise<{order: Object|null, error: string|null}>}
  */
@@ -36,7 +97,61 @@ export const fetchOrderById = async (id) => {
 
     if (error) throw error;
 
-    return { order: data, error: null };
+    // ดึงข้อมูล tour bookings
+    const { data: tourBookings, error: tourError } = await supabase
+      .from("tour_bookings")
+      .select("*")
+      .eq("order_id", id);
+
+    if (tourError) throw tourError;
+
+    // ดึงข้อมูล transfer bookings
+    const { data: transferBookings, error: transferError } = await supabase
+      .from("transfer_bookings")
+      .select("*")
+      .eq("order_id", id);
+
+    if (transferError) throw transferError;
+
+    // Get vouchers related to this order's bookings
+    const tourIds = (tourBookings || []).map((b) => b.id);
+    const transferIds = (transferBookings || []).map((b) => b.id);
+
+    let vouchers = [];
+
+    if (tourIds.length > 0) {
+      const { data: tourVouchers } = await supabase
+        .from("vouchers")
+        .select("*")
+        .eq("booking_type", "tour")
+        .in("booking_id", tourIds);
+
+      if (tourVouchers) {
+        vouchers = [...vouchers, ...tourVouchers];
+      }
+    }
+
+    if (transferIds.length > 0) {
+      const { data: transferVouchers } = await supabase
+        .from("vouchers")
+        .select("*")
+        .eq("booking_type", "transfer")
+        .in("booking_id", transferIds);
+
+      if (transferVouchers) {
+        vouchers = [...vouchers, ...transferVouchers];
+      }
+    }
+
+    return {
+      order: {
+        ...data,
+        tourBookings: tourBookings || [],
+        transferBookings: transferBookings || [],
+        vouchers: vouchers || [],
+      },
+      error: null,
+    };
   } catch (error) {
     console.error(`Error fetching order ${id}:`, error);
     return { order: null, error: error.message };
@@ -82,42 +197,6 @@ export const fetchOrderBookings = async (orderId) => {
 };
 
 /**
- * สร้าง order ใหม่
- * @param {Object} orderData - ข้อมูล order ที่ต้องการสร้าง
- * @returns {Promise<{success: boolean, order: Object|null, error: string|null}>}
- */
-export const createOrder = async (orderData) => {
-  try {
-    // สร้าง reference_id
-    const reference_id = await generateOrderID(orderData.agent_name || "SEVEN");
-
-    // ข้อมูลที่จะบันทึก
-    const newOrder = {
-      reference_id,
-      first_name: orderData.first_name || "",
-      last_name: orderData.last_name || "",
-      agent_name: orderData.agent_name || "",
-      pax: orderData.pax || 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    const { data, error } = await supabase
-      .from("orders")
-      .insert(newOrder)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return { success: true, order: data, error: null };
-  } catch (error) {
-    console.error("Error creating order:", error);
-    return { success: false, order: null, error: error.message };
-  }
-};
-
-/**
  * อัปเดต order
  * @param {number} id - ID ของ order ที่ต้องการอัปเดต
  * @param {Object} orderData - ข้อมูลที่ต้องการอัปเดต
@@ -131,9 +210,13 @@ export const updateOrder = async (id, orderData) => {
       updated_at: new Date().toISOString(),
     };
 
+    // ลบข้อมูลที่ไม่ต้องการบันทึกลงในตาราง orders
+    const { tourBookings, transferBookings, vouchers, ...dataToUpdate } =
+      updatedData;
+
     const { error } = await supabase
       .from("orders")
-      .update(updatedData)
+      .update(dataToUpdate)
       .eq("id", id);
 
     if (error) throw error;
@@ -141,6 +224,56 @@ export const updateOrder = async (id, orderData) => {
     return { success: true, error: null };
   } catch (error) {
     console.error(`Error updating order ${id}:`, error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * อัปเดตหมายเหตุของ order
+ * @param {number} id - ID ของ order
+ * @param {string} note - หมายเหตุที่ต้องการอัปเดต
+ * @returns {Promise<{success: boolean, error: string|null}>}
+ */
+export const updateOrderNote = async (id, note) => {
+  try {
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        note,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) throw error;
+
+    return { success: true, error: null };
+  } catch (error) {
+    console.error(`Error updating order note ${id}:`, error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * อัปเดตสถานะของ order
+ * @param {number} id - ID ของ order
+ * @param {boolean} completed - สถานะความเรียบร้อย
+ * @returns {Promise<{success: boolean, error: string|null}>}
+ */
+export const updateOrderStatus = async (id, completed) => {
+  try {
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        completed,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) throw error;
+
+    return { success: true, error: null };
+  } catch (error) {
+    console.error(`Error updating order status ${id}:`, error);
     return { success: false, error: error.message };
   }
 };
@@ -161,24 +294,21 @@ export const deleteOrder = async (id) => {
 
     if (fetchError) throw new Error(fetchError);
 
-    // รวมการอัปเดตทั้งหมดในธุรกรรมเดียว
-    const updates = {};
-
-    // อัปเดต tour bookings - ลบการเชื่อมโยงกับ order
+    // ลบ tour bookings
     for (const booking of tourBookings) {
       const { error: tourError } = await supabase
         .from("tour_bookings")
-        .update({ order_id: null })
+        .delete()
         .eq("id", booking.id);
 
       if (tourError) throw tourError;
     }
 
-    // อัปเดต transfer bookings - ลบการเชื่อมโยงกับ order
+    // ลบ transfer bookings
     for (const booking of transferBookings) {
       const { error: transferError } = await supabase
         .from("transfer_bookings")
-        .update({ order_id: null })
+        .delete()
         .eq("id", booking.id);
 
       if (transferError) throw transferError;
@@ -197,164 +327,154 @@ export const deleteOrder = async (id) => {
 };
 
 /**
- * เพิ่ม booking เข้าไปใน order
- * @param {number} orderId - ID ของ order
- * @param {Object} bookingData - ข้อมูล booking ที่ต้องการเพิ่ม (ต้องมีฟิลด์ id และ type)
- * @returns {Promise<{success: boolean, error: string|null}>}
+ * ดึงข้อมูล orders ตามช่วงวันที่และคำค้นหา
+ * @param {Object} params - พารามิเตอร์สำหรับการค้นหา
+ * @param {string} params.startDate - วันที่เริ่มต้น (YYYY-MM-DD)
+ * @param {string} params.endDate - วันที่สิ้นสุด (YYYY-MM-DD)
+ * @param {string} params.searchTerm - คำค้นหา
+ * @param {string} params.filterType - ประเภทการกรอง (all, completed, incomplete)
+ * @returns {Promise<{orders: Array, error: string|null}>}
  */
-export const addBookingToOrder = async (orderId, bookingData) => {
+export const searchOrders = async ({
+  startDate,
+  endDate,
+  searchTerm,
+  filterType,
+}) => {
   try {
-    const { id: bookingId, type } = bookingData;
-    const tableName = type === "tour" ? "tour_bookings" : "transfer_bookings";
+    // ดึงข้อมูล orders ทั้งหมด
+    let query = supabase.from("orders").select("*");
 
-    // อัปเดต booking ให้เชื่อมโยงกับ order
-    const { error } = await supabase
-      .from(tableName)
-      .update({ order_id: orderId })
-      .eq("id", bookingId);
+    // ถ้ามี filterType ที่ไม่ใช่ 'all'
+    if (filterType === "completed") {
+      query = query.eq("completed", true);
+    } else if (filterType === "incomplete") {
+      query = query.eq("completed", false);
+    }
+
+    // ดึงข้อมูล
+    const { data, error } = await query.order("created_at", {
+      ascending: false,
+    });
 
     if (error) throw error;
 
-    // อัปเดตวันที่ของ order หากไม่มีการตั้งค่าไว้
-    const { order, error: orderError } = await fetchOrderById(orderId);
+    // Filter orders by date range and search term
+    let filteredOrders = [...data];
 
-    if (orderError) throw new Error(orderError);
+    if (startDate && endDate) {
+      // ทำการกรองตามวันที่
+      const start = new Date(startDate);
+      const end = new Date(endDate);
 
-    // ถ้าไม่มีวันที่ในออเดอร์ ให้อัปเดตจาก booking
-    if (order && (!order.start_date || !order.end_date)) {
-      // ดึงวันที่จาก booking
-      let bookingDate;
-      if (type === "tour") {
-        const { data, error: fetchError } = await supabase
+      const ordersWithBookings = await Promise.all(
+        filteredOrders.map(async (order) => {
+          // ดึงข้อมูล bookings
+          const { tourBookings, transferBookings } = await fetchOrderBookings(
+            order.id
+          );
+
+          // ดึงวันที่ทั้งหมดของ bookings
+          const allDates = [
+            ...tourBookings.map((b) => new Date(b.tour_date)),
+            ...transferBookings.map((b) => new Date(b.transfer_date)),
+          ].filter(Boolean);
+
+          // ถ้าไม่มี booking หรือไม่มีวันที่ ให้ใช้วันที่ของ order
+          if (allDates.length === 0) {
+            if (order.start_date) allDates.push(new Date(order.start_date));
+            if (order.end_date) allDates.push(new Date(order.end_date));
+          }
+
+          // ตรวจสอบว่ามีวันที่ไหนอยู่ในช่วงที่ต้องการหรือไม่
+          const isInRange = allDates.some(
+            (date) => date >= start && date <= end
+          );
+
+          return isInRange ? order : null;
+        })
+      );
+
+      filteredOrders = ordersWithBookings.filter(Boolean);
+    }
+
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filteredOrders = filteredOrders.filter(
+        (order) =>
+          (order.reference_id &&
+            order.reference_id.toLowerCase().includes(term)) ||
+          `${order.first_name || ""} ${order.last_name || ""}`
+            .toLowerCase()
+            .includes(term) ||
+          (order.agent_name && order.agent_name.toLowerCase().includes(term))
+      );
+    }
+
+    // Process filtered orders to include booking counts and vouchers
+    const processedOrders = await Promise.all(
+      filteredOrders.map(async (order) => {
+        // Count tour bookings
+        const { data: tourBookings, error: tourError } = await supabase
           .from("tour_bookings")
-          .select("tour_date")
-          .eq("id", bookingId)
-          .single();
+          .select("id")
+          .eq("order_id", order.id);
 
-        if (fetchError) throw fetchError;
-        bookingDate = data?.tour_date;
-      } else {
-        const { data, error: fetchError } = await supabase
+        if (tourError) throw tourError;
+
+        // Count transfer bookings
+        const { data: transferBookings, error: transferError } = await supabase
           .from("transfer_bookings")
-          .select("transfer_date")
-          .eq("id", bookingId)
-          .single();
+          .select("id")
+          .eq("order_id", order.id);
 
-        if (fetchError) throw fetchError;
-        bookingDate = data?.transfer_date;
-      }
+        if (transferError) throw transferError;
 
-      // อัปเดตวันที่ order ถ้ามีวันที่
-      if (bookingDate) {
-        const updateData = {
-          updated_at: new Date().toISOString(),
+        // Get vouchers related to this order's bookings
+        const tourIds = (tourBookings || []).map((b) => b.id);
+        const transferIds = (transferBookings || []).map((b) => b.id);
+
+        let vouchers = [];
+
+        if (tourIds.length > 0) {
+          const { data: tourVouchers } = await supabase
+            .from("vouchers")
+            .select("*")
+            .eq("booking_type", "tour")
+            .in("booking_id", tourIds);
+
+          if (tourVouchers) {
+            vouchers = [...vouchers, ...tourVouchers];
+          }
+        }
+
+        if (transferIds.length > 0) {
+          const { data: transferVouchers } = await supabase
+            .from("vouchers")
+            .select("*")
+            .eq("booking_type", "transfer")
+            .in("booking_id", transferIds);
+
+          if (transferVouchers) {
+            vouchers = [...vouchers, ...transferVouchers];
+          }
+        }
+
+        return {
+          ...order,
+          tourCount: tourBookings ? tourBookings.length : 0,
+          transferCount: transferBookings ? transferBookings.length : 0,
+          bookingsCount:
+            (tourBookings ? tourBookings.length : 0) +
+            (transferBookings ? transferBookings.length : 0),
+          vouchers,
         };
-
-        if (
-          !order.start_date ||
-          new Date(bookingDate) < new Date(order.start_date)
-        ) {
-          updateData.start_date = bookingDate;
-        }
-
-        if (
-          !order.end_date ||
-          new Date(bookingDate) > new Date(order.end_date)
-        ) {
-          updateData.end_date = bookingDate;
-        }
-
-        const { error: updateError } = await supabase
-          .from("orders")
-          .update(updateData)
-          .eq("id", orderId);
-
-        if (updateError) throw updateError;
-      }
-    }
-
-    return { success: true, error: null };
-  } catch (error) {
-    console.error(`Error adding booking to order ${orderId}:`, error);
-    return { success: false, error: error.message };
-  }
-};
-
-/**
- * ลบ booking ออกจาก order
- * @param {number} orderId - ID ของ order
- * @param {Object} bookingInfo - ข้อมูล booking ที่ต้องการลบ (ต้องมีฟิลด์ bookingId และ bookingType)
- * @returns {Promise<{success: boolean, error: string|null}>}
- */
-export const removeBookingFromOrder = async (orderId, bookingInfo) => {
-  try {
-    const { bookingId, bookingType } = bookingInfo;
-    const tableName =
-      bookingType === "tour" ? "tour_bookings" : "transfer_bookings";
-
-    // อัปเดต booking ให้ไม่เชื่อมโยงกับ order
-    const { error } = await supabase
-      .from(tableName)
-      .update({ order_id: null })
-      .eq("id", bookingId);
-
-    if (error) throw error;
-
-    // ตรวจสอบและอัปเดตวันที่ของ order ถ้าจำเป็น
-    await updateOrderDates(orderId);
-
-    return { success: true, error: null };
-  } catch (error) {
-    console.error(`Error removing booking from order ${orderId}:`, error);
-    return { success: false, error: error.message };
-  }
-};
-
-/**
- * อัปเดตวันที่ของ order ให้ตรงกับวันที่เร็วสุดและช้าสุดของ bookings
- * @param {number} orderId - ID ของ order
- * @returns {Promise<{success: boolean, error: string|null}>}
- */
-export const updateOrderDates = async (orderId) => {
-  try {
-    // ดึงข้อมูล bookings ทั้งหมดของ order
-    const {
-      tourBookings,
-      transferBookings,
-      error: fetchError,
-    } = await fetchOrderBookings(orderId);
-
-    if (fetchError) throw new Error(fetchError);
-
-    // รวมวันที่ทั้งหมดจาก bookings
-    const allDates = [
-      ...tourBookings.map((booking) => booking.tour_date),
-      ...transferBookings.map((booking) => booking.transfer_date),
-    ].filter((date) => date); // กรองเฉพาะวันที่ที่มีค่า
-
-    if (allDates.length === 0) {
-      // ไม่มี bookings หรือไม่มีวันที่
-      return { success: true, error: null };
-    }
-
-    // เรียงลำดับวันที่
-    allDates.sort((a, b) => new Date(a) - new Date(b));
-
-    // อัปเดต order ด้วยวันที่เร็วสุดและช้าสุด
-    const { error } = await supabase
-      .from("orders")
-      .update({
-        start_date: allDates[0],
-        end_date: allDates[allDates.length - 1],
-        updated_at: new Date().toISOString(),
       })
-      .eq("id", orderId);
+    );
 
-    if (error) throw error;
-
-    return { success: true, error: null };
+    return { orders: processedOrders || [], error: null };
   } catch (error) {
-    console.error(`Error updating order dates for ${orderId}:`, error);
-    return { success: false, error: error.message };
+    console.error("Error searching orders:", error);
+    return { orders: [], error: error.message };
   }
 };
