@@ -185,7 +185,7 @@ const TransferVoucherForm = ({
             />
             <div>
               <h2 className="text-xl font-bold font-kanit">
-                หจก.พิกรพร ธุรกิจ / เซเว่นสไมล์ ทัวร์ แอนด์ ทิคเก็ต
+                หจก.พัทธพรธุรกิจ / เซเว่นสไมล์ ทัวร์ แอนด์ ทิคเก็ต
               </h2>
               <p className="text-sm font-kanit">
                 33 ถ.มหาราช ซอย 8 ต.ปากน้ำ อ.เมือง จ.กระบี่ 8100
