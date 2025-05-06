@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
 import {
-  fetchAllOrders,
   fetchOrderById,
   updateOrder,
   updateOrderNote,
@@ -10,13 +9,11 @@ import {
   searchOrders,
 } from "../services/orderService";
 import OrderTable from "../components/order/OrderTable";
-import OrderCard from "../components/order/OrderCard";
 import OrderDetails from "../components/order/OrderDetails";
 import OrderFilter from "../components/order/OrderFilter";
-import ViewToggle from "../components/order/ViewToggle";
 import { useNotification } from "../hooks/useNotification";
 import { useAlertDialogContext } from "../contexts/AlertDialogContext";
-import { ChevronLeft, ChevronRight, RefreshCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const ViewOrders = () => {
   const { showSuccess, showError, showInfo } = useNotification();
@@ -28,7 +25,6 @@ const ViewOrders = () => {
   const [error, setError] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState("table"); // "card" or "table"
 
   // Filter states
   const [startDate, setStartDate] = useState(() => {
@@ -53,29 +49,23 @@ const ViewOrders = () => {
   const [itemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
 
-  // First load effect
+  // First load effect - ใช้ searchOrders แทน fetchAllOrders
   useEffect(() => {
-    fetchOrders();
+    fetchFilteredOrders();
   }, []);
 
-  // Load orders with existing filters
-  const fetchOrders = async () => {
+  // Load orders with filters
+  const fetchFilteredOrders = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // ถ้ามีการค้นหาหรือกรองข้อมูลใช้ searchOrders แทน fetchAllOrders
-      let result;
-      if (searchTerm || filterType !== "all" || startDate || endDate) {
-        result = await searchOrders({
-          startDate,
-          endDate,
-          searchTerm,
-          filterType,
-        });
-      } else {
-        result = await fetchAllOrders();
-      }
+      const result = await searchOrders({
+        startDate,
+        endDate,
+        searchTerm,
+        filterType,
+      });
 
       if (result.error) throw new Error(result.error);
 
@@ -90,14 +80,22 @@ const ViewOrders = () => {
     }
   };
 
-  // Handle view order details
+  // ในฟังก์ชัน handleViewOrderDetails
   const handleViewOrderDetails = async (order) => {
     setLoading(true);
 
     try {
+      console.log("Fetching details for order:", order);
       const { order: orderDetails, error } = await fetchOrderById(order.id);
 
-      if (error) throw new Error(error);
+      if (error) {
+        console.error("Error from fetchOrderById:", error);
+        throw new Error(error);
+      }
+
+      console.log("Order details received:", orderDetails);
+      console.log("Tour bookings:", orderDetails?.tourBookings);
+      console.log("Transfer bookings:", orderDetails?.transferBookings);
 
       setSelectedOrder(orderDetails);
       setIsModalOpen(true);
@@ -120,7 +118,7 @@ const ViewOrders = () => {
       if (!success) throw new Error(error);
 
       showSuccess("บันทึกข้อมูลเรียบร้อยแล้ว");
-      await fetchOrders();
+      await fetchFilteredOrders();
 
       return { success: true };
     } catch (err) {
@@ -138,7 +136,7 @@ const ViewOrders = () => {
       if (!success) throw new Error(error);
 
       showSuccess("บันทึกหมายเหตุเรียบร้อยแล้ว");
-      await fetchOrders();
+      await fetchFilteredOrders();
     } catch (err) {
       console.error("Error updating note:", err);
       showError("ไม่สามารถบันทึกหมายเหตุได้");
@@ -165,7 +163,7 @@ const ViewOrders = () => {
 
       showSuccess("ลบ Order เรียบร้อยแล้ว");
       setIsModalOpen(false);
-      await fetchOrders();
+      await fetchFilteredOrders();
 
       return { success: true };
     } catch (err) {
@@ -202,16 +200,11 @@ const ViewOrders = () => {
 
   // Handle apply filters
   const handleApplyFilters = () => {
-    fetchOrders();
-  };
-
-  // Toggle view mode
-  const handleToggleViewMode = (mode) => {
-    setViewMode(mode);
+    fetchFilteredOrders();
   };
 
   const handleOrderDeleted = async () => {
-    await fetchOrders(); // รีเฟรชข้อมูล orders
+    await fetchFilteredOrders(); // รีเฟรชข้อมูล orders
   };
 
   // Calculate pagination
@@ -238,7 +231,7 @@ const ViewOrders = () => {
         onSearchChange={handleSearchChange}
         onFilterTypeChange={handleFilterTypeChange}
         onApplyFilters={handleApplyFilters}
-        onRefresh={fetchOrders}
+        onRefresh={fetchFilteredOrders}
       />
 
       <div className="flex justify-between items-center mb-4">
@@ -253,7 +246,6 @@ const ViewOrders = () => {
             "ไม่พบข้อมูล"
           )}
         </div>
-        <ViewToggle viewMode={viewMode} onToggle={handleToggleViewMode} />
       </div>
 
       {loading ? (
@@ -267,20 +259,12 @@ const ViewOrders = () => {
         </div>
       ) : (
         <>
-          {/* Show table or card view based on viewMode */}
-          {viewMode === "table" ? (
-            <OrderTable
-              orders={getPaginatedOrders()}
-              onViewDetails={handleViewOrderDetails}
-              onUpdateNote={handleUpdateNote}
-            />
-          ) : (
-            <OrderCard
-              orders={getPaginatedOrders()}
-              onViewDetails={handleViewOrderDetails}
-              onUpdateNote={handleUpdateNote}
-            />
-          )}
+          {/* Show table view */}
+          <OrderTable
+            orders={getPaginatedOrders()}
+            onViewDetails={handleViewOrderDetails}
+            onUpdateNote={handleUpdateNote}
+          />
 
           {/* Pagination */}
           {totalPages > 1 && (
@@ -344,7 +328,7 @@ const ViewOrders = () => {
           order={selectedOrder}
           onClose={() => setIsModalOpen(false)}
           onSave={handleSaveOrder}
-          onOrderDeleted={handleOrderDeleted} // เปลี่ยนจาก onDelete เป็น onOrderDeleted
+          onOrderDeleted={handleOrderDeleted}
           onAddBooking={handleAddBooking}
         />
       )}

@@ -5,118 +5,45 @@ import { generateOrderID } from "../utils/idGenerator";
  * ดึงข้อมูล orders ทั้งหมด พร้อมจำนวน bookings และ vouchers
  * @returns {Promise<{orders: Array, error: string|null}>}
  */
-export const fetchAllOrders = async () => {
+export const fetchAllOrders = async (startDate = null, endDate = null) => {
   try {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false });
+    // สร้าง query พื้นฐาน
+    let query = supabase.from("orders").select(`
+      *,
+      tour_bookings(*),
+      transfer_bookings(*)
+    `);
+
+    // เพิ่มเงื่อนไขกรองตามวันที่ (ถ้ามี)
+    if (startDate && endDate) {
+      query = query
+        .gte("created_at", `${startDate}T00:00:00`)
+        .lte("created_at", `${endDate}T23:59:59`);
+    }
+
+    // เรียงลำดับตามวันที่สร้าง (ล่าสุดขึ้นก่อน)
+    query = query.order("created_at", { ascending: false });
+
+    // ดำเนินการ query
+    const { data, error } = await query;
 
     if (error) throw error;
 
-    // Process orders to include booking counts and vouchers
-    const processedOrders = await Promise.all(
-      data.map(async (order) => {
-        // Count tour bookings
-        const { data: tourBookings, error: tourError } = await supabase
-          .from("tour_bookings")
-          .select("id")
-          .eq("order_id", order.id);
+    // สร้าง arrays เพื่อเก็บ booking IDs
+    const tourIds = [];
+    const transferIds = [];
 
-        if (tourError) throw tourError;
+    // เก็บ booking IDs จากทุก order
+    data.forEach((order) => {
+      if (order.tour_bookings) {
+        tourIds.push(...order.tour_bookings.map((b) => b.id));
+      }
+      if (order.transfer_bookings) {
+        transferIds.push(...order.transfer_bookings.map((b) => b.id));
+      }
+    });
 
-        // Count transfer bookings
-        const { data: transferBookings, error: transferError } = await supabase
-          .from("transfer_bookings")
-          .select("id")
-          .eq("order_id", order.id);
-
-        if (transferError) throw transferError;
-
-        // Get vouchers related to this order's bookings
-        const tourIds = (tourBookings || []).map((b) => b.id);
-        const transferIds = (transferBookings || []).map((b) => b.id);
-
-        let vouchers = [];
-
-        if (tourIds.length > 0) {
-          const { data: tourVouchers } = await supabase
-            .from("vouchers")
-            .select("*")
-            .eq("booking_type", "tour")
-            .in("booking_id", tourIds);
-
-          if (tourVouchers) {
-            vouchers = [...vouchers, ...tourVouchers];
-          }
-        }
-
-        if (transferIds.length > 0) {
-          const { data: transferVouchers } = await supabase
-            .from("vouchers")
-            .select("*")
-            .eq("booking_type", "transfer")
-            .in("booking_id", transferIds);
-
-          if (transferVouchers) {
-            vouchers = [...vouchers, ...transferVouchers];
-          }
-        }
-
-        return {
-          ...order,
-          tourCount: tourBookings ? tourBookings.length : 0,
-          transferCount: transferBookings ? transferBookings.length : 0,
-          bookingsCount:
-            (tourBookings ? tourBookings.length : 0) +
-            (transferBookings ? transferBookings.length : 0),
-          vouchers,
-        };
-      })
-    );
-
-    return { orders: processedOrders || [], error: null };
-  } catch (error) {
-    console.error("Error fetching orders:", error);
-    return { orders: [], error: error.message };
-  }
-};
-
-/**
- * ดึงข้อมูล order ตาม ID พร้อมข้อมูลการจองและ vouchers
- * @param {number} id - ID ของ order
- * @returns {Promise<{order: Object|null, error: string|null}>}
- */
-export const fetchOrderById = async (id) => {
-  try {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (error) throw error;
-
-    // ดึงข้อมูล tour bookings
-    const { data: tourBookings, error: tourError } = await supabase
-      .from("tour_bookings")
-      .select("*")
-      .eq("order_id", id);
-
-    if (tourError) throw tourError;
-
-    // ดึงข้อมูล transfer bookings
-    const { data: transferBookings, error: transferError } = await supabase
-      .from("transfer_bookings")
-      .select("*")
-      .eq("order_id", id);
-
-    if (transferError) throw transferError;
-
-    // Get vouchers related to this order's bookings
-    const tourIds = (tourBookings || []).map((b) => b.id);
-    const transferIds = (transferBookings || []).map((b) => b.id);
-
+    // ดึงข้อมูล vouchers ที่เกี่ยวข้อง
     let vouchers = [];
 
     if (tourIds.length > 0) {
@@ -143,13 +70,160 @@ export const fetchOrderById = async (id) => {
       }
     }
 
+    // สร้าง map ระหว่าง booking ID และ voucher
+    const voucherMap = {};
+    vouchers.forEach((voucher) => {
+      const key = `${voucher.booking_type}_${voucher.booking_id}`;
+      voucherMap[key] = voucher;
+    });
+
+    // แปลงข้อมูลให้อยู่ในรูปแบบที่ต้องการ
+    const processedOrders = data.map((order) => {
+      const tourBookings = order.tour_bookings || [];
+      const transferBookings = order.transfer_bookings || [];
+
+      // เพิ่ม vouchers ให้กับ bookings
+      tourBookings.forEach((booking) => {
+        const key = `tour_${booking.id}`;
+        booking.voucher = voucherMap[key];
+      });
+
+      transferBookings.forEach((booking) => {
+        const key = `transfer_${booking.id}`;
+        booking.voucher = voucherMap[key];
+      });
+
+      // เก็บ vouchers ทั้งหมดของ order
+      const orderVouchers = [
+        ...tourBookings.filter((b) => b.voucher).map((b) => b.voucher),
+        ...transferBookings.filter((b) => b.voucher).map((b) => b.voucher),
+      ];
+
+      return {
+        ...order,
+        tourCount: tourBookings.length,
+        transferCount: transferBookings.length,
+        bookingsCount: tourBookings.length + transferBookings.length,
+        vouchers: orderVouchers,
+      };
+    });
+
+    return { orders: processedOrders || [], error: null };
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    return { orders: [], error: error.message };
+  }
+};
+
+/**
+ * ดึงข้อมูล order ตาม ID พร้อมข้อมูลการจองและ vouchers
+ * @param {number} id - ID ของ order
+ * @returns {Promise<{order: Object|null, error: string|null}>}
+ */
+export const fetchOrderById = async (id) => {
+  try {
+    console.log(`Fetching order data for ID: ${id}`);
+
+    // ดึงข้อมูลหลักของ order
+    const { data: orderData, error: orderError } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (orderError) {
+      console.error("Error fetching order data:", orderError);
+      throw orderError;
+    }
+    console.log("Order data fetched:", orderData);
+
+    // ดึงข้อมูล tour bookings ที่เกี่ยวข้อง
+    const { data: tourBookings, error: tourError } = await supabase
+      .from("tour_bookings")
+      .select("*")
+      .eq("order_id", id);
+
+    if (tourError) {
+      console.error("Error fetching tour bookings:", tourError);
+      throw tourError;
+    }
+    console.log("Tour bookings fetched:", tourBookings);
+
+    // ดึงข้อมูล transfer bookings ที่เกี่ยวข้อง
+    const { data: transferBookings, error: transferError } = await supabase
+      .from("transfer_bookings")
+      .select("*")
+      .eq("order_id", id);
+
+    if (transferError) {
+      console.error("Error fetching transfer bookings:", transferError);
+      throw transferError;
+    }
+    console.log("Transfer bookings fetched:", transferBookings);
+
+    // สร้าง object ที่มีข้อมูลครบถ้วน
+    const orderWithDetails = {
+      ...orderData,
+      tourBookings: tourBookings || [],
+      transferBookings: transferBookings || [],
+      vouchers: [], // จะเติมในขั้นตอนถัดไป
+    };
+
+    // หา vouchers ก็ต่อเมื่อมี bookings
+    if (tourBookings?.length > 0 || transferBookings?.length > 0) {
+      // รวบรวม booking IDs เพื่อดึง vouchers
+      const tourIds = tourBookings?.map((b) => b.id) || [];
+      const transferIds = transferBookings?.map((b) => b.id) || [];
+
+      // ดึง vouchers ที่เกี่ยวข้อง - tour
+      if (tourIds.length > 0) {
+        console.log("Fetching tour vouchers for IDs:", tourIds);
+        const { data: tourVouchers, error: tourVoucherError } = await supabase
+          .from("vouchers")
+          .select("*")
+          .eq("booking_type", "tour")
+          .in("booking_id", tourIds);
+
+        if (tourVoucherError) {
+          console.error("Error fetching tour vouchers:", tourVoucherError);
+        } else if (tourVouchers?.length > 0) {
+          console.log("Tour vouchers fetched:", tourVouchers);
+          orderWithDetails.vouchers = [
+            ...orderWithDetails.vouchers,
+            ...tourVouchers,
+          ];
+        }
+      }
+
+      // ดึง vouchers ที่เกี่ยวข้อง - transfer
+      if (transferIds.length > 0) {
+        console.log("Fetching transfer vouchers for IDs:", transferIds);
+        const { data: transferVouchers, error: transferVoucherError } =
+          await supabase
+            .from("vouchers")
+            .select("*")
+            .eq("booking_type", "transfer")
+            .in("booking_id", transferIds);
+
+        if (transferVoucherError) {
+          console.error(
+            "Error fetching transfer vouchers:",
+            transferVoucherError
+          );
+        } else if (transferVouchers?.length > 0) {
+          console.log("Transfer vouchers fetched:", transferVouchers);
+          orderWithDetails.vouchers = [
+            ...orderWithDetails.vouchers,
+            ...transferVouchers,
+          ];
+        }
+      }
+    }
+
+    console.log("Final order with details:", orderWithDetails);
+
     return {
-      order: {
-        ...data,
-        tourBookings: tourBookings || [],
-        transferBookings: transferBookings || [],
-        vouchers: vouchers || [],
-      },
+      order: orderWithDetails,
       error: null,
     };
   } catch (error) {
@@ -342,62 +416,36 @@ export const searchOrders = async ({
   filterType,
 }) => {
   try {
-    // ดึงข้อมูล orders ทั้งหมด
-    let query = supabase.from("orders").select("*");
+    // สร้าง query พื้นฐาน
+    let query = supabase.from("orders").select(`
+      *,
+      tour_bookings(*),
+      transfer_bookings(*)
+    `);
 
-    // ถ้ามี filterType ที่ไม่ใช่ 'all'
+    // เพิ่มเงื่อนไขกรองตามวันที่ (ถ้ามี)
+    if (startDate && endDate) {
+      query = query
+        .gte("created_at", `${startDate}T00:00:00`)
+        .lte("created_at", `${endDate}T23:59:59`);
+    }
+
+    // เพิ่มเงื่อนไขกรองตามสถานะ (ถ้ามี)
     if (filterType === "completed") {
       query = query.eq("completed", true);
     } else if (filterType === "incomplete") {
       query = query.eq("completed", false);
     }
 
-    // ดึงข้อมูล
+    // ดำเนินการ query
     const { data, error } = await query.order("created_at", {
       ascending: false,
     });
 
     if (error) throw error;
 
-    // Filter orders by date range and search term
+    // กรองข้อมูลตาม searchTerm (ถ้ามี)
     let filteredOrders = [...data];
-
-    if (startDate && endDate) {
-      // ทำการกรองตามวันที่
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-
-      const ordersWithBookings = await Promise.all(
-        filteredOrders.map(async (order) => {
-          // ดึงข้อมูล bookings
-          const { tourBookings, transferBookings } = await fetchOrderBookings(
-            order.id
-          );
-
-          // ดึงวันที่ทั้งหมดของ bookings
-          const allDates = [
-            ...tourBookings.map((b) => new Date(b.tour_date)),
-            ...transferBookings.map((b) => new Date(b.transfer_date)),
-          ].filter(Boolean);
-
-          // ถ้าไม่มี booking หรือไม่มีวันที่ ให้ใช้วันที่ของ order
-          if (allDates.length === 0) {
-            if (order.start_date) allDates.push(new Date(order.start_date));
-            if (order.end_date) allDates.push(new Date(order.end_date));
-          }
-
-          // ตรวจสอบว่ามีวันที่ไหนอยู่ในช่วงที่ต้องการหรือไม่
-          const isInRange = allDates.some(
-            (date) => date >= start && date <= end
-          );
-
-          return isInRange ? order : null;
-        })
-      );
-
-      filteredOrders = ordersWithBookings.filter(Boolean);
-    }
-
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filteredOrders = filteredOrders.filter(
@@ -411,66 +459,84 @@ export const searchOrders = async ({
       );
     }
 
-    // Process filtered orders to include booking counts and vouchers
-    const processedOrders = await Promise.all(
-      filteredOrders.map(async (order) => {
-        // Count tour bookings
-        const { data: tourBookings, error: tourError } = await supabase
-          .from("tour_bookings")
-          .select("id")
-          .eq("order_id", order.id);
+    // สร้าง arrays เพื่อเก็บ booking IDs
+    const tourIds = [];
+    const transferIds = [];
 
-        if (tourError) throw tourError;
+    // เก็บ booking IDs จากทุก order
+    filteredOrders.forEach((order) => {
+      if (order.tour_bookings) {
+        tourIds.push(...order.tour_bookings.map((b) => b.id));
+      }
+      if (order.transfer_bookings) {
+        transferIds.push(...order.transfer_bookings.map((b) => b.id));
+      }
+    });
 
-        // Count transfer bookings
-        const { data: transferBookings, error: transferError } = await supabase
-          .from("transfer_bookings")
-          .select("id")
-          .eq("order_id", order.id);
+    // ดึงข้อมูล vouchers ที่เกี่ยวข้อง
+    let vouchers = [];
 
-        if (transferError) throw transferError;
+    if (tourIds.length > 0) {
+      const { data: tourVouchers } = await supabase
+        .from("vouchers")
+        .select("*")
+        .eq("booking_type", "tour")
+        .in("booking_id", tourIds);
 
-        // Get vouchers related to this order's bookings
-        const tourIds = (tourBookings || []).map((b) => b.id);
-        const transferIds = (transferBookings || []).map((b) => b.id);
+      if (tourVouchers) {
+        vouchers = [...vouchers, ...tourVouchers];
+      }
+    }
 
-        let vouchers = [];
+    if (transferIds.length > 0) {
+      const { data: transferVouchers } = await supabase
+        .from("vouchers")
+        .select("*")
+        .eq("booking_type", "transfer")
+        .in("booking_id", transferIds);
 
-        if (tourIds.length > 0) {
-          const { data: tourVouchers } = await supabase
-            .from("vouchers")
-            .select("*")
-            .eq("booking_type", "tour")
-            .in("booking_id", tourIds);
+      if (transferVouchers) {
+        vouchers = [...vouchers, ...transferVouchers];
+      }
+    }
 
-          if (tourVouchers) {
-            vouchers = [...vouchers, ...tourVouchers];
-          }
-        }
+    // สร้าง map ระหว่าง booking ID และ voucher
+    const voucherMap = {};
+    vouchers.forEach((voucher) => {
+      const key = `${voucher.booking_type}_${voucher.booking_id}`;
+      voucherMap[key] = voucher;
+    });
 
-        if (transferIds.length > 0) {
-          const { data: transferVouchers } = await supabase
-            .from("vouchers")
-            .select("*")
-            .eq("booking_type", "transfer")
-            .in("booking_id", transferIds);
+    // แปลงข้อมูลให้อยู่ในรูปแบบที่ต้องการ
+    const processedOrders = filteredOrders.map((order) => {
+      const tourBookings = order.tour_bookings || [];
+      const transferBookings = order.transfer_bookings || [];
 
-          if (transferVouchers) {
-            vouchers = [...vouchers, ...transferVouchers];
-          }
-        }
+      // เพิ่ม vouchers ให้กับ bookings
+      tourBookings.forEach((booking) => {
+        const key = `tour_${booking.id}`;
+        booking.voucher = voucherMap[key];
+      });
 
-        return {
-          ...order,
-          tourCount: tourBookings ? tourBookings.length : 0,
-          transferCount: transferBookings ? transferBookings.length : 0,
-          bookingsCount:
-            (tourBookings ? tourBookings.length : 0) +
-            (transferBookings ? transferBookings.length : 0),
-          vouchers,
-        };
-      })
-    );
+      transferBookings.forEach((booking) => {
+        const key = `transfer_${booking.id}`;
+        booking.voucher = voucherMap[key];
+      });
+
+      // เก็บ vouchers ทั้งหมดของ order
+      const orderVouchers = [
+        ...tourBookings.filter((b) => b.voucher).map((b) => b.voucher),
+        ...transferBookings.filter((b) => b.voucher).map((b) => b.voucher),
+      ];
+
+      return {
+        ...order,
+        tourCount: tourBookings.length,
+        transferCount: transferBookings.length,
+        bookingsCount: tourBookings.length + transferBookings.length,
+        vouchers: orderVouchers,
+      };
+    });
 
     return { orders: processedOrders || [], error: null };
   } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   X,
   Save,
@@ -27,6 +27,9 @@ const OrderDetails = ({
   onDeleteBooking,
   onOrderDeleted, // เพิ่ม prop
 }) => {
+  console.log("OrderDetails received order:", order);
+  console.log("Tour bookings count:", order?.tourBookings?.length || 0);
+  console.log("Transfer bookings count:", order?.transferBookings?.length || 0);
   const [formData, setFormData] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState({ type: "", message: "" });
@@ -34,6 +37,7 @@ const OrderDetails = ({
     tourBookings: [],
     transferBookings: [],
   });
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   const showAlert = useAlertDialogContext();
 
   useEffect(() => {
@@ -44,7 +48,7 @@ const OrderDetails = ({
         completed: order.completed || false,
       });
     }
-  }, [order]);
+  }, [order, isDataLoaded]);
 
   const formatDateDisplay = (dateStr) => {
     if (!dateStr) return "-";
@@ -208,6 +212,7 @@ const OrderDetails = ({
     }
   };
 
+  // เปลี่ยนเป็น (ไม่ใช้ useMemo ในตอนนี้เพื่อความง่าย)
   const renderVoucherBadges = (vouchers) => {
     if (!vouchers || !vouchers.length)
       return <span className="text-gray-500">ไม่มี Voucher</span>;
@@ -225,7 +230,6 @@ const OrderDetails = ({
       </div>
     );
   };
-
   const getStatusText = (status) =>
     ({
       pending: "รอดำเนินการ",
@@ -284,6 +288,8 @@ const OrderDetails = ({
   };
 
   const renderTourBookings = () => {
+    console.log("Rendering tour bookings:", order?.tourBookings);
+
     if (!order.tourBookings?.length) {
       return (
         <div className="text-center py-4">
@@ -407,6 +413,7 @@ const OrderDetails = ({
   };
 
   const renderTransferBookings = () => {
+    console.log("Rendering transfer bookings:", order?.transferBookings);
     if (!order.transferBookings?.length) {
       return (
         <div className="text-center py-4">
@@ -744,4 +751,4 @@ const OrderDetails = ({
   );
 };
 
-export default OrderDetails;
+export default React.memo(OrderDetails);
