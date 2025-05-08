@@ -335,6 +335,12 @@ const CreateVoucher = () => {
                       {booking.transfer_flight || "-"}
                     </p>
                   </div>
+                  <div>
+                    <p className="text-sm text-gray-600">รายละเอียด:</p>
+                    <p className="font-medium">
+                      {booking.transfer_detail || "-"}
+                    </p>
+                  </div>
                 </>
               )}
             </div>

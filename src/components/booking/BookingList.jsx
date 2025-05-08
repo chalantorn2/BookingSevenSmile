@@ -198,9 +198,6 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                     <>
                       <div className="flex flex-wrap gap-x-4 text-base text-gray-800 mb-1">
                         <div className="flex items-center">
-                          <span className="font-medium mr-2">
-                            {booking.send_to || "-"}
-                          </span>
                           <MapPin size={14} className="mr-1" />
                           <span>
                             <b>รับจาก:</b> {booking.pickup_location || "-"}
@@ -234,6 +231,9 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                 </div>
 
                 <div className="flex justify-between items-center text-xs text-gray-500 pt-2 border-t border-gray-500">
+                  <span className="font-medium mr-2 text-base">
+                    {booking.send_to || "-"}
+                  </span>
                   <span>
                     {booking.reference_id
                       ? booking.reference_id
