@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ServiceItem, VoucherInput } from "./VoucherForm";
-import { Check, Camera } from "lucide-react";
-import { useNotification } from "../../hooks/useNotification";
-import domtoimage from "dom-to-image";
+import { Check } from "lucide-react";
+import CaptureButtons from "../common/CaptureButtons";
 
 const TransferVoucherForm = ({
   booking,
   voucherData: initialVoucherData,
   onSave,
 }) => {
-  const { showSuccess, showError, showInfo } = useNotification();
   const printRef = React.useRef(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [fontLoaded, setFontLoaded] = useState(false);
@@ -115,39 +113,6 @@ const TransferVoucherForm = ({
     }
   };
 
-  const handleDownloadImage = () => {
-    if (!printRef.current || !imageLoaded || !fontLoaded) {
-      showError("กรุณารอโหลดข้อมูลและฟอนต์ให้ครบก่อนบันทึก");
-      return;
-    }
-
-    showInfo("กำลังสร้างรูปภาพ กรุณารอสักครู่...");
-
-    domtoimage
-      .toBlob(printRef.current, {
-        style: { fontFamily: "Kanit, sans-serif" },
-      })
-      .then((blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `voucher_${voucherData.year_number}_${
-          voucherData.sequence_number
-        }${
-          voucherData.customer_name
-            ? `_${voucherData.customer_name.replace(/\s+/g, "_")}`
-            : ""
-        }.png`;
-        link.click();
-        window.URL.revokeObjectURL(url);
-        showSuccess("บันทึกรูปภาพสำเร็จ");
-      })
-      .catch((error) => {
-        console.error("เกิดข้อผิดพลาดในการสร้างรูปภาพ:", error);
-        showError("เกิดข้อผิดพลาดในการสร้างรูปภาพ: " + error.message);
-      });
-  };
-
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mb-4 font-kanit max-w-[1000px] mx-auto">
       <div className="flex justify-center gap-4 mb-4 print:hidden">
@@ -161,13 +126,21 @@ const TransferVoucherForm = ({
           <Check size={16} className="mr-1" />
           {isSaving ? "กำลังบันทึก..." : "บันทึก Voucher"}
         </button>
-        <button
-          className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center font-kanit text-sm"
-          onClick={handleDownloadImage}
-        >
-          <Camera size={16} className="mr-1" />
-          แคปภาพ
-        </button>
+        <CaptureButtons
+          targetRef={printRef}
+          filename={`voucher_${voucherData.year_number}_${
+            voucherData.sequence_number
+          }${
+            voucherData.customer_name
+              ? `_${voucherData.customer_name.replace(/\s+/g, "_")}`
+              : ""
+          }`}
+          size="sm"
+          context="home"
+          primaryButton="copy"
+          showDownload={true}
+          showCopy={true}
+        />
       </div>
 
       <div
@@ -206,12 +179,12 @@ const TransferVoucherForm = ({
           </div>
           <div className="flex flex-col justify-start">
             <div className="bg-blue-600 text-white p-1 text-center mb-1">
-              <span className="block  font-kanit text-sm">
+              <span className="block font-kanit text-sm">
                 เลขที่: {voucherData.year_number || new Date().getFullYear()}
               </span>
             </div>
             <div className="bg-blue-600 text-white p-1 text-center">
-              <span className="block  font-kanit text-sm">
+              <span className="block font-kanit text-sm">
                 เลขที่: {voucherData.sequence_number || "0001"}
               </span>
             </div>

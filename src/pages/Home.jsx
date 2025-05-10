@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import supabase from "../config/supabaseClient";
 import BookingList from "../components/booking/BookingList";
@@ -6,17 +6,17 @@ import BookingDetailModal from "../components/booking/BookingDetailModal";
 import BookingStatusLegend from "../components/booking/BookingStatusLegend";
 import CalendarHighlight from "../components/booking/CalendarHighlight";
 import { useNotification } from "../hooks/useNotification";
-import domtoimage from "dom-to-image";
+import CaptureButtons from "../components/common/CaptureButtons";
 import {
-  Plus,
   Printer,
+  Camera,
+  Download,
+  Copy,
   Users,
   UserCheck,
   Car,
-  Download,
   CalendarDays,
   MapPin,
-  Camera,
 } from "lucide-react";
 
 const Home = () => {
@@ -29,7 +29,10 @@ const Home = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [bookingType, setBookingType] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [filter, setFilter] = useState("all"); // สถานะสำหรับตัวกรอง: 'all', 'pending', 'booked', 'in_progress', 'completed', 'cancelled'
+  const [filter, setFilter] = useState("all");
+
+  // Ref สำหรับพื้นที่แคปภาพ
+  const captureAreaRef = useRef(null);
 
   // Format the selected date for display
   const formattedDate = format(selectedDate, "dd/MM/yyyy");
@@ -46,7 +49,6 @@ const Home = () => {
     setError(null);
 
     try {
-      // Fetch tour bookings
       const { data: tourData, error: tourError } = await supabase
         .from("tour_bookings")
         .select("*, orders(first_name, last_name, pax)")
@@ -54,7 +56,6 @@ const Home = () => {
 
       if (tourError) throw tourError;
 
-      // Fetch transfer bookings
       const { data: transferData, error: transferError } = await supabase
         .from("transfer_bookings")
         .select("*, orders(first_name, last_name, pax)")
@@ -62,9 +63,10 @@ const Home = () => {
 
       if (transferError) throw transferError;
 
-      // Sort by pickup time
       const sortedTourData = tourData.sort((a, b) => {
-        return (a.pickup_time || "").localeCompare(b.pickup_time || "");
+        return (a.tour_pickup_time || "").localeCompare(
+          b.tour_pickup_time || ""
+        );
       });
 
       const sortedTransferData = transferData.sort((a, b) => {
@@ -109,7 +111,6 @@ const Home = () => {
 
       if (error) throw error;
 
-      // Refresh bookings after update
       fetchBookings(queryDate);
       setIsModalOpen(false);
 
@@ -129,7 +130,6 @@ const Home = () => {
 
       if (error) throw error;
 
-      // Refresh bookings after deletion
       fetchBookings(queryDate);
       setIsModalOpen(false);
 
@@ -140,46 +140,10 @@ const Home = () => {
     }
   };
 
-  const handleExport = () => {
-    const captureArea = document.getElementById("captureArea");
-    if (!captureArea) {
-      showError("ไม่พบพื้นที่ที่จะแคปภาพ");
-      return;
-    }
-
-    showInfo("กำลังสร้างภาพ กรุณารอสักครู่...");
-
-    domtoimage
-      .toBlob(captureArea, {
-        bgcolor: "#ffffff",
-        style: {
-          "background-color": "#ffffff",
-        },
-        width: captureArea.scrollWidth,
-        height: captureArea.scrollHeight,
-        quality: 1,
-      })
-      .then((blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "booking-screenshot.png";
-        link.click();
-        window.URL.revokeObjectURL(url);
-        showSuccess("บันทึกภาพสำเร็จ");
-      })
-      .catch((error) => {
-        console.error("เกิดข้อผิดพลาดในการสร้างภาพ:", error);
-        showError("เกิดข้อผิดพลาดในการสร้างภาพ: " + error.message);
-      });
-  };
-
-  // คำนวณยอดรวมจำนวนคน
   const totalPax =
     tourBookings.reduce((sum, item) => sum + (item.pax || 0), 0) +
     transferBookings.reduce((sum, item) => sum + (item.pax || 0), 0);
 
-  // กรองรายการตามสถานะ
   const filteredTourBookings =
     filter === "all"
       ? tourBookings
@@ -189,48 +153,6 @@ const Home = () => {
     filter === "all"
       ? transferBookings
       : transferBookings.filter((booking) => booking.status === filter);
-
-  const captureAndCopyScreenshot = () => {
-    const captureArea = document.getElementById("captureArea");
-    if (!captureArea) {
-      showError("ไม่พบพื้นที่ที่จะแคปภาพ");
-      return;
-    }
-
-    showInfo("กำลังคัดลอกภาพ กรุณารอสักครู่...");
-
-    domtoimage
-      .toBlob(captureArea, {
-        bgcolor: "#ffffff",
-        style: {
-          "background-color": "#ffffff",
-        },
-        width: captureArea.scrollWidth,
-        height: captureArea.scrollHeight,
-        quality: 1,
-      })
-      .then((blob) => {
-        try {
-          const item = new ClipboardItem({ "image/png": blob });
-          navigator.clipboard
-            .write([item])
-            .then(() => showSuccess("คัดลอกรูปภาพไปยังคลิปบอร์ดแล้ว"))
-            .catch((error) => {
-              console.error("ไม่สามารถคัดลอกไปยังคลิปบอร์ดได้:", error);
-              showError("ไม่สามารถคัดลอกไปยังคลิปบอร์ดได้: " + error.message);
-            });
-        } catch (error) {
-          console.error("เกิดข้อผิดพลาดในการคัดลอก:", error);
-          showError(
-            "เบราว์เซอร์ของคุณไม่รองรับการคัดลอกรูปภาพ: " + error.message
-          );
-        }
-      })
-      .catch((error) => {
-        console.error("เกิดข้อผิดพลาดในการสร้างภาพ:", error);
-        showError("เกิดข้อผิดพลาดในการสร้างภาพ: " + error.message);
-      });
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -246,81 +168,108 @@ const Home = () => {
         />
 
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div id="captureArea">
-            <div className="p-4">
-              {/* ส่วนแสดงวันที่และตัวกรองสถานะ */}
-              <div className="flex flex-col sm:flex-row justify-between items-center mb-6 bg-white rounded-lg p-4 border border-gray-100">
-                <div className="flex items-center gap-2 mb-2 sm:mb-0">
-                  <h2 className="text-3xl font-bold text-red-600">
-                    {formattedDate}
-                  </h2>
-                  <button
-                    onClick={captureAndCopyScreenshot}
-                    className="ml-2 bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-all tooltip-container"
-                    title="คัดลอกภาพรายการจอง"
-                  >
-                    <Camera size={20} />
-                    {/* <span className="tooltip">คัดลอกรายการจอง</span> */}
-                  </button>
-                </div>
+          <div className="p-4 font-kanit">
+            {/* ส่วนแสดงตัวกรองสถานะและปุ่มแคปภาพ */}
+            <div className="flex flex-col sm:flex-row justify-between items-center mb-6 bg-white rounded-lg p-4 border border-gray-100">
+              {/* ปุ่มแคปภาพ (ซ้าย) */}
+              <div className="flex gap-2 mb-2 sm:mb-0 print-hidden">
+                <CaptureButtons
+                  targetRef={captureAreaRef}
+                  filename={`booking-summary-${formattedDate.replace(
+                    /\//g,
+                    "-"
+                  )}`}
+                  layout="row"
+                  size="sm"
+                  variant="default"
+                  primaryButton="copy"
+                  showDownload={true}
+                  showCopy={true}
+                  className="bg-white bg-opacity-75 gap-2 rounded-md p-1"
+                  options={{
+                    bgColor: "#ffffff",
+                    styles: {
+                      fontFamily: "'Kanit', sans-serif",
+                    },
+                  }}
+                  context="home" // ใช้ config สำหรับ Home
+                />
+              </div>
 
-                <div className="flex flex-wrap justify-center gap-2">
-                  <button
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                      filter === "all"
-                        ? "bg-gray-200 text-gray-800 font-medium"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                    onClick={() => setFilter("all")}
-                  >
-                    ทั้งหมด
-                  </button>
-                  <button
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                      filter === "pending"
-                        ? "bg-gray-600 text-white font-medium"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                    onClick={() => setFilter("pending")}
-                  >
-                    รอดำเนินการ
-                  </button>
-                  <button
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                      filter === "booked"
-                        ? "bg-blue-600 text-white font-medium"
-                        : "bg-blue-100 text-blue-800 hover:bg-blue-200"
-                    }`}
-                    onClick={() => setFilter("booked")}
-                  >
-                    จองแล้ว
-                  </button>
-                  <button
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                      filter === "in_progress"
-                        ? "bg-yellow-600 text-white font-medium"
-                        : "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
-                    }`}
-                    onClick={() => setFilter("in_progress")}
-                  >
-                    กำลังดำเนินการ
-                  </button>
-                  <button
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                      filter === "completed"
-                        ? "bg-green-600 text-white font-medium"
-                        : "bg-green-100 text-green-800 hover:bg-green-200"
-                    }`}
-                    onClick={() => setFilter("completed")}
-                  >
-                    เสร็จสมบูรณ์
-                  </button>
-                </div>
+              {/* ปุ่มตัวกรองสถานะ (ขวา) */}
+              <div className="flex flex-wrap justify-center sm:justify-end gap-2">
+                <button
+                  className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    filter === "all"
+                      ? "bg-gray-200 text-gray-800 font-medium"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                  onClick={() => setFilter("all")}
+                >
+                  ทั้งหมด
+                </button>
+                <button
+                  className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    filter === "pending"
+                      ? "bg-gray-600 text-white font-medium"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                  onClick={() => setFilter("pending")}
+                >
+                  รอดำเนินการ
+                </button>
+                <button
+                  className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    filter === "booked"
+                      ? "bg-blue-600 text-white font-medium"
+                      : "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                  }`}
+                  onClick={() => setFilter("booked")}
+                >
+                  จองแล้ว
+                </button>
+                <button
+                  className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    filter === "in_progress"
+                      ? "bg-yellow-600 text-white font-medium"
+                      : "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                  }`}
+                  onClick={() => setFilter("in_progress")}
+                >
+                  กำลังดำเนินการ
+                </button>
+                <button
+                  className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    filter === "completed"
+                      ? "bg-green-600 text-white font-medium"
+                      : "bg-green-100 text-green-800 hover:bg-green-200"
+                  }`}
+                  onClick={() => setFilter("completed")}
+                >
+                  เสร็จสมบูรณ์
+                </button>
+              </div>
+            </div>
+
+            <div
+              id="captureArea"
+              ref={captureAreaRef}
+              className="font-kanit"
+              style={{
+                fontFamily: "'Kanit', sans-serif",
+                backgroundColor: "white",
+              }}
+            >
+              {/* วันที่สีแดงใน captureArea */}
+              <div className="mb-6 mt-6">
+                <h2 className="text-3xl font-bold text-red-600 text-center">
+                  {formattedDate}
+                </h2>
               </div>
 
               <BookingStatusLegend />
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Tour Bookings */}
                 <div>
                   <div className="bg-white border border-green-200 rounded-lg shadow-sm overflow-hidden">

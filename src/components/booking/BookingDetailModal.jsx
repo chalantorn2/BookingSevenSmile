@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   X,
   Save,
@@ -12,6 +12,7 @@ import {
 import supabase from "../../config/supabaseClient";
 import { formatDate } from "../../utils/dateUtils";
 import { useAlertDialogContext } from "../../contexts/AlertDialogContext";
+import CaptureButtons from "../common/CaptureButtons";
 
 const BookingDetailModal = ({
   booking,
@@ -26,8 +27,8 @@ const BookingDetailModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAdditionalFields, setShowAdditionalFields] = useState(false);
   const [orderData, setOrderData] = useState(null);
+  const captureRef = useRef(null);
 
-  // เพิ่ม Effect สำหรับการกดปุ่ม ESC
   useEffect(() => {
     const handleEscKeyPress = (e) => {
       if (e.key === "Escape") {
@@ -44,23 +45,17 @@ const BookingDetailModal = ({
 
   useEffect(() => {
     if (booking) {
-      // ตั้งค่าข้อมูลฟอร์มจาก booking
       setFormData({ ...booking });
-
-      // ตรวจสอบว่าควรแสดงฟิลด์เพิ่มเติมหรือไม่ตามสถานะ
       const status = booking.status || "pending";
       setShowAdditionalFields(
         ["booked", "in_progress", "completed"].includes(status)
       );
-
-      // ดึงข้อมูล order เพื่อแสดงเป็นข้อมูลเพิ่มเติมเท่านั้น
       if (booking.order_id) {
         fetchOrderData(booking.order_id);
       }
     }
   }, [booking]);
 
-  // ดึงข้อมูล order จาก Supabase
   const fetchOrderData = async (orderId) => {
     try {
       const { data, error } = await supabase
@@ -77,12 +72,9 @@ const BookingDetailModal = ({
     }
   };
 
-  // จัดการเมื่อค่าในฟอร์มเปลี่ยนแปลง
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-
-    // เปิด/ปิดฟิลด์เพิ่มเติมสำหรับ transfer bookings ตามสถานะ
     if (name === "status" && bookingType === "transfer") {
       setShowAdditionalFields(
         ["booked", "in_progress", "completed"].includes(value)
@@ -90,23 +82,16 @@ const BookingDetailModal = ({
     }
   };
 
-  // จัดการการส่งฟอร์ม
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setStatusMessage({ type: "info", message: "กำลังบันทึกข้อมูล..." });
-    console.log("Status being sent:", formData.status);
-    console.log("All form data:", formData);
     try {
-      // สร้างข้อมูลใหม่โดยไม่รวมฟิลด์ orders (ถ้ามี)
       const { orders, ...bookingDataToSave } = formData;
-      // เรียกใช้ onSave ที่ส่งมาจาก prop
       const result = await onSave(bookingDataToSave);
 
       if (result.success) {
         setStatusMessage({ type: "success", message: "บันทึกข้อมูลสำเร็จ" });
-
-        // ปิด modal หลังจากบันทึกสำเร็จ
         setTimeout(() => {
           onClose();
         }, 1500);
@@ -128,26 +113,21 @@ const BookingDetailModal = ({
     }
   };
 
-  // จัดการการลบข้อมูล
   const handleDelete = async () => {
-    // เปลี่ยนจาก confirm เป็น showAlert
     const confirmed = await showAlert({
       title: "ยืนยันการลบ",
       description: "คุณต้องการลบรายการนี้ใช่หรือไม่?",
       confirmText: "ลบ",
       cancelText: "ยกเลิก",
-      actionVariant: "destructive", // กำหนดสีปุ่มเป็นสีแดง
+      actionVariant: "destructive",
     });
 
-    // ทำงานต่อเมื่อผู้ใช้กดยืนยันเท่านั้น
     if (confirmed) {
       setIsSubmitting(true);
-
       const result = await onDelete(booking.id);
 
       if (result.success) {
         setStatusMessage({ type: "success", message: "ลบข้อมูลสำเร็จ" });
-
         setTimeout(() => {
           onClose();
         }, 1500);
@@ -157,12 +137,10 @@ const BookingDetailModal = ({
           message: `เกิดข้อผิดพลาด: ${result.error || "ไม่สามารถลบข้อมูลได้"}`,
         });
       }
-
       setIsSubmitting(false);
     }
   };
 
-  // แสดงข้อมูล Order (แสดงเป็นข้อมูลเพิ่มเติม ไม่สามารถแก้ไขได้)
   const renderOrderInfo = () => {
     if (!orderData) return null;
 
@@ -173,9 +151,6 @@ const BookingDetailModal = ({
             <User size={18} className="mr-2 text-gray-600" />
             ข้อมูล Order
           </h4>
-          <span className="text-sm text-gray-500">
-            {/* (ข้อมูลนี้ไม่สามารถแก้ไขได้ใน modal นี้) */}
-          </span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -199,7 +174,6 @@ const BookingDetailModal = ({
     );
   };
 
-  // กำหนดกลุ่มฟิลด์สำหรับแสดงตามประเภทของ booking
   const getFieldGroups = () => {
     if (bookingType === "tour") {
       return [
@@ -207,6 +181,14 @@ const BookingDetailModal = ({
           title: "ข้อมูลหลัก",
           icon: <Calendar size={18} className="mr-2 text-green-600" />,
           fields: [
+            {
+              name: "customer_name",
+              label: "ชื่อลูกค้า",
+              readOnly: true,
+              value: orderData
+                ? `${orderData.first_name} ${orderData.last_name}`
+                : "-",
+            },
             {
               name: "reference_id",
               label: "รหัสการจอง",
@@ -233,7 +215,6 @@ const BookingDetailModal = ({
                 "bg-green-50 border-green-300 text-green-800 font-bold",
               labelClass: "text-green-700 font-semibold",
             },
-
             {
               name: "tour_pickup_time",
               label: "เวลารับ",
@@ -244,41 +225,50 @@ const BookingDetailModal = ({
           ],
         },
         {
-          title: "รายละเอียดทัวร์",
+          title: "รายละเอียด Tour",
           icon: <Package size={18} className="mr-2 text-green-600" />,
-          fields: [
-            { name: "tour_type", label: "ประเภททัวร์" },
-            {
-              name: "tour_detail",
-              label: "รายละเอียด",
-              type: "textarea",
-              className:
-                "bg-green-50 border-green-300 text-green-800 font-bold",
-              labelClass: "text-green-700 font-semibold",
-            },
-            { name: "pax", label: "จำนวนคน", type: "text" },
-            {
-              name: "tour_hotel",
-              label: "โรงแรม",
-              className:
-                "bg-green-50 border-green-300 text-green-800 font-bold",
-              labelClass: "text-green-700 font-semibold",
-            },
-            {
-              name: "tour_room_no",
-              label: "หมายเลขห้อง",
-              className:
-                "bg-green-50 border-green-300 text-green-800 font-bold",
-              labelClass: "text-green-700 font-semibold",
-            },
-            { name: "tour_contact_no", label: "เบอร์ติดต่อ" },
-            {
-              name: "send_to",
-              label: "ส่งใคร",
-              className:
-                "bg-green-50 border-green-300 text-green-800 font-bold",
-              labelClass: "text-green-700 font-semibold",
-            },
+          rows: [
+            [
+              { name: "pax", label: "จำนวนคน", type: "text" },
+              { name: "tour_type", label: "ประเภททัวร์" },
+              {
+                name: "tour_detail",
+                label: "รายละเอียด",
+                type: "textarea",
+                className:
+                  "bg-green-50 border-green-300 text-green-800 font-bold",
+                labelClass: "text-green-700 font-semibold",
+              },
+            ],
+            [
+              {
+                name: "tour_hotel",
+                label: "โรงแรม",
+                className:
+                  "bg-green-50 border-green-300 text-green-800 font-bold",
+                labelClass: "text-green-700 font-semibold",
+              },
+              {
+                name: "tour_room_no",
+                label: "หมายเลขห้อง",
+                className:
+                  "bg-green-50 border-green-300 text-green-800 font-bold",
+                labelClass: "text-green-700 font-semibold",
+              },
+              { name: "tour_contact_no", label: "เบอร์ติดต่อ" },
+            ],
+            [
+              {
+                name: "send_to",
+                label: "ส่งใคร",
+                className:
+                  "bg-green-50 border-green-300 text-green-800 font-bold",
+                labelClass: "text-green-700 font-semibold",
+              },
+            ],
+          ],
+          additionalFields: [
+            { name: "note", label: "หมายเหตุ", type: "textarea" },
           ],
         },
         {
@@ -297,6 +287,15 @@ const BookingDetailModal = ({
           title: "ข้อมูลหลัก",
           icon: <Calendar size={18} className="mr-2 text-blue-600" />,
           fields: [
+            {
+              name: "customer_name",
+              label: "ชื่อลูกค้า",
+              readOnly: true,
+
+              value: orderData
+                ? `${orderData.first_name} ${orderData.last_name}`
+                : "-",
+            },
             {
               name: "reference_id",
               label: "รหัสการจอง",
@@ -331,46 +330,54 @@ const BookingDetailModal = ({
           ],
         },
         {
-          title: "รายละเอียดการรับส่ง",
+          title: "รายละเอียด Transfer",
           icon: <Clock size={18} className="mr-2 text-blue-600" />,
-          fields: [
-            { name: "transfer_type", label: "ประเภทการรับส่ง" },
-            {
-              name: "transfer_detail",
-              label: "รายละเอียด",
-              type: "textarea",
-            },
-            { name: "pax", label: "จำนวนคน", type: "text" },
-            {
-              name: "pickup_location",
-              label: "สถานที่รับ",
-              className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
-              labelClass: "text-blue-700 font-semibold",
-            },
-            {
-              name: "drop_location",
-              label: "สถานที่ส่ง",
-              className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
-              labelClass: "text-blue-700 font-semibold",
-            },
-            {
-              name: "transfer_flight",
-              label: "เที่ยวบิน",
-              className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
-              labelClass: "text-blue-700 font-semibold",
-            },
-            {
-              name: "transfer_ftime",
-              label: "เวลาบิน",
-              className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
-              labelClass: "text-blue-700 font-semibold",
-            },
-            {
-              name: "send_to",
-              label: "ส่งใคร",
-              className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
-              labelClass: "text-blue-700 font-semibold",
-            },
+          rows: [
+            [
+              { name: "pax", label: "จำนวนคน", type: "text" },
+              { name: "transfer_type", label: "ประเภทการรับส่ง" },
+              {
+                name: "transfer_detail",
+                label: "รายละเอียด",
+                type: "textarea",
+              },
+            ],
+            [
+              {
+                name: "pickup_location",
+                label: "สถานที่รับ",
+                className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
+                labelClass: "text-blue-700 font-semibold",
+              },
+              {
+                name: "drop_location",
+                label: "สถานที่ส่ง",
+                className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
+                labelClass: "text-blue-700 font-semibold",
+              },
+            ],
+            [
+              {
+                name: "transfer_flight",
+                label: "เที่ยวบิน",
+                className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
+                labelClass: "text-blue-700 font-semibold",
+              },
+              {
+                name: "transfer_ftime",
+                label: "เวลาบิน",
+                className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
+                labelClass: "text-blue-700 font-semibold",
+              },
+              {
+                name: "send_to",
+                label: "ส่งใคร",
+                className: "bg-blue-50 border-blue-300 text-blue-800 font-bold",
+                labelClass: "text-blue-700 font-semibold",
+              },
+            ],
+          ],
+          additionalFields: [
             { name: "note", label: "หมายเหตุ", type: "textarea" },
           ],
         },
@@ -406,7 +413,7 @@ const BookingDetailModal = ({
       readOnly = false,
       options = [],
       value: explicitValue,
-      className = "", // ดึง className มาจาก field
+      className = "",
     } = field;
 
     const fieldValue =
@@ -416,7 +423,18 @@ const BookingDetailModal = ({
       readOnly
         ? "bg-gray-100 border-gray-300"
         : "border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200"
-    } ${className}`; // << ใส่ className ที่มากับ field ด้วย
+    } ${className}`;
+
+    // เพิ่มเงื่อนไขสำหรับ customer_name
+    if (name === "customer_name") {
+      return (
+        <p
+          className={`w-full rounded-md p-2 border bg-gray-100 border-gray-300 min-h-[40px] whitespace-normal break-words ${className}`}
+        >
+          {fieldValue}
+        </p>
+      );
+    }
 
     switch (type) {
       case "textarea":
@@ -462,8 +480,6 @@ const BookingDetailModal = ({
         );
     }
   };
-
-  // ฟังก์ชันแปลงสถานะเป็นภาษาไทย
   const getStatusText = (status) => {
     const statusMap = {
       pending: "รอดำเนินการ",
@@ -475,7 +491,6 @@ const BookingDetailModal = ({
     return statusMap[status] || status;
   };
 
-  // ฟังก์ชันสร้างสี badge ตามสถานะ
   const getStatusBadgeClass = (status) => {
     switch (status) {
       case "pending":
@@ -504,8 +519,8 @@ const BookingDetailModal = ({
           <div className="flex justify-center items-center">
             <span className="text-xl font-semibold mr-2">
               {bookingType === "tour"
-                ? "รายละเอียดการจองทัวร์"
-                : "รายละเอียดการจองรถรับส่ง"}
+                ? "รายละเอียด Tour Booking"
+                : "รายละเอียด Transfer Booking"}
             </span>
             {booking.status && (
               <span
@@ -517,45 +532,151 @@ const BookingDetailModal = ({
               </span>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors"
-          >
-            <X size={24} />
-          </button>
+          <div className="flex items-center gap-2">
+            <CaptureButtons
+              targetRef={captureRef}
+              filename={`booking-${bookingType}-${booking.id}`}
+              size="sm"
+              context="home"
+              primaryButton="copy"
+              showDownload={true}
+              showCopy={true}
+            />
+            <button
+              onClick={onClose}
+              className="p-1 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors"
+            >
+              <X size={24} />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6">
-          {/* แสดงข้อมูล Order (เป็นข้อมูลเพิ่มเติม ไม่สามารถแก้ไขได้) */}
           {renderOrderInfo()}
-
-          {/* แสดงฟิลด์ต่างๆ ของ Booking ที่สามารถแก้ไขได้ */}
-          {getFieldGroups().map((group, groupIndex) => (
-            <div key={groupIndex} className={`mb-6 ${group.className || ""}`}>
-              <h4 className="text-lg font-medium mb-3 pb-2 border-b border-gray-200 flex items-center">
-                {group.icon}
-                {group.title}
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2  gap-4">
-                {group.fields.map((field) => (
-                  <div key={field.name} className="mb-3  ">
-                    <label
-                      htmlFor={`field-${field.name}`}
-                      className={`block text-sm mb-1 ${
-                        field.labelClass || "text-gray-700"
-                      }`}
-                    >
-                      {field.label}
-                    </label>
-
-                    {renderField(field)}
-                  </div>
-                ))}
+          <div ref={captureRef} className="p-4">
+            {getFieldGroups()
+              .filter((group) =>
+                [
+                  "ข้อมูลหลัก",
+                  "รายละเอียด Tour",
+                  "รายละเอียด Transfer",
+                ].includes(group.title)
+              )
+              .map((group, groupIndex) => (
+                <div
+                  key={groupIndex}
+                  className={`mb-6 ${group.className || ""}`}
+                >
+                  <h4 className="text-lg font-medium mb-3 pb-2 border-b border-gray-200 flex items-center">
+                    {group.icon}
+                    {group.title}
+                  </h4>
+                  {group.rows ? (
+                    group.rows.map((row, rowIndex) => (
+                      <div
+                        key={rowIndex}
+                        className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4"
+                      >
+                        {row.map((field) => (
+                          <div
+                            key={field.name}
+                            className={`mb-3 ${
+                              field.colSpan
+                                ? `md:col-span-${field.colSpan}`
+                                : ""
+                            }`}
+                          >
+                            <label
+                              htmlFor={`field-${field.name}`}
+                              className={`block text-sm mb-1 ${
+                                field.labelClass || "text-gray-700"
+                              }`}
+                            >
+                              {field.label}
+                            </label>
+                            {renderField(field)}
+                          </div>
+                        ))}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {group.fields.map((field) => (
+                        <div key={field.name} className="mb-3">
+                          <label
+                            htmlFor={`field-${field.name}`}
+                            className={`block text-sm mb-1 ${
+                              field.labelClass || "text-gray-700"
+                            }`}
+                          >
+                            {field.label}
+                          </label>
+                          {renderField(field)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
+          {getFieldGroups()
+            .filter(
+              (group) =>
+                ["รายละเอียด Tour", "รายละเอียด Transfer"].includes(
+                  group.title
+                ) && group.additionalFields
+            )
+            .map((group, groupIndex) => (
+              <div key={groupIndex} className={`mb-6 ${group.className || ""}`}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {group.additionalFields.map((field) => (
+                    <div key={field.name} className="mb-3 md:col-span-3">
+                      <label
+                        htmlFor={`field-${field.name}`}
+                        className={`block text-sm mb-1 ${
+                          field.labelClass || "text-gray-700"
+                        }`}
+                      >
+                        {field.label}
+                      </label>
+                      {renderField(field)}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-
-          {/* แสดงข้อความสถานะ */}
+            ))}
+          {getFieldGroups()
+            .filter(
+              (group) =>
+                ![
+                  "ข้อมูลหลัก",
+                  "รายละเอียด Tour",
+                  "รายละเอียด Transfer",
+                ].includes(group.title)
+            )
+            .map((group, groupIndex) => (
+              <div key={groupIndex} className={`mb-6 ${group.className || ""}`}>
+                <h4 className="text-lg font-medium mb-3 pb-2 border-b border-gray-200 flex items-center ">
+                  {group.icon}
+                  {group.title}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ">
+                  {group.fields.map((field) => (
+                    <div key={field.name} className="mb-3">
+                      <label
+                        htmlFor={`field-${field.name}`}
+                        className={`block text-sm mb-1 ${
+                          field.labelClass || "text-gray-700"
+                        }`}
+                      >
+                        {field.label}
+                      </label>
+                      {renderField(field)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           {statusMessage.message && (
             <div
               className={`p-3 rounded mb-4 ${
@@ -569,8 +690,6 @@ const BookingDetailModal = ({
               {statusMessage.message}
             </div>
           )}
-
-          {/* ปุ่มดำเนินการ */}
           <div className="flex justify-between mt-6">
             <button
               type="button"
@@ -580,7 +699,6 @@ const BookingDetailModal = ({
               <Trash2 size={18} className="mr-2" />
               ลบรายการ
             </button>
-
             <div className="flex gap-2">
               <button
                 type="button"
@@ -589,7 +707,6 @@ const BookingDetailModal = ({
               >
                 ปิด
               </button>
-
               <button
                 type="submit"
                 disabled={isSubmitting}

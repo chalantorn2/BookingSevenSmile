@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { format } from "date-fns";
 import {
   Eye,
@@ -11,9 +11,14 @@ import {
   FileText,
   BedDouble,
 } from "lucide-react";
+import { useNotification } from "../../hooks/useNotification";
+import CaptureButtons from "../common/CaptureButtons";
 
 const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
+  const { showSuccess, showError, showInfo } = useNotification();
+
   console.log(`${type} bookings:`, bookings);
+
   const getStatusBackgroundStyle = (status) => {
     switch (status) {
       case "pending":
@@ -30,6 +35,7 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
         return "bg-gradient-to-br from-gray-200 via-gray-100 to-white";
     }
   };
+
   if (isLoading) {
     return (
       <div className="text-center py-4">
@@ -83,37 +89,77 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
     return statusMap[status] || status;
   };
 
+  // จัดเรียงข้อมูล bookings ตามเวลารับ
+  const sortedBookings = [...bookings].sort((a, b) => {
+    const timeA = a.tour_pickup_time || a.transfer_time || "";
+    const timeB = b.tour_pickup_time || b.transfer_time || "";
+    return timeA.localeCompare(timeB);
+  });
+
   return (
-    <div className="space-y-3">
-      {[...bookings]
-        .sort((a, b) => {
-          const timeA = a.tour_pickup_time || a.transfer_time || "";
-          const timeB = b.tour_pickup_time || b.transfer_time || "";
-          return timeA.localeCompare(timeB); // เรียงจากเช้าไปเย็น
-        })
-        .map((booking, index) => {
-          const firstName = booking.orders?.first_name || "";
-          const lastName = booking.orders?.last_name || "";
-          const customerName = `${firstName} ${lastName}`.trim() || "ไม่มีชื่อ";
+    <div className="relative space-y-3 font-kanit">
+      {sortedBookings.map((booking, index) => {
+        const firstName = booking.orders?.first_name || "";
+        const lastName = booking.orders?.last_name || "";
+        const customerName = `${firstName} ${lastName}`.trim() || "ไม่มีชื่อ";
 
-          // ตรวจสอบการเข้าถึงข้อมูล pax และแสดงในค่าที่ปลอดภัย
-          let paxDisplay = "-";
-          if (booking.orders && booking.orders.pax) {
-            paxDisplay = booking.orders.pax;
-          } else if (booking.pax) {
-            // ถ้าไม่มีใน orders ให้ใช้จาก booking โดยตรงเป็น fallback
-            paxDisplay = booking.pax;
-          }
+        let paxDisplay = "-";
+        if (booking.orders && booking.orders.pax) {
+          paxDisplay = booking.orders.pax;
+        } else if (booking.pax) {
+          paxDisplay = booking.pax;
+        }
 
-          return (
+        // สร้าง ref สำหรับแต่ละรายการจอง
+        const bookingCaptureRef = useRef(null);
+
+        return (
+          <div key={booking.id} className="relative">
+            {/* ปุ่มแคปภาพสำหรับรายการนี้ */}
+            <div className="absolute top-2 right-2 z-10 flex flex-row items-center gap-1 print-hidden">
+              <CaptureButtons
+                targetRef={bookingCaptureRef}
+                filename={`booking-${type}-${booking.id}-${
+                  new Date().toISOString().split("T")[0]
+                }`}
+                layout="row"
+                size="sm"
+                variant="default"
+                primaryButton="copy"
+                showDownload={true}
+                showCopy={true}
+                className="rounded-md"
+                options={{
+                  bgColor: "#ffffff",
+                  styles: {
+                    fontFamily: "'Kanit', sans-serif",
+                  },
+                }}
+                context="bookingList"
+              />
+              <button
+                onClick={() => onViewDetails(booking, type)}
+                className={`p-1 rounded-md ${
+                  type === "tour"
+                    ? "text-green-700 hover:bg-green-50"
+                    : "text-blue-700 hover:bg-blue-50"
+                }`}
+              >
+                <Eye size={18} />
+              </button>
+            </div>
+
+            {/* พื้นที่ที่จะแคปสำหรับรายการนี้ */}
             <div
-              key={booking.id}
+              ref={bookingCaptureRef}
               className={`border border-gray-500 rounded-md overflow-hidden transition-all hover:shadow-md ${getStatusBackgroundStyle(
                 booking.status
               )}`}
               style={{
                 borderLeftWidth: "5px",
                 borderLeftColor: type === "tour" ? "#16a34a" : "#2563eb",
+                fontFamily: "'Kanit', sans-serif",
+                backgroundColor: "white",
               }}
             >
               <div className="p-3">
@@ -125,16 +171,6 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                       {customerName} | {paxDisplay} คน
                     </span>
                   </div>
-                  <button
-                    onClick={() => onViewDetails(booking, type)}
-                    className={`p-1 rounded-full ${
-                      type === "tour"
-                        ? "text-green-700 hover:bg-green-50"
-                        : "text-blue-700 hover:bg-blue-50"
-                    }`}
-                  >
-                    <Eye size={18} />
-                  </button>
                 </div>
                 <div className="flex flex-wrap gap-2 mb-2 text-xs">
                   <span
@@ -144,12 +180,13 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                         : "bg-blue-100 text-blue-800"
                     }`}
                   >
-                    <Clock size={16} className="mr-1 " />
-                    {type === "tour"
-                      ? booking.tour_pickup_time || "-"
-                      : booking.transfer_time || "-"}
+                    <Clock size={16} className="mr-1" />
+                    <span className="whitespace-nowrap">
+                      {type === "tour"
+                        ? booking.tour_pickup_time || "-"
+                        : booking.transfer_time || "-"}
+                    </span>
                   </span>
-
                   <span
                     className={`inline-flex items-center px-2 py-1 font-medium text-base rounded ${
                       type === "tour"
@@ -167,17 +204,19 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                   {type === "tour" ? (
                     <>
                       <div className="flex flex-wrap gap-x-4 text-base text-gray-800 mb-1">
-                        <div className="flex items-center">
-                          <span className="font-medium mr-2">
-                            {booking.send_to || "-"}
-                          </span>{" "}
-                          <Hotel size={16} className="mr-1" />
-                          <span>
-                            <b>โรงแรม:</b> {booking.tour_hotel || "-"}
-                          </span>
-                          <BedDouble size={16} className="ml-2 mr-1" />
+                        <div className="flex items-center flex-wrap">
+                          <div className="flex items-center mr-2">
+                            <Hotel size={16} className="mr-1 flex-shrink-0" />
+                            <span>
+                              <b>โรงแรม:</b> {booking.tour_hotel || "-"}
+                            </span>
+                          </div>
                           {booking.tour_room_no && (
-                            <div className="flex  items-center">
+                            <div className="flex items-center">
+                              <BedDouble
+                                size={16}
+                                className="mr-1 flex-shrink-0"
+                              />
                               <span>
                                 <b>ห้อง:</b> {booking.tour_room_no}
                               </span>
@@ -187,8 +226,8 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                       </div>
                       <div className="flex flex-wrap gap-x-4 text-xs text-gray-600 mb-2">
                         <div className="flex items-center">
-                          <FileText size={14} className="mr-1" />
-                          <span>
+                          <FileText size={14} className="mr-1 flex-shrink-0" />
+                          <span className="w-xl">
                             <b>รายละเอียด:</b> {booking.tour_detail || "-"}
                           </span>
                         </div>
@@ -197,21 +236,25 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                   ) : (
                     <>
                       <div className="flex flex-wrap gap-x-4 text-base text-gray-800 mb-1">
-                        <div className="flex items-center">
-                          <MapPin size={14} className="mr-1" />
-                          <span>
-                            <b>รับจาก:</b> {booking.pickup_location || "-"}
-                          </span>
-                          <MapPin size={14} className="ml-2 mr-1" />
-                          <span>
-                            <b>ส่งที่:</b> {booking.drop_location || "-"}
-                          </span>
+                        <div className="flex items-center flex-wrap">
+                          <div className="flex items-center mr-2">
+                            <MapPin size={14} className="mr-1 flex-shrink-0" />
+                            <span>
+                              <b>รับจาก:</b> {booking.pickup_location || "-"}
+                            </span>
+                          </div>
+                          <div className="flex items-center">
+                            <MapPin size={14} className="mr-1 flex-shrink-0" />
+                            <span>
+                              <b>ส่งที่:</b> {booking.drop_location || "-"}
+                            </span>
+                          </div>
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-x-4 text-base text-gray-800 mb-2">
                         {booking.transfer_flight && (
-                          <div className="flex items-center">
-                            <Plane size={16} className="mr-1" />
+                          <div className="flex items-center mr-2">
+                            <Plane size={16} className="mr-1 flex-shrink-0" />
                             <span>
                               <b>ไฟลต์:</b> {booking.transfer_flight}
                             </span>
@@ -219,9 +262,9 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                         )}
                         {booking.transfer_ftime && (
                           <div className="flex items-center">
-                            <Clock size={14} className="mr-1" />
+                            <Clock size={14} className="mr-1 flex-shrink-0" />
                             <span>
-                              <b>เวลา:บิน</b> {booking.transfer_ftime}
+                              <b>เวลาบิน:</b> {booking.transfer_ftime}
                             </span>
                           </div>
                         )}
@@ -229,9 +272,8 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                     </>
                   )}
                 </div>
-
                 <div className="flex justify-between items-center text-xs text-gray-500 pt-2 border-t border-gray-500">
-                  <span className="font-medium mr-2 text-base">
+                  <span className="font-medium mr-2 text-base w-30">
                     {booking.send_to || "-"}
                   </span>
                   <span>
@@ -249,8 +291,9 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                 </div>
               </div>
             </div>
-          );
-        })}
+          </div>
+        );
+      })}
     </div>
   );
 };
