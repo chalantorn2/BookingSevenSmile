@@ -748,7 +748,7 @@ const Invoice = () => {
       <div class="invoice-footer">
         <div>
           <p style="font-weight: bold; margin-bottom: 5px;">PAYMENT TO SEVENSMILE</p>
-          <p>KBank 0000-000-0000</p>
+          <p>KBank 255-2431-068</p>
           <p>ACCT : SEVENSMILE CO., LTD.</p>
         </div>
         <div style="text-align: right;">
