@@ -1,4 +1,5 @@
 // src/components/common/CaptureWrapper.jsx
+
 import React, { useRef, useState, useEffect } from "react";
 import { Camera, Download, Copy, Loader } from "lucide-react";
 import {
@@ -37,29 +38,41 @@ const CaptureWrapper = ({
   const [fontsLoaded, setFontsLoaded] = useState(false);
 
   // ตรวจสอบการโหลด Font
+  // เพิ่มในส่วนต้นของ CaptureButtons.jsx หรือ CaptureWrapper.jsx
   useEffect(() => {
-    const checkFonts = async () => {
-      // ใช้ Font Loading API ถ้ารองรับ
+    // เพิ่มการโหลดฟอนต์ Kanit โดยตรง
+    if (!document.getElementById("kanit-font")) {
+      const link = document.createElement("link");
+      link.id = "kanit-font";
+      link.rel = "stylesheet";
+      link.href =
+        "https://fonts.googleapis.com/css2?family=Kanit:wght@400;700&display=swap";
+      document.head.appendChild(link);
+
+      // สร้าง preload hint เพื่อเร่งการโหลด
+      const preload = document.createElement("link");
+      preload.rel = "preload";
+      preload.as = "font";
+      preload.type = "font/woff2";
+      preload.href =
+        "https://fonts.gstatic.com/s/kanit/v12/nKKZ-Go6G5tXcraVGwCKd6xBDFs.woff2";
+      preload.crossOrigin = "anonymous";
+      document.head.appendChild(preload);
+    }
+
+    // รอให้ฟอนต์โหลดเสร็จก่อนแคป
+    const waitForFonts = async () => {
       if (document.fonts && document.fonts.ready) {
         await document.fonts.ready;
-        setFontsLoaded(true);
+        const isFontLoaded = document.fonts.check("400 16px 'Kanit'");
+        console.log("Kanit font loaded:", isFontLoaded);
       } else {
-        // Fallback สำหรับเบราว์เซอร์เก่า
-        setTimeout(() => setFontsLoaded(true), 1000);
+        // รอสักครู่
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       }
     };
 
-    checkFonts();
-
-    // เพิ่ม Font Kanit ถ้ายังไม่ได้โหลด
-    const fontLink = document.querySelector('link[href*="Kanit"]');
-    if (!fontLink) {
-      const link = document.createElement("link");
-      link.href =
-        "https://fonts.googleapis.com/css2?family=Kanit:wght@400;700&display=swap";
-      link.rel = "stylesheet";
-      document.head.appendChild(link);
-    }
+    waitForFonts();
   }, []);
 
   // แคปเป็นไฟล์รูปภาพ

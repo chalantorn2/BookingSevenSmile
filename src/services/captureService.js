@@ -7,22 +7,32 @@ import { saveAs } from "file-saver";
  * @param {string} fontFamily - ชื่อ Font ที่ต้องการตรวจสอบ
  * @returns {Promise<boolean>} - สถานะการโหลด Font
  */
+// ปรับปรุงฟังก์ชัน checkFontLoaded ใน captureService.js
 const checkFontLoaded = async (fontFamily = "Kanit") => {
   return new Promise((resolve) => {
     if (document.fonts && document.fonts.check) {
-      // ใช้ Font Loading API ถ้ารองรับ
-      if (document.fonts.check(`12px ${fontFamily}`)) {
+      // ลองตรวจสอบด้วยหลายขนาดและหลายน้ำหนัก
+      const weights = ["400", "700"];
+      let allLoaded = true;
+
+      weights.forEach((weight) => {
+        if (!document.fonts.check(`${weight} 12px "${fontFamily}"`)) {
+          allLoaded = false;
+        }
+      });
+
+      if (allLoaded) {
         resolve(true);
         return;
       }
 
+      // รอให้ฟอนต์โหลดเสร็จโดยใช้ document.fonts.ready
       document.fonts.ready.then(() => {
-        resolve(document.fonts.check(`12px ${fontFamily}`));
+        resolve(true);
       });
     } else {
-      // Fallback สำหรับเบราว์เซอร์เก่า
-      // ให้เวลาโหลด Font ประมาณ 1 วินาที
-      setTimeout(() => resolve(true), 1000);
+      // รอนานขึ้นสำหรับเบราว์เซอร์เก่า
+      setTimeout(() => resolve(true), 3000);
     }
   });
 };
@@ -84,6 +94,12 @@ const createImageBlob = async (element, options = {}) => {
     height: options.height || element.scrollHeight,
     quality: options.quality || 1.0,
     cacheBust: true, // ป้องกันการใช้แคชเก่า
+    imagePlaceholder:
+      "data:image/png;base64,iVBORw0KGoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", // placeholder สำหรับรูปภาพ
+    fontEmbedCSS: `
+    @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;700&display=swap');
+    * { font-family: 'Kanit', sans-serif !important; }
+  `, // ฝังฟอนต์ CSS
   };
 
   try {
@@ -107,15 +123,30 @@ export const captureToImage = async (
   options = {}
 ) => {
   try {
+    await checkFontLoaded(options.fontFamily || "Kanit");
+
+    // ให้เวลาฟอนต์โหลดเพิ่มเติม
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // สร้าง inline style ชั่วคราวสำหรับองค์ประกอบที่จะแคป
+    const originalStyles = element.getAttribute("style") || "";
+    element.setAttribute(
+      "style",
+      `${originalStyles}; font-family: 'Kanit', sans-serif !important;`
+    );
+
     const blob = await createImageBlob(element, options);
     saveAs(blob, `${filename}.png`);
+
+    // คืนค่า style เดิม
+    element.setAttribute("style", originalStyles);
+
     return true;
   } catch (error) {
     console.error("Error capturing to image:", error);
     throw error;
   }
 };
-
 /**
  * แคปภาพและคัดลอกไปยังคลิปบอร์ด
  * @param {HTMLElement} element - DOM Element ที่ต้องการแคป
