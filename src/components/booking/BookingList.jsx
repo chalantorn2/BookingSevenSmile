@@ -96,6 +96,28 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
     return timeA.localeCompare(timeB);
   });
 
+  const formatPax = (booking) => {
+    // ตรวจสอบว่า booking มีค่าหรือไม่
+    if (!booking) return "0";
+
+    // แปลงค่าเป็นตัวเลข และถ้าเป็น NaN หรือไม่มีค่าให้เป็น 0
+    const adtCount = parseInt(booking.pax_adt || 0);
+    const chdCount = parseInt(booking.pax_chd || 0);
+    const infCount = parseInt(booking.pax_inf || 0);
+
+    // สร้าง array สำหรับเก็บค่าที่ไม่เป็น 0
+    let paxParts = [];
+
+    // เพิ่มค่าที่ไม่เป็น 0 เข้าไปใน array
+    if (adtCount > 0) paxParts.push(`${adtCount}`);
+    if (chdCount > 0) paxParts.push(`${chdCount}`);
+    if (infCount > 0) paxParts.push(`${infCount}`);
+
+    // ถ้าไม่มีค่าใดๆ (ทุกค่าเป็น 0) ให้แสดง "0"
+    // มิฉะนั้นให้เชื่อมค่าด้วย "+"
+    return paxParts.length > 0 ? paxParts.join("+") : "0";
+  };
+
   return (
     <div className="relative space-y-3 font-kanit">
       {sortedBookings.map((booking, index) => {
@@ -176,8 +198,7 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                     {index + 1}.
                     <User size={18} className="text-gray-500" />
                     <span>
-                      {customerName} | {paxDisplay}{" "}
-                      {paxAdt > 0 || paxChd > 0 || paxInf}
+                      {customerName} | {formatPax(booking)}
                     </span>
                   </div>
                 </div>
