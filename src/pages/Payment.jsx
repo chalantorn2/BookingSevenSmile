@@ -17,8 +17,10 @@ import BookingCard from "../components/payment/BookingCard";
 import PaymentRow from "../components/payment/PaymentRow";
 import usePayments from "../hooks/usePayments";
 import { useNotification } from "../hooks/useNotification";
+import { useAlertDialogContext } from "../contexts/AlertDialogContext";
 
 const Payment = () => {
+  const showAlert = useAlertDialogContext();
   const { showSuccess, showError, showInfo } = useNotification();
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
@@ -211,6 +213,46 @@ const Payment = () => {
   // Set error message from either source
   const displayError = error || paymentError;
 
+  const formatPax = (order) => {
+    if (!order) return "0";
+
+    const adtCount = parseInt(order.pax_adt || 0);
+    const chdCount = parseInt(order.pax_chd || 0);
+    const infCount = parseInt(order.pax_inf || 0);
+
+    let paxString = [];
+    if (adtCount > 0) paxString.push(adtCount.toString());
+    if (chdCount > 0) paxString.push(chdCount.toString());
+    if (infCount > 0) paxString.push(infCount.toString());
+
+    return paxString.length > 0 ? paxString.join("+") : "0";
+  };
+
+  const handlePaymentEdit = async (paymentData, existingPayment) => {
+    if (existingPayment && existingPayment.invoiced) {
+      // ถ้า Payment นี้ได้ออก Invoice ไปแล้ว ให้ถามยืนยัน
+      const confirmed = await showAlert({
+        title: "ยืนยันการแก้ไข Payment",
+        description:
+          "Payment นี้ได้นำไปสร้าง Invoice แล้ว คุณต้องการนำไปสร้าง Invoice ใหม่หรือไม่?",
+        confirmText: "ใช่ นำไปสร้าง Invoice ใหม่",
+        cancelText: "ไม่ ยังคงใช้ Invoice เดิม",
+        actionVariant: "warning",
+      });
+
+      // ถ้ายืนยันว่าต้องการสร้าง Invoice ใหม่ ให้เปลี่ยน invoiced เป็น false
+      if (confirmed) {
+        paymentData.invoiced = false;
+      } else {
+        // ถ้าไม่ต้องการสร้าง Invoice ใหม่ ให้คงค่า invoiced เป็น true เหมือนเดิม
+        paymentData.invoiced = true;
+      }
+    }
+
+    // ทำการบันทึกข้อมูลปกติ
+    return await savePayment(paymentData);
+  };
+
   return (
     <div className="container mx-auto px-4 py-6 bg-gray-50">
       <div className="text-center mb-6">
@@ -230,7 +272,7 @@ const Payment = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   From Date
                 </label>
-                <div className="flex items-center border border-gray-400 rounded-md">
+                <div className="flex items-center border border-gray-400 pr-8 rounded-md">
                   <span className="px-2 text-gray-500">
                     <Calendar size={18} />
                   </span>
@@ -246,7 +288,7 @@ const Payment = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   To Date
                 </label>
-                <div className="flex items-center border border-gray-400 rounded-md">
+                <div className="flex items-center border border-gray-400 pr-8 rounded-md">
                   <span className="px-2 text-gray-500">
                     <Calendar size={18} />
                   </span>
@@ -348,7 +390,7 @@ const Payment = () => {
             </div>
             <p className="text-white text-opacity-90 mt-1">
               {selectedOrder.first_name} {selectedOrder.last_name} |{" "}
-              {selectedOrder.pax || 0} คน
+              {formatPax(selectedOrder)} คน
             </p>
           </div>
 

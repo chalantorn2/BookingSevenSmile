@@ -2,7 +2,14 @@ import React, { useState, useEffect } from "react";
 import { useInformation } from "../../contexts/InformationContext";
 import AutocompleteInput from "../common/AutocompleteInput";
 
-const TourForm = ({ id, onRemove, data }) => {
+const TourForm = ({
+  id,
+  onRemove,
+  data,
+  paxAdt = "0",
+  paxChd = "0",
+  paxInf = "0",
+}) => {
   // ลบการใช้ useForm ที่อาจเป็นสาเหตุของปัญหา
   const [formData, setFormData] = useState({});
 
@@ -132,6 +139,9 @@ const TourForm = ({ id, onRemove, data }) => {
   };
 
   const fieldNamePrefix = `tour_${id}_`;
+
+  // คำนวณจำนวน pax รวม
+  const totalPax = parseInt(paxAdt) + parseInt(paxChd) + parseInt(paxInf);
 
   return (
     <div

@@ -8,6 +8,7 @@ export const VoucherInput = ({
   disabled = false,
   width = "w-4/5",
   placeholder = "",
+  className = "", // เพิ่ม prop className
 }) => (
   <input
     type="text"
@@ -18,7 +19,7 @@ export const VoucherInput = ({
     placeholder={placeholder}
     className={`border-b border-gray-500 focus:outline-none ${width} text-center ${
       disabled ? "bg-gray-100 text-gray-400" : ""
-    } font-kanit`}
+    } font-kanit ${className}`} // เพิ่ม className ที่รับเข้ามา
   />
 );
 

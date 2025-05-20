@@ -35,10 +35,17 @@ const PaymentRow = ({ booking, index, onRemove, onChange }) => {
         booking.type === "tour" ? "tour_bookings" : "transfer_bookings";
       const paymentStatus = newStatus === "paid" ? "paid" : "not_paid";
 
+      // ส่วนที่เกี่ยวกับ payment_status ยังคงเหมือนเดิม
       await supabase
         .from(table)
         .update({ payment_status: paymentStatus })
         .eq("id", booking.dbKey);
+
+      // ถ้ามีการอัปเดต Payment โดยตรง ให้ใช้ onPaymentUpdate ที่ส่งมาจาก parent
+      if (onPaymentUpdate) {
+        // เรียกใช้ฟังก์ชันที่ส่งมาจาก parent ซึ่งควรใช้ handlePaymentEdit
+        await onPaymentUpdate(booking.paymentId, { status: newStatus });
+      }
 
       console.log(
         `Updated payment status for ${table} ID ${booking.dbKey} to ${paymentStatus}`
@@ -46,6 +53,20 @@ const PaymentRow = ({ booking, index, onRemove, onChange }) => {
     } catch (error) {
       console.error("Error updating payment status:", error);
     }
+  };
+
+  const formatPaxDetails = (booking) => {
+    if (!booking.paxDetail) return booking.pax;
+
+    const { adt, chd, inf } = booking.paxDetail;
+    let details = [];
+    if (adt > 0) details.push(`${adt}ADT`);
+    if (chd > 0) details.push(`${chd}CHD`);
+    if (inf > 0) details.push(`${inf}INF`);
+
+    return details.length > 0
+      ? `${booking.pax} (${details.join(" ")})`
+      : booking.pax;
   };
 
   return (
@@ -60,7 +81,7 @@ const PaymentRow = ({ booking, index, onRemove, onChange }) => {
             {booking.sendTo || "-"}
           </span>
           <span className="text-xs text-gray-500">
-            {formatDateDisplay(booking.date)} | ID: {booking.id}
+            {formatDateDisplay(booking.date)}
           </span>
         </div>
       </td>

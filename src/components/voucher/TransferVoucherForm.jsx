@@ -37,6 +37,22 @@ const TransferVoucherForm = ({
     ...(initialVoucherData || {}),
   });
 
+  const formatPax = (paxData) => {
+    const paxAdt = parseInt(paxData.pax_adt || 0);
+    const paxChd = parseInt(paxData.pax_chd || 0);
+    const paxInf = parseInt(paxData.pax_inf || 0);
+
+    if (paxAdt === 0 && paxChd === 0 && paxInf === 0) return "0";
+
+    let paxString = [];
+    if (paxAdt > 0) paxString.push(paxAdt.toString());
+    if (paxChd > 0) paxString.push(paxChd.toString());
+    if (paxInf > 0) paxString.push(paxInf.toString());
+
+    return paxString.join("+");
+  };
+
+  // ในส่วน useEffect ที่โหลดข้อมูล booking เพิ่มการจัดรูปแบบ pax
   useEffect(() => {
     if (booking && initialVoucherData) {
       const customerName = booking.orders
@@ -53,7 +69,7 @@ const TransferVoucherForm = ({
           ? format(new Date(booking.transfer_date), "dd/MM/yyyy")
           : "",
         transfer_time: booking.transfer_time || "",
-        transfer_pax: booking.pax || "",
+        transfer_pax: formatPax(booking), // ใช้ฟังก์ชัน formatPax ที่เราสร้างขึ้น
         transfer_type: booking.transfer_type || "",
         transfer_flight: booking.transfer_flight || "",
         transfer_ftime: booking.transfer_ftime || "",
@@ -193,14 +209,13 @@ const TransferVoucherForm = ({
 
         <div className="flex flex-col sm:flex-row justify-between mb-4 gap-4">
           <div className="mb-2 sm:mb-0 flex-1 w-[60%]">
-            <span className="font-bold font-kanit text-sm">
-              Customer's name:
-            </span>
+            <span className="font-kanit text-sm ">Customer's name:</span>
             <VoucherInput
               name="customer_name"
               value={voucherData.customer_name}
               onChange={handleInputChange}
               width="w-full"
+              className="font-bold text-xl text-blue-700"
             />
           </div>
           <div className="flex-1 w-[40%]">
@@ -237,14 +252,22 @@ const TransferVoucherForm = ({
                   Detail:
                 </span>
                 <div className="relative flex-1">
-                  <input
-                    type="text"
-                    name="transfer_detail"
-                    value={voucherData.transfer_detail || ""}
-                    onChange={handleInputChange}
-                    className="border-b border-gray-500 focus:outline-none w-full text-center font-kanit whitespace-pre-wrap"
-                    style={{ textAlign: "center" }}
-                  />
+                  <div
+                    contentEditable
+                    suppressContentEditableWarning
+                    onInput={(e) => {
+                      const newValue = e.currentTarget.textContent;
+                      setVoucherData((prev) => ({
+                        ...prev,
+                        transfer_detail: newValue,
+                      }));
+                    }}
+                    className="focus:outline-none w-full text-center font-kanit whitespace-pre-wrap min-h-[1.2em] py-0"
+                    style={{ textAlign: "center", lineHeight: "1.2" }}
+                  >
+                    {voucherData.transfer_detail || ""}
+                  </div>
+                  <div className="border-b border-gray-500 mt-0"></div>
                 </div>
               </div>
               <div className="bg-yellow-200">

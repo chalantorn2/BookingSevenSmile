@@ -34,6 +34,21 @@ const TourVoucherForm = ({
     ...(initialVoucherData || {}),
   });
 
+  const formatPax = (paxData) => {
+    const paxAdt = parseInt(paxData.pax_adt || 0);
+    const paxChd = parseInt(paxData.pax_chd || 0);
+    const paxInf = parseInt(paxData.pax_inf || 0);
+
+    if (paxAdt === 0 && paxChd === 0 && paxInf === 0) return "0";
+
+    let paxString = [];
+    if (paxAdt > 0) paxString.push(paxAdt.toString());
+    if (paxChd > 0) paxString.push(paxChd.toString());
+    if (paxInf > 0) paxString.push(paxInf.toString());
+
+    return paxString.join("+");
+  };
+
   useEffect(() => {
     if (booking && initialVoucherData) {
       const customerName = booking.orders
@@ -46,7 +61,7 @@ const TourVoucherForm = ({
         customer_name: customerName,
         tour_name: booking.tour_type || "",
         tour_detail: booking.tour_detail || "",
-        tour_pax: booking.pax || "",
+        tour_pax: formatPax(booking), // ใช้ฟังก์ชัน formatPax ที่เราสร้างขึ้น
         tour_date: booking.tour_date
           ? format(new Date(booking.tour_date), "dd/MM/yyyy")
           : "",
@@ -187,14 +202,13 @@ const TourVoucherForm = ({
 
         <div className="flex flex-col sm:flex-row justify-between mb-4 gap-4">
           <div className="mb-2 sm:mb-0 flex-1 w-[60%]">
-            <span className="font-bold font-kanit text-sm">
-              Customer's name:
-            </span>
+            <span className=" font-kanit text-sm ">Customer's name:</span>
             <VoucherInput
               name="customer_name"
               value={voucherData.customer_name}
               onChange={handleInputChange}
               width="w-full"
+              className="font-bold text-xl text-green-700"
             />
           </div>
           <div className="flex-1 w-[40%]">

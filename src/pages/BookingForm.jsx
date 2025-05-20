@@ -1,3 +1,4 @@
+// src/pages/BookingForm.jsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import supabase from "../config/supabaseClient";
 import OrderSelector from "../components/forms/OrderSelector";
@@ -25,7 +26,9 @@ const BookingForm = () => {
     agent: "",
     firstName: "",
     lastName: "",
-    pax: "",
+    paxAdt: "0",
+    paxChd: "0",
+    paxInf: "0",
   });
 
   const [status, setStatus] = useState({
@@ -44,11 +47,15 @@ const BookingForm = () => {
       setIsBookingSectionVisible(true);
       setIsCreatingNewOrder(false);
       if (orderData) {
+        // ถ้ามีข้อมูล pax แบบเก่า แปลงเป็นรูปแบบใหม่
+        const paxTotal = orderData.pax || "0";
         setMainFormData({
           agent: orderData.agent_name || "",
           firstName: orderData.first_name || "",
           lastName: orderData.last_name || "",
-          pax: orderData.pax || "",
+          paxAdt: paxTotal, // เริ่มต้นให้ค่า pax เดิมอยู่ในช่อง ADT
+          paxChd: "0",
+          paxInf: "0",
         });
       } else {
         loadOrderBasicDetails(orderKey);
@@ -104,27 +111,28 @@ const BookingForm = () => {
   };
 
   const processOrderData = (orderData) => {
+    // แปลงค่า pax เดิมเป็นรูปแบบใหม่ (ให้ค่าเดิมเป็น ADT)
+    const paxTotal = orderData.pax || "0";
+
     setMainFormData({
       agent: orderData.agent_name || "",
       firstName: orderData.first_name || "",
       lastName: orderData.last_name || "",
-      pax: "",
+      paxAdt: paxTotal,
+      paxChd: "0",
+      paxInf: "0",
     });
+
     if (orderData.tour_bookings && orderData.tour_bookings.length > 0) {
       const formattedTours = orderData.tour_bookings.map((tour, index) => ({
         id: index + 1,
         data: tour,
       }));
       setTourForms(formattedTours);
-      if (formattedTours[0].data.pax) {
-        setMainFormData((prev) => ({
-          ...prev,
-          pax: formattedTours[0].data.pax,
-        }));
-      }
     } else {
       setTourForms([]);
     }
+
     if (orderData.transfer_bookings && orderData.transfer_bookings.length > 0) {
       const formattedTransfers = orderData.transfer_bookings.map(
         (transfer, index) => ({
@@ -133,12 +141,6 @@ const BookingForm = () => {
         })
       );
       setTransferForms(formattedTransfers);
-      if (!mainFormData.pax && formattedTransfers[0].data.pax) {
-        setMainFormData((prev) => ({
-          ...prev,
-          pax: formattedTransfers[0].data.pax,
-        }));
-      }
     } else {
       setTransferForms([]);
     }
@@ -153,12 +155,19 @@ const BookingForm = () => {
         .eq("id", orderKey)
         .single();
       if (error) throw error;
+
+      // แปลงค่า pax เดิมเป็นรูปแบบใหม่
+      const paxTotal = data.pax || "0";
+
       setMainFormData({
         agent: data.agent_name || "",
         firstName: data.first_name || "",
         lastName: data.last_name || "",
-        pax: data.pax || "",
+        paxAdt: paxTotal,
+        paxChd: "0",
+        paxInf: "0",
       });
+
       setTourForms([]);
       setTransferForms([]);
     } catch (error) {
@@ -170,7 +179,14 @@ const BookingForm = () => {
   };
 
   const resetForm = () => {
-    setMainFormData({ agent: "", firstName: "", lastName: "", pax: "" });
+    setMainFormData({
+      agent: "",
+      firstName: "",
+      lastName: "",
+      paxAdt: "0",
+      paxChd: "0",
+      paxInf: "0",
+    });
     setTourForms([]);
     setTransferForms([]);
     setStatus({ loading: false, message: "", error: "" });
@@ -243,6 +259,12 @@ const BookingForm = () => {
         );
       }
 
+      // คำนวณค่า pax รวมจากค่า ADT, CHD, INF
+      const totalPax =
+        (parseInt(mainFormData.paxAdt) || 0) +
+        (parseInt(mainFormData.paxChd) || 0) +
+        (parseInt(mainFormData.paxInf) || 0);
+
       let referenceId = currentOrderId;
       let orderKey = currentOrderKey;
 
@@ -255,15 +277,37 @@ const BookingForm = () => {
             last_name: mainFormData.lastName,
             agent_name: mainFormData.agent,
             reference_id: referenceId,
-            pax: mainFormData.pax || "", // เปลี่ยนจาก parseInt เป็นข้อความโดยตรง
+            pax: totalPax.toString(),
+            pax_adt: parseInt(mainFormData.paxAdt) || 0,
+            pax_chd: parseInt(mainFormData.paxChd) || 0,
+            pax_inf: parseInt(mainFormData.paxInf) || 0,
           })
           .select()
           .single();
+
         if (orderError) throw orderError;
+        if (!newOrder) throw new Error("ไม่สามารถสร้าง Order ใหม่ได้");
+
         orderKey = newOrder.id;
-        setCurrentOrderKey(orderKey);
-        setCurrentOrderId(referenceId);
+        console.log("Order created with ID:", orderKey); // เพิ่ม log
+      } else {
+        // ย้ายโค้ดการอัพเดทมาไว้ตรงนี้เมื่อ orderKey มีค่าแล้ว
+        const { error: updateError } = await supabase
+          .from("orders")
+          .update({
+            first_name: mainFormData.firstName,
+            last_name: mainFormData.lastName,
+            agent_name: mainFormData.agent,
+            pax: totalPax.toString(),
+            pax_adt: parseInt(mainFormData.paxAdt) || 0,
+            pax_chd: parseInt(mainFormData.paxChd) || 0,
+            pax_inf: parseInt(mainFormData.paxInf) || 0,
+          })
+          .eq("id", orderKey);
+
+        if (updateError) throw updateError;
       }
+      console.log("orderKey after processing:", orderKey, typeof orderKey);
 
       const { data: existingTours, error: tourError } = await supabase
         .from("tour_bookings")
@@ -300,12 +344,15 @@ const BookingForm = () => {
         if (tourDate) allDates.push(tourDate);
 
         const tourBooking = {
-          order_id: orderKey,
+          order_id: Number(orderKey),
           tour_date: tourDate,
           reference_id: bookingId,
           status: "pending",
+          pax: totalPax, // ยังคงเก็บ pax รวมไว้
+          pax_adt: parseInt(mainFormData.paxAdt) || 0, // เพิ่มคอลัมน์ใหม่
+          pax_chd: parseInt(mainFormData.paxChd) || 0, // เพิ่มคอลัมน์ใหม่
+          pax_inf: parseInt(mainFormData.paxInf) || 0, // เพิ่มคอลัมน์ใหม่
         };
-        tourBooking.pax = parseInt(mainFormData.pax) || 0;
 
         const detailElement = formElements[`tour_${formId}_detail`];
         if (detailElement) tourBooking.tour_detail = detailElement.value;
@@ -343,12 +390,15 @@ const BookingForm = () => {
         if (transferDate) allDates.push(transferDate);
 
         const transferBooking = {
-          order_id: orderKey,
+          order_id: Number(orderKey),
           transfer_date: transferDate,
           status: "pending",
           reference_id: bookingId,
+          pax: totalPax, // ยังคงเก็บ pax รวมไว้
+          pax_adt: parseInt(mainFormData.paxAdt) || 0, // เพิ่มคอลัมน์ใหม่
+          pax_chd: parseInt(mainFormData.paxChd) || 0, // เพิ่มคอลัมน์ใหม่
+          pax_inf: parseInt(mainFormData.paxInf) || 0, // เพิ่มคอลัมน์ใหม่
         };
-        transferBooking.pax = parseInt(mainFormData.pax) || 0;
 
         const timeElement = formElements[`transfer_${formId}_pickup_time`];
         if (timeElement) transferBooking.transfer_time = timeElement.value;
@@ -383,6 +433,9 @@ const BookingForm = () => {
 
         transferBookings.push(transferBooking);
       }
+      console.log("Current orderKey:", orderKey);
+      console.log("Tour bookings data:", tourBookings);
+      console.log("Transfer bookings data:", transferBookings);
 
       if (tourBookings.length > 0) {
         const { error: tourError } = await supabase
@@ -439,7 +492,9 @@ const BookingForm = () => {
       mainFormData.firstName ||
       mainFormData.lastName ||
       mainFormData.agent ||
-      mainFormData.pax
+      mainFormData.paxAdt !== "0" ||
+      mainFormData.paxChd !== "0" ||
+      mainFormData.paxInf !== "0"
     ) {
       const confirmed = await showAlert({
         title: "ยืนยันการยกเลิก",
@@ -519,8 +574,8 @@ const BookingForm = () => {
           )}
           <div className="p-6">
             <form onSubmit={handleSubmit}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+                <div className="col-span-2">
                   <label
                     htmlFor="agent"
                     className="block text-sm font-medium text-gray-700 mb-1"
@@ -537,6 +592,64 @@ const BookingForm = () => {
                     id="agent"
                   />
                 </div>
+                <div className="col-span-1 ">
+                  <label
+                    htmlFor="paxAdt"
+                    className="block  text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Adult (ADT) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    id="paxAdt"
+                    name="paxAdt"
+                    value={mainFormData.paxAdt}
+                    onChange={handleMainFormChange}
+                    className="w-full border p-2 rounded-md border-gray-300 text-right shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    placeholder="จำนวนผู้ใหญ่"
+                    min="0"
+                    required
+                  />
+                </div>
+                <div className="col-span-1">
+                  <label
+                    htmlFor="paxChd"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Child (CHD)
+                  </label>
+                  <input
+                    type="number"
+                    id="paxChd"
+                    name="paxChd"
+                    value={mainFormData.paxChd}
+                    onChange={handleMainFormChange}
+                    className="w-full border p-2 rounded-md border-gray-300 text-right shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    placeholder="จำนวนเด็ก"
+                    min="0"
+                  />
+                </div>
+                <div className="col-span-1">
+                  <label
+                    htmlFor="paxInf"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Infant (INF)
+                  </label>
+                  <input
+                    type="number"
+                    id="paxInf"
+                    name="paxInf"
+                    value={mainFormData.paxInf}
+                    onChange={handleMainFormChange}
+                    className="w-full border p-2 rounded-md border-gray-300 text-right shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    placeholder="จำนวนทารก"
+                    min="0"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 ">
                 <div>
                   <label
                     htmlFor="firstName"
@@ -570,24 +683,6 @@ const BookingForm = () => {
                     onChange={handleMainFormChange}
                     className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                     placeholder="นามสกุลลูกค้า"
-                    required
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="pax"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Pax <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="pax"
-                    name="pax"
-                    value={mainFormData.pax}
-                    onChange={handleMainFormChange}
-                    className="w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                    placeholder="จำนวนคน"
                     required
                   />
                 </div>
@@ -654,6 +749,9 @@ const BookingForm = () => {
                           id={form.id}
                           data={form.data}
                           onRemove={handleRemoveTourForm}
+                          paxAdt={mainFormData.paxAdt}
+                          paxChd={mainFormData.paxChd}
+                          paxInf={mainFormData.paxInf}
                         />
                       ))}
                     </div>
@@ -665,6 +763,9 @@ const BookingForm = () => {
                           id={form.id}
                           data={form.data}
                           onRemove={handleRemoveTransferForm}
+                          paxAdt={mainFormData.paxAdt}
+                          paxChd={mainFormData.paxChd}
+                          paxInf={mainFormData.paxInf}
                         />
                       ))}
                     </div>

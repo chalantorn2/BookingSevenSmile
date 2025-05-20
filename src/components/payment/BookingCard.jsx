@@ -29,6 +29,19 @@ const BookingCard = ({ booking, type, onAddBooking }) => {
     onAddBooking(bookingWithPrice, type);
   };
 
+  const formatPax = (booking) => {
+    const adtCount = parseInt(booking.pax_adt || 0);
+    const chdCount = parseInt(booking.pax_chd || 0);
+    const infCount = parseInt(booking.pax_inf || 0);
+
+    let paxString = [];
+    if (adtCount > 0) paxString.push(adtCount.toString());
+    if (chdCount > 0) paxString.push(chdCount.toString());
+    if (infCount > 0) paxString.push(infCount.toString());
+
+    return paxString.length > 0 ? paxString.join("+") : "0";
+  };
+
   return (
     <div
       className={`border ${
@@ -55,16 +68,15 @@ const BookingCard = ({ booking, type, onAddBooking }) => {
               )}
             </p>
 
-            {/* Show different details based on booking type */}
             {isTour ? (
               <p className="text-sm text-gray-600 mt-1">
-                {booking.tour_hotel || "-"} | {booking.pax || "-"} คน
+                {booking.tour_hotel || "-"} | {formatPax(booking)} คน
               </p>
             ) : (
               <p className="text-sm flex items-center text-gray-600 mt-1">
                 {booking.pickup_location || "-"}{" "}
                 <ArrowRight size={12} className="mx-1" />{" "}
-                {booking.drop_location || "-"} | {booking.pax || "-"} คน
+                {booking.drop_location || "-"} | {formatPax(booking)} คน
               </p>
             )}
           </div>

@@ -2,7 +2,14 @@ import React, { useState, useEffect } from "react";
 import { useInformation } from "../../contexts/InformationContext";
 import AutocompleteInput from "../common/AutocompleteInput";
 
-const TransferForm = ({ id, onRemove, data }) => {
+const TransferForm = ({
+  id,
+  onRemove,
+  data,
+  paxAdt = "0",
+  paxChd = "0",
+  paxInf = "0",
+}) => {
   // ลบการใช้ useForm ที่อาจเป็นสาเหตุของปัญหา
   const [formData, setFormData] = useState({});
 
@@ -156,6 +163,9 @@ const TransferForm = ({ id, onRemove, data }) => {
   };
 
   const fieldNamePrefix = `transfer_${id}_`;
+
+  // คำนวณจำนวน pax รวม
+  const totalPax = parseInt(paxAdt) + parseInt(paxChd) + parseInt(paxInf);
 
   return (
     <div className="bg-white rounded-lg shadow-md border border-blue-300 hover:shadow-lg transition-all duration-300">

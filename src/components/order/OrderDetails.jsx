@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   Save,
@@ -16,39 +16,44 @@ import {
 } from "lucide-react";
 import { format, parseISO, isValid } from "date-fns";
 import { th } from "date-fns/locale";
+import supabase from "../../config/supabaseClient";
 import { useAlertDialogContext } from "../../contexts/AlertDialogContext";
+import { useNotification } from "../../hooks/useNotification";
+import OrderVoucherList from "./OrderVoucherList";
+import OrderStatusBadge from "./OrderStatusBadge";
 import { deleteBooking } from "../../services/bookingService";
-import { deleteOrder } from "../../services/orderService"; // เพิ่มการนำเข้า
 
 const OrderDetails = ({
   order,
   onClose,
   onSave,
+  onOrderDeleted,
+  onAddBooking,
   onDeleteBooking,
-  onOrderDeleted, // เพิ่ม prop
 }) => {
-  console.log("OrderDetails received order:", order);
-  console.log("Tour bookings count:", order?.tourBookings?.length || 0);
-  console.log("Transfer bookings count:", order?.transferBookings?.length || 0);
-  const [formData, setFormData] = useState({});
+  const showAlert = useAlertDialogContext();
+  const { showSuccess, showError, showInfo } = useNotification();
+  const [orderData, setOrderData] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState({ type: "", message: "" });
   const [deletedBookings, setDeletedBookings] = useState({
     tourBookings: [],
     transferBookings: [],
   });
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const showAlert = useAlertDialogContext();
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (order) {
-      setFormData({
+      setOrderData({
         ...order,
+        pax_adt: order.pax_adt || 0,
+        pax_chd: order.pax_chd || 0,
+        pax_inf: order.pax_inf || 0,
         note: order.note || "",
         completed: order.completed || false,
       });
     }
-  }, [order, isDataLoaded]);
+  }, [order]);
 
   const formatDateDisplay = (dateStr) => {
     if (!dateStr) return "-";
@@ -64,20 +69,20 @@ const OrderDetails = ({
 
   const formatTimeDisplay = (timeStr) => timeStr || "-";
 
-  const handleChange = (e) => {
+  const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
+    setOrderData((prev) => ({
+      ...prev,
       [name]: type === "checkbox" ? checked : value,
-    });
+    }));
   };
 
   const handleBookingChange = (bookingId, field, value, bookingType) => {
-    const updatedBookings = [...formData[bookingType]];
+    const updatedBookings = [...orderData[bookingType]];
     const index = updatedBookings.findIndex((b) => b.id === bookingId);
     if (index !== -1) {
       updatedBookings[index] = { ...updatedBookings[index], [field]: value };
-      setFormData({ ...formData, [bookingType]: updatedBookings });
+      setOrderData({ ...orderData, [bookingType]: updatedBookings });
     }
   };
 
@@ -114,7 +119,7 @@ const OrderDetails = ({
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setStatusMessage({ type: "info", message: "กำลังตรวจสอบ..." });
@@ -129,7 +134,6 @@ const OrderDetails = ({
       }
 
       for (const id of deletedBookings.tourBookings) {
-        console.log(`Deleting tourBookings ID: ${id}`);
         const { success, error } = await deleteBooking("tour", id);
         if (!success) {
           throw new Error(`ลบการจองทัวร์ ${id} ไม่สำเร็จ: ${error}`);
@@ -137,44 +141,52 @@ const OrderDetails = ({
       }
 
       for (const id of deletedBookings.transferBookings) {
-        console.log(`Deleting transferBookings ID: ${id}`);
         const { success, error } = await deleteBooking("transfer", id);
         if (!success) {
           throw new Error(`ลบการจองรถรับส่ง ${id} ไม่สำเร็จ: ${error}`);
         }
       }
 
-      const updatedFormData = {
-        ...formData,
-        tourBookings: formData.tourBookings.filter(
+      const pax_adt = parseInt(orderData.pax_adt) || 0;
+      const pax_chd = parseInt(orderData.pax_chd) || 0;
+      const pax_inf = parseInt(orderData.pax_inf) || 0;
+      const totalPax = pax_adt + pax_chd + pax_inf;
+
+      const updatedOrderData = {
+        ...orderData,
+        pax: totalPax.toString(),
+        pax_adt,
+        pax_chd,
+        pax_inf,
+        tourBookings: orderData.tourBookings.filter(
           (b) => !deletedBookings.tourBookings.includes(b.id)
         ),
-        transferBookings: formData.transferBookings.filter(
+        transferBookings: orderData.transferBookings.filter(
           (b) => !deletedBookings.transferBookings.includes(b.id)
         ),
       };
 
-      console.log("Calling onSave with updatedFormData:", updatedFormData);
-
-      setFormData(updatedFormData);
+      setOrderData(updatedOrderData);
 
       if (typeof onDeleteBooking === "function") {
         deletedBookings.tourBookings.forEach((id) => {
-          console.log(`Calling onDeleteBooking for tourBookings ID: ${id}`);
           onDeleteBooking(id, "tourBookings");
         });
         deletedBookings.transferBookings.forEach((id) => {
-          console.log(`Calling onDeleteBooking for transferBookings ID: ${id}`);
           onDeleteBooking(id, "transferBookings");
         });
       }
 
-      await onSave(updatedFormData);
-      setStatusMessage({ type: "success", message: "บันทึกสำเร็จ" });
-      setDeletedBookings({ tourBookings: [], transferBookings: [] });
-      setTimeout(onClose, 1500);
+      const result = await onSave(updatedOrderData);
+      if (result.success) {
+        setStatusMessage({ type: "success", message: "บันทึกสำเร็จ" });
+        setIsEditing(false);
+        setDeletedBookings({ tourBookings: [], transferBookings: [] });
+        setTimeout(onClose, 1500);
+      } else {
+        throw new Error(result.error || "ไม่สามารถบันทึกข้อมูลได้");
+      }
     } catch (error) {
-      console.error("Error in handleSubmit:", error);
       setStatusMessage({
         type: "error",
         message: `ข้อผิดพลาด: ${error.message}`,
@@ -185,34 +197,62 @@ const OrderDetails = ({
     }
   };
 
-  const confirmDeleteOrder = async (orderId) => {
-    return await showAlert({
+  const handleDelete = async () => {
+    const confirmed = await showAlert({
       title: "ยืนยันการลบ Order",
-      description: `คุณแน่ใจหรือไม่ว่าต้องการลบ Order #${orderId}? การกระทำนี้ไม่สามารถย้อนกลับได้`,
+      description: `คุณแน่ใจหรือไม่ว่าต้องการลบ Order #${
+        order.reference_id || order.id
+      }? การกระทำนี้ไม่สามารถย้อนกลับได้`,
       confirmText: "ลบ",
       cancelText: "ยกเลิก",
       actionVariant: "destructive",
     });
-  };
 
-  const handleDeleteOrder = async () => {
-    const confirmed = await confirmDeleteOrder(order.reference_id || order.id);
     if (confirmed) {
-      const { success, error } = await deleteOrder(order.id);
-      if (success) {
+      try {
+        setIsSubmitting(true);
+        const { error } = await supabase
+          .from("orders")
+          .delete()
+          .eq("id", order.id);
+
+        if (error) throw error;
+
         setStatusMessage({ type: "success", message: "ลบ Order สำเร็จ" });
-        onOrderDeleted?.(order.id); // เรียก onOrderDeleted
+        onOrderDeleted();
         setTimeout(onClose, 1500);
-      } else {
+      } catch (error) {
         setStatusMessage({
           type: "error",
-          message: `ข้อผิดพลาด: ${error}`,
+          message: `ข้อผิดพลาด: ${error.message}`,
         });
+      } finally {
+        setIsSubmitting(false);
       }
     }
   };
 
-  // เปลี่ยนเป็น (ไม่ใช้ useMemo ในตอนนี้เพื่อความง่าย)
+  const toggleCompletedStatus = async () => {
+    const newStatus = !orderData.completed;
+    const updatedData = { ...orderData, completed: newStatus };
+
+    setOrderData(updatedData);
+
+    try {
+      const result = await onSave(updatedData);
+      if (result.success) {
+        showSuccess(
+          `ปรับสถานะเป็น${newStatus ? "เรียบร้อย" : "ยังไม่เรียบร้อย"}แล้ว`
+        );
+      } else {
+        throw new Error(result.error || "ไม่สามารถปรับสถานะได้");
+      }
+    } catch (error) {
+      showError(`เกิดข้อผิดพลาด: ${error.message}`);
+      setOrderData({ ...orderData });
+    }
+  };
+
   const renderVoucherBadges = (vouchers) => {
     if (!vouchers || !vouchers.length)
       return <span className="text-gray-500">ไม่มี Voucher</span>;
@@ -230,6 +270,7 @@ const OrderDetails = ({
       </div>
     );
   };
+
   const getStatusText = (status) =>
     ({
       pending: "รอดำเนินการ",
@@ -288,8 +329,6 @@ const OrderDetails = ({
   };
 
   const renderTourBookings = () => {
-    console.log("Rendering tour bookings:", order?.tourBookings);
-
     if (!order.tourBookings?.length) {
       return (
         <div className="text-center py-4">
@@ -333,7 +372,8 @@ const OrderDetails = ({
                   {formatTimeDisplay(b.tour_pickup_time)}
                 </p>
                 <p className="mb-1">
-                  <span className="text-gray-600">จำนวนคน:</span> {b.pax || "-"}
+                  <span className="text-gray-600">จำนวนคน:</span>{" "}
+                  {b.pax_adt || "0"} + {b.pax_chd || "0"} + {b.pax_inf || "0"}
                 </p>
                 <p className="mb-1">
                   <span className="text-gray-600">ประเภททัวร์:</span>{" "}
@@ -413,7 +453,6 @@ const OrderDetails = ({
   };
 
   const renderTransferBookings = () => {
-    console.log("Rendering transfer bookings:", order?.transferBookings);
     if (!order.transferBookings?.length) {
       return (
         <div className="text-center py-4">
@@ -467,7 +506,8 @@ const OrderDetails = ({
                   {b.drop_location || "-"}
                 </p>
                 <p className="mb-1">
-                  <span className="text-gray-600">จำนวนคน:</span> {b.pax || "-"}
+                  <span className="text-gray-600">จำนวนคน:</span>{" "}
+                  {b.pax_adt || "0"} + {b.pax_chd || "0"} + {b.pax_inf || "0"}
                 </p>
                 <p className="mb-1">
                   <span className="text-gray-600">ประเภทรถ:</span>{" "}
@@ -549,6 +589,7 @@ const OrderDetails = ({
       </div>
     );
   };
+
   if (!order) return null;
 
   return (
@@ -565,7 +606,7 @@ const OrderDetails = ({
             <X size={24} />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto">
+        <form onSubmit={handleSave} className="p-6 overflow-y-auto">
           <div className="bg-gray-100 rounded-lg p-4 mb-6">
             <h4 className="text-lg font-semibold text-gray-800 mb-3">
               Order Summary
@@ -589,8 +630,9 @@ const OrderDetails = ({
                   {order.agent_name || "N/A"}
                 </p>
                 <p>
-                  <span className="font-medium text-gray-700">PAX:</span>{" "}
-                  {order.pax || "0"}
+                  <span className="font-medium text-gray-700">PAX:</span> ADL:{" "}
+                  {orderData.pax_adt || "0"} | CHD: {orderData.pax_chd || "0"} |
+                  INF: {orderData.pax_inf || "0"}
                 </p>
               </div>
               <div className="space-y-2">
@@ -600,25 +642,27 @@ const OrderDetails = ({
                     <input
                       type="checkbox"
                       name="completed"
-                      checked={formData.completed}
-                      onChange={handleChange}
+                      checked={orderData.completed}
+                      onChange={handleInputChange}
                       className="sr-only"
                     />
                     <span
                       className={`mr-3 text-sm text-white px-2 py-1 rounded-lg ${
-                        formData.completed ? "bg-green-500" : "bg-red-500"
+                        orderData.completed ? "bg-green-500" : "bg-red-500"
                       }`}
                     >
-                      {formData.completed ? "เรียบร้อย" : "ยังไม่เรียบร้อย"}
+                      {orderData.completed ? "เรียบร้อย" : "ยังไม่เรียบร้อย"}
                     </span>
                     <span
                       className={`relative inline-block w-10 h-5 rounded-full transition-colors duration-200 ease-in-out ${
-                        formData.completed ? "bg-green-500" : "bg-gray-300"
+                        orderData.completed ? "bg-green-500" : "bg-gray-300"
                       }`}
                     >
                       <span
                         className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out ${
-                          formData.completed ? "translate-x-5" : "translate-x-0"
+                          orderData.completed
+                            ? "translate-x-5"
+                            : "translate-x-0"
                         }`}
                       />
                     </span>
@@ -641,6 +685,94 @@ const OrderDetails = ({
                 </p>
               </div>
             </div>
+            {isEditing && (
+              <div className="mt-4 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      ชื่อลูกค้า
+                    </label>
+                    <input
+                      type="text"
+                      name="first_name"
+                      value={orderData.first_name || ""}
+                      onChange={handleInputChange}
+                      className="w-full border p-2 rounded border-gray-300 focus:ring focus:ring-blue-200 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      นามสกุล
+                    </label>
+                    <input
+                      type="text"
+                      name="last_name"
+                      value={orderData.last_name || ""}
+                      onChange={handleInputChange}
+                      className="w-full border p-2 rounded border-gray-300 focus:ring focus:ring-blue-200 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Agent
+                    </label>
+                    <input
+                      type="text"
+                      name="agent_name"
+                      value={orderData.agent_name || ""}
+                      onChange={handleInputChange}
+                      className="w-full border p-2 rounded border-gray-300 focus:ring focus:ring-blue-200 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    จำนวนผู้โดยสาร
+                  </label>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">
+                        ผู้ใหญ่ (ADL)
+                      </label>
+                      <input
+                        type="number"
+                        name="pax_adt"
+                        value={orderData.pax_adt || 0}
+                        onChange={handleInputChange}
+                        className="w-full border p-2 rounded border-gray-300 focus:ring focus:ring-blue-200 focus:border-blue-500"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">
+                        เด็ก (CHD)
+                      </label>
+                      <input
+                        type="number"
+                        name="pax_chd"
+                        value={orderData.pax_chd || 0}
+                        onChange={handleInputChange}
+                        className="w-full border p-2 rounded border-gray-300 focus:ring focus:ring-blue-200 focus:border-blue-500"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">
+                        ทารก (INF)
+                      </label>
+                      <input
+                        type="number"
+                        name="pax_inf"
+                        value={orderData.pax_inf || 0}
+                        onChange={handleInputChange}
+                        className="w-full border p-2 rounded border-gray-300 focus:ring focus:ring-blue-200 focus:border-blue-500"
+                        min="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
@@ -669,8 +801,8 @@ const OrderDetails = ({
             </h4>
             <textarea
               name="note"
-              value={formData.note || ""}
-              onChange={handleChange}
+              value={orderData.note || ""}
+              onChange={handleInputChange}
               className="w-full border border-gray-300 rounded-md p-3 focus:ring focus:ring-blue-200 focus:border-blue-500"
               rows="3"
               placeholder="เพิ่มบันทึกสำหรับ Order นี้..."
@@ -693,8 +825,9 @@ const OrderDetails = ({
             <div className="flex justify-between">
               <button
                 type="button"
-                onClick={() => handleDeleteOrder()} // ลบพารามิเตอร์
+                onClick={handleDelete}
                 className="flex items-center px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                disabled={isSubmitting}
               >
                 <Trash2 size={18} className="mr-2" />
                 ลบ Order
@@ -751,4 +884,4 @@ const OrderDetails = ({
   );
 };
 
-export default React.memo(OrderDetails);
+export default OrderDetails;

@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import supabase from "../config/supabaseClient";
 import { fetchPaymentByOrderId, savePayment } from "../services/paymentService";
+import { useAlertDialogContext } from "../contexts/AlertDialogContext";
 
 /**
  * Custom hook for handling payment operations
  */
 const usePayments = () => {
+  const showAlert = useAlertDialogContext();
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [tourBookings, setTourBookings] = useState([]);
   const [transferBookings, setTransferBookings] = useState([]);
@@ -99,6 +101,19 @@ const usePayments = () => {
         (updatedBookings[existingIndex].chosenCount || 0) + 1;
       setSelectedBookings(updatedBookings);
     } else {
+      // คำนวณจำนวน pax ทั้งหมด
+      const adtCount = parseInt(booking.pax_adt || 0);
+      const chdCount = parseInt(booking.pax_chd || 0);
+      const infCount = parseInt(booking.pax_inf || 0);
+      const totalPax = adtCount + chdCount + infCount;
+
+      // สร้าง pax format แบบ "ADT+CHD+INF"
+      let paxFormat = [];
+      if (adtCount > 0) paxFormat.push(adtCount);
+      if (chdCount > 0) paxFormat.push(chdCount);
+      if (infCount > 0) paxFormat.push(infCount);
+      const paxFormatString = paxFormat.join("+");
+
       // Prepare booking data based on type
       const bookingData = {
         id: uniqueId, // ใช้ ID ที่ unique
@@ -108,9 +123,10 @@ const usePayments = () => {
         detail: type === "tour" ? booking.tour_detail : booking.transfer_detail,
         hotel: type === "tour" ? booking.tour_hotel : "",
         sendTo: booking.send_to || "",
-        pax: booking.pax || 1,
+        pax: totalPax || 1,
+        paxFormat: paxFormatString,
         cost: booking.cost_price || 0,
-        quantity: booking.pax || 1,
+        quantity: totalPax || 1,
         sellingPrice: booking.selling_price || 0,
         status: booking.payment_status === "paid" ? "paid" : "notPaid",
         remark: "",
@@ -166,7 +182,23 @@ const usePayments = () => {
     };
   };
 
+  const handlePaymentEdit = async (paymentData, existingPayment) => {
+    // ทุกครั้งที่มีการแก้ไข Payment ให้ invoiced เป็น false เสมอ
+    paymentData.invoiced = false;
+
+    // ถ้า Payment นี้เคยออก Invoice ไปแล้ว ให้แจ้งเตือนผู้ใช้
+    if (existingPayment && existingPayment.invoiced) {
+      // แจ้งเตือนผู้ใช้ว่าจะต้องออก Invoice ใหม่
+      showInfo("Payment นี้มีการแก้ไข จะต้องสร้าง Invoice ใหม่");
+    }
+
+    // ทำการบันทึกข้อมูลปกติ
+    return await savePayment(paymentData);
+  };
+
   // Save payment data
+  // ใน usePayments.js - ปรับปรุงฟังก์ชัน savePaymentData
+
   const savePaymentData = async (order) => {
     if (!order) {
       throw new Error("กรุณาเลือก Order ก่อนบันทึกข้อมูล");
@@ -178,25 +210,51 @@ const usePayments = () => {
 
     setLoading(true);
 
+    const formatPaxForSave = (order) => {
+      // โค้ดเดิม...
+      if (!order) return "0";
+
+      const adtCount = parseInt(order.pax_adt || 0);
+      const chdCount = parseInt(order.pax_chd || 0);
+      const infCount = parseInt(order.pax_inf || 0);
+
+      let paxString = [];
+      if (adtCount > 0) paxString.push(adtCount.toString());
+      if (chdCount > 0) paxString.push(chdCount.toString());
+      if (infCount > 0) paxString.push(infCount.toString());
+
+      return paxString.length > 0 ? paxString.join("+") : "0";
+    };
+
     try {
       const paymentID = `P_${order.reference_id || order.id}`;
       const totals = calculateTotals();
 
+      // เตรียมข้อมูลสำหรับบันทึก
       const paymentData = {
         payment_id: paymentID,
         order_id: order.id,
         first_name: order.first_name || "",
         last_name: order.last_name || "",
         agent_name: order.agent_name || "",
-        pax: order.pax || 0,
+        pax: formatPaxForSave(order),
         bookings: selectedBookings,
         total_cost: totals.totalCost,
         total_selling_price: totals.totalSellingPrice,
         total_profit: totals.totalProfit,
-        invoiced: false,
+        invoiced: false, // ตั้งเป็น false ไว้ก่อน จะเปลี่ยนเป็น true หากเลือกคงค่าเดิม
       };
 
-      const result = await savePayment(paymentData);
+      // ดึงข้อมูล Payment เดิม (ถ้ามี) โดยตรงจาก supabase แทนที่จะใช้ข้อมูลเดิม
+      // เพื่อให้แน่ใจว่าได้ข้อมูลล่าสุดเสมอ
+      const { data: existingPayment } = await supabase
+        .from("payments")
+        .select("id, invoiced")
+        .eq("order_id", order.id)
+        .single();
+
+      // ใช้ฟังก์ชัน handlePaymentEdit แทน savePayment
+      const result = await handlePaymentEdit(paymentData, existingPayment);
 
       if (!result.success) {
         throw new Error(result.error || "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
@@ -236,6 +294,7 @@ const usePayments = () => {
     calculateTotals,
     savePaymentData,
     setError,
+    handlePaymentEdit,
   };
 };
 

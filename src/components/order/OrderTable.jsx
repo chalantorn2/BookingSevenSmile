@@ -231,13 +231,13 @@ const OrderTable = ({ orders, onViewDetails, onUpdateNote }) => {
                   }`.trim() || "No Name"}
                 </td>
                 <td className="px-2 py-3 whitespace-nowrap text-sm text-center text-gray-500">
-                  {order.pax || "0"}
+                  {order.pax_adt || "0"}
                 </td>
                 <td className="px-2 py-3 whitespace-nowrap text-sm text-center text-gray-500">
-                  0
+                  {order.pax_chd || "0"}
                 </td>
                 <td className="px-2 py-3 whitespace-nowrap text-sm text-center text-gray-500">
-                  0
+                  {order.pax_inf || "0"}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                   {getDateRangeDisplay(order)}

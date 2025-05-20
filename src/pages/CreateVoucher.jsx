@@ -36,6 +36,21 @@ const CreateVoucher = () => {
   const isEditMode =
     new URLSearchParams(location.search).get("edit") === "true";
 
+  const formatPax = (booking) => {
+    const paxAdt = parseInt(booking.pax_adt || 0);
+    const paxChd = parseInt(booking.pax_chd || 0);
+    const paxInf = parseInt(booking.pax_inf || 0);
+
+    if (paxAdt === 0 && paxChd === 0 && paxInf === 0) return "-";
+
+    let paxString = [];
+    if (paxAdt > 0) paxString.push(paxAdt.toString());
+    if (paxChd > 0) paxString.push(paxChd.toString());
+    if (paxInf > 0) paxString.push(paxInf.toString());
+
+    return paxString.join("+");
+  };
+
   useEffect(() => {
     const fetchBookingDetails = async () => {
       setLoading(true);
@@ -197,7 +212,7 @@ const CreateVoucher = () => {
         >
           <div className="flex justify-center items-center">
             <span className="text-xl font-semibold mr-2">
-              {isTour ? "รายละเอียดการจองทัวร์" : "รายละเอียดการจองรถรับส่ง"}
+              {isTour ? "รายละเอียดการจอง Tour" : "รายละเอียดการจอง Transfer"}
             </span>
             {booking.status && (
               <span
@@ -271,7 +286,7 @@ const CreateVoucher = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">จำนวนคน:</p>
-                <p className="font-medium">{booking.pax || "-"}</p>
+                <p className="font-medium">{formatPax(booking)}</p>
               </div>
 
               {isTour ? (

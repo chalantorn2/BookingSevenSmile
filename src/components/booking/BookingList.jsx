@@ -104,10 +104,18 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
         const customerName = `${firstName} ${lastName}`.trim() || "ไม่มีชื่อ";
 
         let paxDisplay = "-";
-        if (booking.orders && booking.orders.pax) {
-          paxDisplay = booking.orders.pax;
+        const paxAdt = booking.pax_adt || 0;
+        const paxChd = booking.pax_chd || 0;
+        const paxInf = booking.pax_inf || 0;
+
+        if (paxAdt > 0 || paxChd > 0 || paxInf > 0) {
+          paxDisplay = `${paxAdt}+${paxChd}+${paxInf}`;
         } else if (booking.pax) {
+          // ถ้าไม่มีข้อมูลแยกประเภท ให้ใช้ pax รวมเป็น fallback
           paxDisplay = booking.pax;
+        } else if (booking.orders && booking.orders.pax) {
+          // ถ้าไม่มีทั้งสองแบบ แต่มีใน orders
+          paxDisplay = booking.orders.pax;
         }
 
         // สร้าง ref สำหรับแต่ละรายการจอง
@@ -168,7 +176,8 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                     {index + 1}.
                     <User size={18} className="text-gray-500" />
                     <span>
-                      {customerName} | {paxDisplay} คน
+                      {customerName} | {paxDisplay}{" "}
+                      {paxAdt > 0 || paxChd > 0 || paxInf}
                     </span>
                   </div>
                 </div>

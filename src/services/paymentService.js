@@ -31,12 +31,20 @@ export const savePayment = async (paymentData) => {
     // Check if payment already exists
     const { data: existingPayment } = await supabase
       .from("payments")
-      .select("id")
+      .select("id, invoiced")
       .eq("order_id", paymentData.order_id)
       .single();
 
     let result;
     if (existingPayment) {
+      // ถ้ามีการแก้ไข Payment ที่มี invoiced = true ให้ถามยืนยัน
+      if (existingPayment.invoiced) {
+        // ในโค้ดจริงควรให้ component ที่เรียกใช้จัดการการถามยืนยัน
+        // แต่ในที่นี้เราจะเปลี่ยนให้ invoiced = false เลย
+        // (component ที่เรียกใช้จะต้องจัดการถามยืนยันเอง)
+        paymentData.invoiced = false;
+      }
+
       // Update existing payment
       result = await supabase
         .from("payments")
