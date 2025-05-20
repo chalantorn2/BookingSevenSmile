@@ -198,7 +198,7 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                     {index + 1}.
                     <User size={18} className="text-gray-500" />
                     <span>
-                      {customerName} | {formatPax(booking)}
+                      {customerName} | {formatPax(booking)} คน
                     </span>
                   </div>
                 </div>
