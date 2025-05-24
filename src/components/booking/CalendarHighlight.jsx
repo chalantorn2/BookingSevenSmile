@@ -157,15 +157,15 @@ const CalendarHighlight = ({ selectedDate, onDateSelect }) => {
       </div>
       <div className="flex items-center">
         <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div>
-        <span>มีทัวร์</span>
+        <span>มี Tour</span>
       </div>
       <div className="flex items-center">
         <div className="w-3 h-3 rounded-full bg-blue-300 mr-1"></div>
-        <span>มีรถรับส่ง</span>
+        <span>มี Transfer</span>
       </div>
       <div className="flex items-center">
         <div className="w-3 h-3 rounded-full bg-gradient-to-b from-green-600 to-blue-600 mr-1"></div>
-        <span>มีทั้งทัวร์และรถรับส่ง</span>
+        <span>มีทั้ง Tour และ Transfer</span>
       </div>
       <div className="flex items-center">
         <div className="w-3 h-3 rounded-full bg-gray-300 mr-1"></div>

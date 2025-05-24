@@ -171,7 +171,7 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
   if (bookings.length === 0) {
     return (
       <div className="text-center py-6 text-gray-500">
-        ไม่พบข้อมูลการจอง{type === "tour" ? "ทัวร์" : "รถรับส่ง"}
+        ไม่พบข้อมูลการจอง{type === "tour" ? "Tour" : "Transfer"}
       </div>
     );
   }

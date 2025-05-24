@@ -7,6 +7,9 @@ import BookingStatusLegend from "../components/booking/BookingStatusLegend";
 import CalendarHighlight from "../components/booking/CalendarHighlight";
 import { useNotification } from "../hooks/useNotification";
 import CaptureButtons from "../components/common/CaptureButtons";
+import { exportBookingsToExcel } from "../services/excelService";
+import { FileSpreadsheet } from "lucide-react";
+
 import {
   Printer,
   Camera,
@@ -234,6 +237,25 @@ const Home = () => {
       ? transferBookings
       : transferBookings.filter((booking) => booking.status === filter);
 
+  const handleExportExcel = async () => {
+    try {
+      const result = await exportBookingsToExcel(
+        filteredTourBookings,
+        filteredTransferBookings,
+        formattedDate
+      );
+
+      if (result.success) {
+        showSuccess(result.message);
+      } else {
+        showError(result.message);
+      }
+    } catch (error) {
+      console.error("Export error:", error);
+      showError("เกิดข้อผิดพลาดในการส่งออกข้อมูล");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-6">
@@ -252,6 +274,7 @@ const Home = () => {
             {/* ส่วนแสดงตัวกรองสถานะและปุ่มแคปภาพ */}
             <div className="flex flex-col sm:flex-row justify-between items-center mb-6 bg-white rounded-lg p-4 border border-gray-100">
               {/* ปุ่มแคปภาพ (ซ้าย) */}
+
               <div className="flex gap-2 mb-2 sm:mb-0 print-hidden">
                 <CaptureButtons
                   targetRef={captureAreaRef}
@@ -272,8 +295,18 @@ const Home = () => {
                       fontFamily: "'Kanit', sans-serif",
                     },
                   }}
-                  context="home" // ใช้ config สำหรับ Home
+                  context="home"
                 />
+
+                {/* เพิ่มปุ่ม Export Excel */}
+                <button
+                  onClick={handleExportExcel}
+                  className="flex items-center p-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors text-sm"
+                  title="ส่งออก Excel"
+                >
+                  <FileSpreadsheet size={18} />
+                  <span>Excel</span>
+                </button>
               </div>
 
               {/* ปุ่มตัวกรองสถานะ (ขวา) */}
@@ -349,13 +382,13 @@ const Home = () => {
 
               <BookingStatusLegend />
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
                 {/* Tour Bookings */}
                 <div>
                   <div className="bg-white border border-green-200 rounded-lg shadow-sm overflow-hidden">
                     <div className="bg-gradient-to-r from-green-600 to-green-500 text-white p-3 rounded-t-lg flex justify-between items-center">
                       <h3 className="text-lg font-semibold">
-                        ทัวร์ ({filteredTourBookings.length})
+                        Tour ({filteredTourBookings.length})
                       </h3>
                     </div>
                     <div className="p-3">
@@ -375,7 +408,7 @@ const Home = () => {
                   <div className="bg-white border border-blue-200 rounded-lg shadow-sm overflow-hidden">
                     <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white p-3 rounded-t-lg flex justify-between items-center">
                       <h3 className="text-lg font-semibold">
-                        รถรับส่ง ({filteredTransferBookings.length})
+                        Transfer ({filteredTransferBookings.length})
                       </h3>
                     </div>
                     <div className="p-3">
