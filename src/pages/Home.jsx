@@ -49,27 +49,107 @@ const Home = () => {
     setError(null);
 
     try {
+      // Query สำหรับ tour bookings
       const { data: tourData, error: tourError } = await supabase
         .from("tour_bookings")
-        .select("*, orders(first_name, last_name, pax)")
+        .select(
+          `
+          *, 
+          orders(
+            id,
+            first_name, 
+            last_name, 
+            pax,
+            pax_adt,
+            pax_chd,
+            pax_inf,
+            agent_id,
+            agent_name,
+            reference_id
+          )
+        `
+        )
         .eq("tour_date", date);
 
       if (tourError) throw tourError;
 
+      // Query สำหรับ transfer bookings
       const { data: transferData, error: transferError } = await supabase
         .from("transfer_bookings")
-        .select("*, orders(first_name, last_name, pax)")
+        .select(
+          `
+          *, 
+          orders(
+            id,
+            first_name, 
+            last_name, 
+            pax,
+            pax_adt,
+            pax_chd,
+            pax_inf,
+            agent_id,
+            agent_name,
+            reference_id
+          )
+        `
+        )
         .eq("transfer_date", date);
 
       if (transferError) throw transferError;
 
-      const sortedTourData = tourData.sort((a, b) => {
+      // ดึงข้อมูล agent จาก information table แยกต่างหาก
+      const allAgentIds = [
+        ...tourData.map((booking) => booking.orders?.agent_id).filter(Boolean),
+        ...transferData
+          .map((booking) => booking.orders?.agent_id)
+          .filter(Boolean),
+      ];
+
+      let agentMap = {};
+      if (allAgentIds.length > 0) {
+        const { data: agentData, error: agentError } = await supabase
+          .from("information")
+          .select("id, value, phone")
+          .in("id", [...new Set(allAgentIds)]); // remove duplicates
+
+        if (agentError) {
+          console.warn("Error fetching agent data:", agentError);
+        } else if (agentData) {
+          agentMap = agentData.reduce((acc, agent) => {
+            acc[agent.id] = agent;
+            return acc;
+          }, {});
+        }
+      }
+
+      // เพิ่มข้อมูล agent เข้าไปในแต่ละ booking
+      const enrichedTourData = tourData.map((booking) => ({
+        ...booking,
+        orders: {
+          ...booking.orders,
+          agent_info: booking.orders?.agent_id
+            ? agentMap[booking.orders.agent_id]
+            : null,
+        },
+      }));
+
+      const enrichedTransferData = transferData.map((booking) => ({
+        ...booking,
+        orders: {
+          ...booking.orders,
+          agent_info: booking.orders?.agent_id
+            ? agentMap[booking.orders.agent_id]
+            : null,
+        },
+      }));
+
+      const sortedTourData = enrichedTourData.sort((a, b) => {
         return (a.tour_pickup_time || "").localeCompare(
           b.tour_pickup_time || ""
         );
       });
 
-      const sortedTransferData = transferData.sort((a, b) => {
+      const sortedTransferData = enrichedTransferData.sort((a, b) => {
         return (a.transfer_time || "").localeCompare(b.transfer_time || "");
       });
 

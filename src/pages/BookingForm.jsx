@@ -98,6 +98,7 @@ const BookingForm = () => {
           category: "agent",
           value: value.trim(),
           description: "",
+          phone: "", // เพิ่มฟิลด์ phone
           active: true,
         })
         .select()
@@ -268,6 +269,11 @@ const BookingForm = () => {
       let referenceId = currentOrderId;
       let orderKey = currentOrderKey;
 
+      const findAgentId = (agentName) => {
+        const agent = agents.find((agent) => agent.value === agentName);
+        return agent ? agent.id : null;
+      };
+
       if (!orderKey) {
         referenceId = await generateOrderID(mainFormData.agent);
         const { data: newOrder, error: orderError } = await supabase
@@ -276,6 +282,7 @@ const BookingForm = () => {
             first_name: mainFormData.firstName,
             last_name: mainFormData.lastName,
             agent_name: mainFormData.agent,
+            agent_id: agentId,
             reference_id: referenceId,
             pax: totalPax.toString(),
             pax_adt: parseInt(mainFormData.paxAdt) || 0,
@@ -298,6 +305,7 @@ const BookingForm = () => {
             first_name: mainFormData.firstName,
             last_name: mainFormData.lastName,
             agent_name: mainFormData.agent,
+            agent_id: agentId,
             pax: totalPax.toString(),
             pax_adt: parseInt(mainFormData.paxAdt) || 0,
             pax_chd: parseInt(mainFormData.paxChd) || 0,

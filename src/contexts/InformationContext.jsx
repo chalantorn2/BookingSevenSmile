@@ -1,31 +1,26 @@
-// src/contexts/InformationContext.jsx
 import React, { createContext, useState, useEffect, useContext } from "react";
 import {
   fetchInformationByCategory,
   addInformation,
 } from "../services/informationService";
 
-// สร้าง Context พร้อมค่าเริ่มต้น
 const InformationContext = createContext({
   tourTypes: [],
   tourRecipients: [],
   transferTypes: [],
   transferRecipients: [],
-  places: [], // เหลือแค่ places อย่างเดียว
+  places: [],
   agents: [],
   loading: true,
   addNewInformation: () => {},
   refreshInformation: () => {},
 });
 
-// Hook สำหรับใช้งาน Context
 export const useInformation = () => {
   return useContext(InformationContext);
 };
 
-// Provider Component
 export const InformationProvider = ({ children }) => {
-  // สถานะสำหรับเก็บข้อมูลต่างๆ
   const [tourTypes, setTourTypes] = useState([]);
   const [tourRecipients, setTourRecipients] = useState([]);
   const [transferTypes, setTransferTypes] = useState([]);
@@ -34,46 +29,76 @@ export const InformationProvider = ({ children }) => {
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // โหลดข้อมูลทั้งหมดเมื่อ component ถูกโหลด
   useEffect(() => {
     loadAllInformation();
   }, []);
 
-  // ฟังก์ชันโหลดข้อมูลทั้งหมด
   const loadAllInformation = async () => {
     setLoading(true);
     try {
+      console.log("🔍 Loading all information...");
       const categories = [
         { category: "agent", setter: setAgents },
         { category: "tour_type", setter: setTourTypes },
         { category: "tour_recipient", setter: setTourRecipients },
         { category: "transfer_type", setter: setTransferTypes },
         { category: "transfer_recipient", setter: setTransferRecipients },
-        { category: "place", setter: setPlaces }, // เพิ่ม place ในรายการหลัก
+        { category: "place", setter: setPlaces },
       ];
 
-      // ดึงข้อมูลทุกประเภทแบบขนาน
-      await Promise.all(
+      const results = await Promise.all(
         categories.map(async ({ category, setter }) => {
-          const { data } = await fetchInformationByCategory(category);
-          if (data) {
-            setter(data);
+          const { data, error } = await fetchInformationByCategory(category);
+          console.log(`🔍 Loaded ${category} data:`, data);
+
+          // เพิ่ม debug สำหรับ places โดยเฉพาะ
+          if (category === "place") {
+            console.log("🔍 Places data details:", data);
+            console.log(
+              "🔍 Places with phone:",
+              data.filter((item) => item.phone)
+            );
           }
+
+          if (error) {
+            console.error(`❌ Error loading ${category}:`, error);
+            return { category, data: [], error };
+          }
+          setter(data);
+          return { category, data, error: null };
         })
       );
 
-      // ลบส่วนการดึงข้อมูล legacyCategories ทั้งหมด
+      // เพิ่มตรงนี้
+      console.log("🔍 Final places state after loading:", places);
+
+      // Log any errors from Promise.all
+      results.forEach(({ category, error }) => {
+        if (error) {
+          console.error(`💥 Failed to load ${category}:`, error);
+        }
+      });
     } catch (error) {
-      console.error("Error loading information:", error);
+      console.error("💥 Exception in loadAllInformation:", error);
     } finally {
       setLoading(false);
+      console.log("✅ Finished loading all information");
     }
   };
 
-  // ฟังก์ชันเพิ่มข้อมูลใหม่
-  const addNewInformation = async (category, value, description = "") => {
+  const addNewInformation = async (
+    category,
+    value,
+    description = "",
+    phone = ""
+  ) => {
     try {
-      // แปลงหมวดหมู่เก่าให้เป็น "place"
+      console.log(`🔍 Adding new information for ${category}:`, {
+        value,
+        description,
+        phone,
+      });
+
       const actualCategory =
         category === "hotel" ||
         category === "pickup_location" ||
@@ -81,17 +106,28 @@ export const InformationProvider = ({ children }) => {
           ? "place"
           : category;
 
-      const { data, error } = await addInformation({
+      const newData = {
         category: actualCategory,
         value: value.trim(),
-        description,
+        description: description.trim(),
+        phone: phone.trim(),
         active: true,
-      });
+      };
 
-      if (error) throw error;
-      if (!data) throw new Error("Failed to add new information");
+      const { data, error } = await addInformation(newData);
+      console.log(`🔍 Add result for ${actualCategory}:`, { data, error });
 
-      // อัปเดตสถานะตามหมวดหมู่
+      if (error) {
+        throw new Error(
+          `Failed to add ${actualCategory} information: ${error}`
+        );
+      }
+
+      if (!data) {
+        throw new Error("No data returned from database after insert");
+      }
+
+      // Update state based on category
       switch (actualCategory) {
         case "agent":
           setAgents((prev) => [...prev, data]);
@@ -117,39 +153,37 @@ export const InformationProvider = ({ children }) => {
 
       return data;
     } catch (error) {
-      console.error(`Error adding ${category} information:`, error);
+      console.error(
+        `💥 Exception in addNewInformation for ${category}:`,
+        error
+      );
       return null;
     }
   };
 
-  // แปลงข้อมูลจาก API เป็น options สำหรับ AutocompleteInput
   const formatOptions = (items) => {
     if (!Array.isArray(items)) return [];
-
-    // เพิ่ม console.log เพื่อตรวจสอบข้อมูลที่นำเข้า
-    // console.log("Formatting items:", items);
 
     return items.map((item) => ({
       id: item.id,
       value: item.value || "",
       description: item.description || "",
+      phone: item.phone || "",
     }));
   };
 
   const value = {
-    // ข้อมูล
     tourTypes: formatOptions(tourTypes),
     tourRecipients: formatOptions(tourRecipients),
     transferTypes: formatOptions(transferTypes),
     transferRecipients: formatOptions(transferRecipients),
-    places: formatOptions(places), // เหลือแค่ places อย่างเดียว
+    places: formatOptions(places),
     agents: formatOptions(agents),
     loading,
-
-    // ฟังก์ชัน
     addNewInformation,
     refreshInformation: loadAllInformation,
   };
+
   return (
     <InformationContext.Provider value={value}>
       {children}

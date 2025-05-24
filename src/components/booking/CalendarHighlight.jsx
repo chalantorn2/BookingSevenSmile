@@ -28,17 +28,16 @@ const CalendarHighlight = ({ selectedDate, onDateSelect }) => {
   const weekDays = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 
   useEffect(() => {
-    generateCalendarDays(currentMonth);
-    fetchBookedDates(currentMonth);
-  }, [currentMonth]);
-
-  // เมื่อ selectedDate เปลี่ยน ให้อัพเดทเดือนปัจจุบันด้วย
-  useEffect(() => {
-    // เปลี่ยนเฉพาะเมื่อเดือนไม่ตรงกัน เพื่อป้องกันการรีเรนเดอร์ที่ไม่จำเป็น
+    // อัพเดท currentMonth ถ้าจำเป็น
     if (!isSameMonth(selectedDate, currentMonth)) {
       setCurrentMonth(selectedDate);
+      return; // ออกจาก effect นี้ ให้รอ currentMonth เปลี่ยนแล้วค่อยทำงานใหม่
     }
-  }, [selectedDate]);
+
+    // ทำงานเมื่อ currentMonth พร้อมแล้ว
+    generateCalendarDays(currentMonth);
+    fetchBookedDates(currentMonth);
+  }, [selectedDate, currentMonth]);
 
   // สร้างวันที่ในปฏิทิน
   const generateCalendarDays = (date) => {

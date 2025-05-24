@@ -12,12 +12,127 @@ import {
   BedDouble,
 } from "lucide-react";
 import { useNotification } from "../../hooks/useNotification";
+import { useInformation } from "../../contexts/InformationContext";
 import CaptureButtons from "../common/CaptureButtons";
 
 const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
   const { showSuccess, showError, showInfo } = useNotification();
+  const { places, tourRecipients, transferRecipients } = useInformation();
 
   console.log(`${type} bookings:`, bookings);
+
+  console.log("🔍 All places from useInformation:", places);
+  console.log("🔍 Places count:", places.length);
+
+  console.log("🔍 First 5 places:", places.slice(0, 5));
+  console.log(
+    "🔍 All place values:",
+    places.map((p) => p.value)
+  );
+  console.log(
+    "🔍 Places with phone field:",
+    places.filter(
+      (p) => p.phone !== null && p.phone !== undefined && p.phone !== ""
+    )
+  );
+
+  if (places.length > 0) {
+    console.log(
+      "🔍 Sample place with phone:",
+      places.find((p) => p.phone)
+    );
+  }
+  // ฟังก์ชันใหม่สำหรับดึงข้อมูล Agent จากการ join
+  const getAgentInfo = (booking) => {
+    if (!booking) {
+      console.warn(`Booking is undefined or null`);
+      return { name: "ไม่ระบุ Agent", phone: "" };
+    }
+
+    if (!booking.orders) {
+      console.warn(`Booking ID: ${booking.id} has no orders data`, booking);
+      return { name: "ไม่ระบุ Agent", phone: "" };
+    }
+
+    // ลองใช้ข้อมูลจาก join ก่อน (agent_info)
+    if (booking.orders.agent_info) {
+      console.log(
+        `Using agent_info for booking ID: ${booking.id}`,
+        booking.orders.agent_info
+      );
+      return {
+        name: booking.orders.agent_info.value || "ไม่ระบุ Agent",
+        phone: booking.orders.agent_info.phone || "",
+      };
+    }
+
+    // fallback ไปใช้ agent_name ถ้า join ไม่สำเร็จ
+    if (booking.orders.agent_name) {
+      console.log(
+        `Using agent_name fallback for booking ID: ${booking.id}`,
+        booking.orders.agent_name
+      );
+      return {
+        name: booking.orders.agent_name,
+        phone: "",
+      };
+    }
+
+    console.warn(`No agent information found for booking ID: ${booking.id}`);
+    return { name: "ไม่ระบุ Agent", phone: "" };
+  };
+
+  const getPlaceInfo = (placeName, bookingType) => {
+    console.log(
+      "🔍 getPlaceInfo called with:",
+      placeName,
+      "type:",
+      bookingType
+    );
+
+    if (!placeName) {
+      console.log("🔍 No placeName provided");
+      return { name: "ไม่มีข้อมูล", phone: "" };
+    }
+
+    // เลือก recipients ตาม booking type
+    const recipients =
+      bookingType === "tour" ? tourRecipients : transferRecipients;
+    console.log(`🔍 Using ${bookingType} recipients:`, recipients);
+
+    // ค้นหาแบบ exact match ก่อน
+    const exactMatch = recipients.find((r) => r.value === placeName);
+    console.log("🔍 Exact match result:", exactMatch);
+
+    // ค้นหาแบบ case insensitive
+    const caseInsensitiveMatch = recipients.find(
+      (r) =>
+        r.value &&
+        r.value.toLowerCase().trim() === placeName.toLowerCase().trim()
+    );
+    console.log("🔍 Case insensitive match result:", caseInsensitiveMatch);
+
+    const recipient = exactMatch || caseInsensitiveMatch;
+
+    if (recipient) {
+      console.log("🔍 Found recipient data:", recipient);
+      return {
+        name: recipient.value || "ไม่ระบุชื่อ",
+        phone: recipient.phone || "",
+      };
+    }
+
+    console.log("🔍 No recipient found, returning default");
+    return { name: placeName, phone: "" };
+  };
+
+  const formatWithPhone = (name, phone) => {
+    if (!name || name === "ไม่ระบุ Agent") return "ไม่ระบุ Agent";
+    if (phone) {
+      return `${name} ${phone}`;
+    }
+    return name;
+  };
 
   const getStatusBackgroundStyle = (status) => {
     switch (status) {
@@ -89,7 +204,6 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
     return statusMap[status] || status;
   };
 
-  // จัดเรียงข้อมูล bookings ตามเวลารับ
   const sortedBookings = [...bookings].sort((a, b) => {
     const timeA = a.tour_pickup_time || a.transfer_time || "";
     const timeB = b.tour_pickup_time || b.transfer_time || "";
@@ -97,24 +211,34 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
   });
 
   const formatPax = (booking) => {
-    // ตรวจสอบว่า booking มีค่าหรือไม่
     if (!booking) return "0";
 
-    // แปลงค่าเป็นตัวเลข และถ้าเป็น NaN หรือไม่มีค่าให้เป็น 0
+    // ลองใช้ข้อมูลจาก booking.orders ก่อน
+    if (booking.orders) {
+      const adtCount = parseInt(booking.orders.pax_adt || 0);
+      const chdCount = parseInt(booking.orders.pax_chd || 0);
+      const infCount = parseInt(booking.orders.pax_inf || 0);
+
+      let paxParts = [];
+      if (adtCount > 0) paxParts.push(`${adtCount}`);
+      if (chdCount > 0) paxParts.push(`${chdCount}`);
+      if (infCount > 0) paxParts.push(`${infCount}`);
+
+      if (paxParts.length > 0) {
+        return paxParts.join("+");
+      }
+    }
+
+    // ถ้าไม่มีข้อมูลจาก orders ให้ลองจาก booking เอง
     const adtCount = parseInt(booking.pax_adt || 0);
     const chdCount = parseInt(booking.pax_chd || 0);
     const infCount = parseInt(booking.pax_inf || 0);
 
-    // สร้าง array สำหรับเก็บค่าที่ไม่เป็น 0
     let paxParts = [];
-
-    // เพิ่มค่าที่ไม่เป็น 0 เข้าไปใน array
     if (adtCount > 0) paxParts.push(`${adtCount}`);
     if (chdCount > 0) paxParts.push(`${chdCount}`);
     if (infCount > 0) paxParts.push(`${infCount}`);
 
-    // ถ้าไม่มีค่าใดๆ (ทุกค่าเป็น 0) ให้แสดง "0"
-    // มิฉะนั้นให้เชื่อมค่าด้วย "+"
     return paxParts.length > 0 ? paxParts.join("+") : "0";
   };
 
@@ -125,27 +249,18 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
         const lastName = booking.orders?.last_name || "";
         const customerName = `${firstName} ${lastName}`.trim() || "ไม่มีชื่อ";
 
-        let paxDisplay = "-";
-        const paxAdt = booking.pax_adt || 0;
-        const paxChd = booking.pax_chd || 0;
-        const paxInf = booking.pax_inf || 0;
-
-        if (paxAdt > 0 || paxChd > 0 || paxInf > 0) {
-          paxDisplay = `${paxAdt}+${paxChd}+${paxInf}`;
-        } else if (booking.pax) {
-          // ถ้าไม่มีข้อมูลแยกประเภท ให้ใช้ pax รวมเป็น fallback
-          paxDisplay = booking.pax;
-        } else if (booking.orders && booking.orders.pax) {
-          // ถ้าไม่มีทั้งสองแบบ แต่มีใน orders
-          paxDisplay = booking.orders.pax;
-        }
-
-        // สร้าง ref สำหรับแต่ละรายการจอง
         const bookingCaptureRef = useRef(null);
+        const agentInfo = getAgentInfo(booking);
+        const sendToInfo = getPlaceInfo(booking.send_to, type);
+
+        console.log(`🔍 Booking ${booking.id}:`, {
+          send_to: booking.send_to,
+          sendToInfo: sendToInfo,
+          hasPhone: !!sendToInfo.phone,
+        });
 
         return (
           <div key={booking.id} className="relative">
-            {/* ปุ่มแคปภาพสำหรับรายการนี้ */}
             <div className="absolute top-2 right-2 z-10 flex flex-row items-center gap-1 print-hidden">
               <CaptureButtons
                 targetRef={bookingCaptureRef}
@@ -179,7 +294,6 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
               </button>
             </div>
 
-            {/* พื้นที่ที่จะแคปสำหรับรายการนี้ */}
             <div
               ref={bookingCaptureRef}
               className={`border border-gray-500 rounded-md overflow-hidden transition-all hover:shadow-md ${getStatusBackgroundStyle(
@@ -303,21 +417,35 @@ const BookingList = ({ bookings, type, isLoading, error, onViewDetails }) => {
                   )}
                 </div>
                 <div className="flex justify-between items-center text-xs text-gray-500 pt-2 border-t border-gray-500">
-                  <span className="font-medium mr-2 text-base w-30">
-                    {booking.send_to || "-"}
-                  </span>
-                  <span>
-                    {booking.reference_id
-                      ? booking.reference_id
-                      : `ID: ${booking.id || "-"}`}
-                  </span>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                      booking.status
-                    )}`}
-                  >
-                    {translateStatus(booking.status)}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span
+                      className={`font-medium ${
+                        agentInfo.name === "ไม่ระบุ Agent"
+                          ? "text-gray-500"
+                          : ""
+                      }`}
+                    >
+                      จาก: {formatWithPhone(agentInfo.name, agentInfo.phone)}
+                    </span>
+                    <span>|</span>
+                    <span className="font-medium">
+                      ส่ง: {formatWithPhone(sendToInfo.name, sendToInfo.phone)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>
+                      {booking.reference_id
+                        ? booking.reference_id
+                        : `ID: ${booking.id || "-"}`}
+                    </span>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                        booking.status
+                      )}`}
+                    >
+                      {translateStatus(booking.status)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
