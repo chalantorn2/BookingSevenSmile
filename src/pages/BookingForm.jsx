@@ -269,10 +269,14 @@ const BookingForm = () => {
       let referenceId = currentOrderId;
       let orderKey = currentOrderKey;
 
+      // เพิ่มการหา agentId ก่อนใช้งาน
       const findAgentId = (agentName) => {
         const agent = agents.find((agent) => agent.value === agentName);
         return agent ? agent.id : null;
       };
+
+      // ประกาศตัวแปร agentId
+      const agentId = findAgentId(mainFormData.agent);
 
       if (!orderKey) {
         referenceId = await generateOrderID(mainFormData.agent);
@@ -282,7 +286,7 @@ const BookingForm = () => {
             first_name: mainFormData.firstName,
             last_name: mainFormData.lastName,
             agent_name: mainFormData.agent,
-            agent_id: agentId,
+            agent_id: agentId, // ✅ ตอนนี้ agentId ถูกประกาศแล้ว
             reference_id: referenceId,
             pax: totalPax.toString(),
             pax_adt: parseInt(mainFormData.paxAdt) || 0,
@@ -296,16 +300,16 @@ const BookingForm = () => {
         if (!newOrder) throw new Error("ไม่สามารถสร้าง Order ใหม่ได้");
 
         orderKey = newOrder.id;
-        console.log("Order created with ID:", orderKey); // เพิ่ม log
+        console.log("Order created with ID:", orderKey);
       } else {
-        // ย้ายโค้ดการอัพเดทมาไว้ตรงนี้เมื่อ orderKey มีค่าแล้ว
+        // อัพเดท order ที่มีอยู่แล้ว
         const { error: updateError } = await supabase
           .from("orders")
           .update({
             first_name: mainFormData.firstName,
             last_name: mainFormData.lastName,
             agent_name: mainFormData.agent,
-            agent_id: agentId,
+            agent_id: agentId, // ✅ ใช้ agentId ที่ประกาศแล้ว
             pax: totalPax.toString(),
             pax_adt: parseInt(mainFormData.paxAdt) || 0,
             pax_chd: parseInt(mainFormData.paxChd) || 0,
