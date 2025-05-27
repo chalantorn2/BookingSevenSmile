@@ -1,6 +1,7 @@
 // src/services/captureService.js
 import domtoimage from "dom-to-image";
 import { saveAs } from "file-saver";
+import { waitForFonts, forceReloadFonts } from "../utils/fontLoader";
 
 /**
  * ตรวจสอบว่า Font ถูกโหลดแล้วหรือไม่
@@ -9,32 +10,14 @@ import { saveAs } from "file-saver";
  */
 // ปรับปรุงฟังก์ชัน checkFontLoaded ใน captureService.js
 const checkFontLoaded = async (fontFamily = "Kanit") => {
-  return new Promise((resolve) => {
-    if (document.fonts && document.fonts.check) {
-      // ลองตรวจสอบด้วยหลายขนาดและหลายน้ำหนัก
-      const weights = ["400", "700"];
-      let allLoaded = true;
+  const isLoaded = await waitForFonts(fontFamily, 8000);
 
-      weights.forEach((weight) => {
-        if (!document.fonts.check(`${weight} 12px "${fontFamily}"`)) {
-          allLoaded = false;
-        }
-      });
+  if (!isLoaded) {
+    console.warn("⚠️ Font not loaded, trying force reload...");
+    return await forceReloadFonts();
+  }
 
-      if (allLoaded) {
-        resolve(true);
-        return;
-      }
-
-      // รอให้ฟอนต์โหลดเสร็จโดยใช้ document.fonts.ready
-      document.fonts.ready.then(() => {
-        resolve(true);
-      });
-    } else {
-      // รอนานขึ้นสำหรับเบราว์เซอร์เก่า
-      setTimeout(() => resolve(true), 3000);
-    }
-  });
+  return isLoaded;
 };
 
 /**
@@ -80,10 +63,17 @@ const prepareElementForCapture = (element, options = {}) => {
  * @returns {Promise<Blob>} - Blob ของรูปภาพ
  */
 const createImageBlob = async (element, options = {}) => {
-  // ตรวจสอบว่า Font ถูกโหลดเรียบร้อยแล้ว
-  await checkFontLoaded(options.fontFamily || "Kanit");
+  // รอฟอนต์ให้แน่ใจ
+  const fontLoaded = await checkFontLoaded(options.fontFamily || "Kanit");
 
-  // ตั้งค่าสำหรับ domtoimage
+  if (!fontLoaded) {
+    console.warn("⚠️ Proceeding without font confirmation");
+  }
+
+  // รอเพิ่มเติมให้แน่ใจ
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  // ตั้งค่า domtoimage ที่ปรับปรุง
   const captureOptions = {
     bgcolor: options.bgColor || "#ffffff",
     style: {
@@ -93,13 +83,22 @@ const createImageBlob = async (element, options = {}) => {
     width: options.width || element.scrollWidth,
     height: options.height || element.scrollHeight,
     quality: options.quality || 1.0,
-    cacheBust: true, // ป้องกันการใช้แคชเก่า
-    imagePlaceholder:
-      "data:image/png;base64,iVBORw0KGoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", // placeholder สำหรับรูปภาพ
-    fontEmbedCSS: `
-    @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;700&display=swap');
-    * { font-family: 'Kanit', sans-serif !important; }
-  `, // ฝังฟอนต์ CSS
+    cacheBust: true,
+    // เพิ่ม option สำหรับ font
+    filter: (node) => {
+      // ไม่แคป element ที่มี class print-hidden
+      if (node.classList && node.classList.contains("print-hidden")) {
+        return false;
+      }
+      return true;
+    },
+    // ปรับแต่ง style ก่อนแคป
+    style: {
+      fontFamily:
+        "'Kanit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      fontDisplay: "swap",
+      ...options.styles,
+    },
   };
 
   try {
