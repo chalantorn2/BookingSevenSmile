@@ -11,15 +11,7 @@ import { useNotification } from "../../hooks/useNotification";
 
 /**
  * CaptureWrapper - คอมโพเนนต์ห่อหุ้มเนื้อหาที่ต้องการแคปภาพ
- *
- * @param {Object} props
- * @param {React.ReactNode} props.children - เนื้อหาที่ต้องการแคป
- * @param {string} props.filename - ชื่อไฟล์เมื่อบันทึก (ไม่รวมนามสกุล)
- * @param {Object} props.options - ตัวเลือกการแคป (bgColor, styles, etc.)
- * @param {boolean} props.showPreview - แสดงตัวอย่างภาพหรือไม่
- * @param {string} props.className - คลาสเพิ่มเติมสำหรับ wrapper
- * @param {boolean} props.showButtons - แสดงปุ่มควบคุมหรือไม่
- * @param {Function} props.onCapture - callback เมื่อแคปเสร็จ
+ * ปรับปรุงการจัดการ Font Loading ให้ดีขึ้น
  */
 const CaptureWrapper = ({
   children,
@@ -36,57 +28,165 @@ const CaptureWrapper = ({
   const [isCapturing, setIsCapturing] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [fontsLoaded, setFontsLoaded] = useState(false);
+  const [fontLoadAttempts, setFontLoadAttempts] = useState(0);
 
-  // ตรวจสอบการโหลด Font
-  // เพิ่มในส่วนต้นของ CaptureButtons.jsx หรือ CaptureWrapper.jsx
+  // ปรับปรุงการตรวจสอบและโหลด Font
   useEffect(() => {
-    // เพิ่มการโหลดฟอนต์ Kanit โดยตรง
-    if (!document.getElementById("kanit-font")) {
-      const link = document.createElement("link");
-      link.id = "kanit-font";
-      link.rel = "stylesheet";
-      link.href =
-        "https://fonts.googleapis.com/css2?family=Kanit:wght@400;700&display=swap";
-      document.head.appendChild(link);
+    const loadFontsAdvanced = async () => {
+      console.log("🔍 CaptureWrapper: Starting advanced font loading...");
 
-      // สร้าง preload hint เพื่อเร่งการโหลด
-      const preload = document.createElement("link");
-      preload.rel = "preload";
-      preload.as = "font";
-      preload.type = "font/woff2";
-      preload.href =
-        "https://fonts.gstatic.com/s/kanit/v12/nKKZ-Go6G5tXcraVGwCKd6xBDFs.woff2";
-      preload.crossOrigin = "anonymous";
-      document.head.appendChild(preload);
-    }
+      try {
+        // เพิ่ม font link ถ้ายังไม่มี
+        if (!document.getElementById("kanit-font")) {
+          console.log("📥 CaptureWrapper: Adding Kanit font link...");
+          const link = document.createElement("link");
+          link.id = "kanit-font";
+          link.rel = "stylesheet";
+          link.href =
+            "https://fonts.googleapis.com/css2?family=Kanit:wght@400;700&display=swap";
+          document.head.appendChild(link);
+        }
 
-    // รอให้ฟอนต์โหลดเสร็จก่อนแคป
-    const waitForFonts = async () => {
-      if (document.fonts && document.fonts.ready) {
-        await document.fonts.ready;
-        const isFontLoaded = document.fonts.check("400 16px 'Kanit'");
-        console.log("Kanit font loaded:", isFontLoaded);
-      } else {
-        // รอสักครู่
+        // เพิ่ม preload hints หลายตัว
+        if (!document.getElementById("kanit-preload-400")) {
+          console.log(
+            "🚀 CaptureWrapper: Adding comprehensive font preload hints..."
+          );
+          const preload400 = document.createElement("link");
+          preload400.id = "kanit-preload-400";
+          preload400.rel = "preload";
+          preload400.as = "font";
+          preload400.type = "font/woff2";
+          preload400.href =
+            "https://fonts.gstatic.com/s/kanit/v12/nKKZ-Go6G5tXcraVGwCKd6xBDFs.woff2";
+          preload400.crossOrigin = "anonymous";
+          document.head.appendChild(preload400);
+
+          const preload700 = document.createElement("link");
+          preload700.id = "kanit-preload-700";
+          preload700.rel = "preload";
+          preload700.as = "font";
+          preload700.type = "font/woff2";
+          preload700.href =
+            "https://fonts.gstatic.com/s/kanit/v12/nKKb-Go6G5tXcraVOyMuVrHaP3KGFw.woff2";
+          preload700.crossOrigin = "anonymous";
+          document.head.appendChild(preload700);
+        }
+
+        // รอให้ DOM อัพเดท
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Force load fonts ในหลายขนาดและน้ำหนัก
+        if (document.fonts && document.fonts.load) {
+          console.log("⏳ CaptureWrapper: Force loading fonts...");
+          const fontPromises = [
+            document.fonts.load("400 12px 'Kanit'"),
+            document.fonts.load("400 16px 'Kanit'"),
+            document.fonts.load("400 20px 'Kanit'"),
+            document.fonts.load("700 12px 'Kanit'"),
+            document.fonts.load("700 16px 'Kanit'"),
+            document.fonts.load("700 20px 'Kanit'"),
+          ];
+
+          // รอ font load promises (timeout 5 วินาที)
+          await Promise.race([
+            Promise.all(fontPromises),
+            new Promise((resolve) => setTimeout(resolve, 5000)),
+          ]);
+        }
+
+        // รอ document.fonts.ready
+        if (document.fonts && document.fonts.ready) {
+          console.log("⏳ CaptureWrapper: Waiting for document.fonts.ready...");
+          await Promise.race([
+            document.fonts.ready,
+            new Promise((resolve) => setTimeout(resolve, 3000)),
+          ]);
+        }
+
+        // ตรวจสอบว่าฟอนต์โหลดจริงแล้วหรือไม่
+        let fontCheckResults = [];
+        if (document.fonts && document.fonts.check) {
+          fontCheckResults = [
+            document.fonts.check("400 16px 'Kanit'"),
+            document.fonts.check("700 16px 'Kanit'"),
+          ];
+          console.log(
+            "📊 CaptureWrapper: Font check results:",
+            fontCheckResults
+          );
+        }
+
+        const allFontsLoaded = fontCheckResults.every(Boolean);
+
+        if (allFontsLoaded) {
+          console.log("✅ CaptureWrapper: All fonts loaded successfully");
+          setFontsLoaded(true);
+          setFontLoadAttempts(1);
+
+          // รอเพิ่มเติมเพื่อให้ฟอนต์ render
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        } else {
+          console.warn(
+            "⚠️ CaptureWrapper: Some fonts not loaded, waiting additional time..."
+          );
+
+          // รอเพิ่มเติมแล้วลองตรวจสอบอีกรอบ
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+
+          const secondCheck =
+            document.fonts && document.fonts.check
+              ? document.fonts.check("400 16px 'Kanit'")
+              : true; // fallback ให้ผ่านไปก่อน
+
+          console.log("📊 CaptureWrapper: Second font check:", secondCheck);
+          setFontsLoaded(true); // ให้ทำงานต่อไปแม้ฟอนต์ไม่โหลด
+          setFontLoadAttempts(2);
+        }
+      } catch (error) {
+        console.error("💥 CaptureWrapper: Font loading error:", error);
+        // ถ้าเกิด error ให้รอแล้วทำงานต่อไป
         await new Promise((resolve) => setTimeout(resolve, 2000));
+        setFontsLoaded(true);
+        setFontLoadAttempts(3);
       }
     };
 
-    waitForFonts();
+    loadFontsAdvanced();
   }, []);
 
   // แคปเป็นไฟล์รูปภาพ
   const handleCaptureImage = async () => {
-    if (!captureRef.current || !fontsLoaded) {
-      showError("กรุณารอให้องค์ประกอบและฟอนต์โหลดเสร็จก่อน");
+    if (!captureRef.current) {
+      showError("ไม่พบองค์ประกอบสำหรับแคปภาพ");
       return;
     }
 
+    if (!fontsLoaded) {
+      showInfo("กำลังเตรียมฟอนต์... กรุณารอสักครู่");
+      // รอเพิ่มเติมถ้าฟอนต์ยังไม่โหลด
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
     setIsCapturing(true);
-    showInfo("กำลังสร้างรูปภาพ กรุณารอสักครู่...");
+    showInfo("กำลังเตรียมฟอนต์และสร้างรูปภาพ กรุณารอสักครู่...");
 
     try {
-      await captureToImage(captureRef.current, filename, options);
+      // เตรียมฟอนต์อีกรอบก่อนแคป
+      if (document.fonts && document.fonts.load) {
+        await Promise.all([
+          document.fonts.load("400 16px 'Kanit'"),
+          document.fonts.load("700 16px 'Kanit'"),
+        ]);
+      }
+
+      // รอเพิ่มเติมให้ฟอนต์ render
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      await captureToImage(captureRef.current, filename, {
+        ...options,
+        fontFamily: "Kanit",
+      });
       showSuccess("บันทึกรูปภาพสำเร็จ");
 
       if (onCapture) {
@@ -105,16 +205,36 @@ const CaptureWrapper = ({
 
   // แคปและคัดลอกไปยังคลิปบอร์ด
   const handleCaptureClipboard = async () => {
-    if (!captureRef.current || !fontsLoaded) {
-      showError("กรุณารอให้องค์ประกอบและฟอนต์โหลดเสร็จก่อน");
+    if (!captureRef.current) {
+      showError("ไม่พบองค์ประกอบสำหรับแคปภาพ");
       return;
     }
 
+    if (!fontsLoaded) {
+      showInfo("กำลังเตรียมฟอนต์... กรุณารอสักครู่");
+      // รอเพิ่มเติมถ้าฟอนต์ยังไม่โหลด
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
     setIsCapturing(true);
-    showInfo("กำลังคัดลอกรูปภาพ กรุณารอสักครู่...");
+    showInfo("กำลังเตรียมฟอนต์และคัดลอกรูปภาพ กรุณารอสักครู่...");
 
     try {
-      await captureToClipboard(captureRef.current, options);
+      // เตรียมฟอนต์อีกรอบก่อนแคป
+      if (document.fonts && document.fonts.load) {
+        await Promise.all([
+          document.fonts.load("400 16px 'Kanit'"),
+          document.fonts.load("700 16px 'Kanit'"),
+        ]);
+      }
+
+      // รอเพิ่มเติมให้ฟอนต์ render
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      await captureToClipboard(captureRef.current, {
+        ...options,
+        fontFamily: "Kanit",
+      });
       showSuccess("คัดลอกรูปภาพไปยังคลิปบอร์ดแล้ว");
 
       if (onCapture) {
@@ -133,15 +253,31 @@ const CaptureWrapper = ({
 
   // สร้างตัวอย่างรูปภาพ
   const handlePreview = async () => {
-    if (!captureRef.current || !fontsLoaded) {
-      showError("กรุณารอให้องค์ประกอบและฟอนต์โหลดเสร็จก่อน");
+    if (!captureRef.current) {
+      showError("ไม่พบองค์ประกอบสำหรับแคปภาพ");
       return;
+    }
+
+    if (!fontsLoaded) {
+      showInfo("กำลังเตรียมฟอนต์... กรุณารอสักครู่");
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
 
     setIsCapturing(true);
 
     try {
-      const dataUrl = await captureToDataURL(captureRef.current, options);
+      // เตรียมฟอนต์อีกรอบก่อนแคป
+      if (document.fonts && document.fonts.load) {
+        await Promise.all([
+          document.fonts.load("400 16px 'Kanit'"),
+          document.fonts.load("700 16px 'Kanit'"),
+        ]);
+      }
+
+      const dataUrl = await captureToDataURL(captureRef.current, {
+        ...options,
+        fontFamily: "Kanit",
+      });
       setPreviewUrl(dataUrl);
 
       if (onCapture) {
@@ -191,8 +327,8 @@ const CaptureWrapper = ({
           <button
             onClick={handlePreview}
             disabled={isCapturing}
-            className="p-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-            title="แสดงตัวอย่าง"
+            className="p-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50"
+            title={!fontsLoaded ? "กำลังเตรียมฟอนต์..." : "แสดงตัวอย่าง"}
           >
             <Camera size={18} />
           </button>
@@ -200,16 +336,16 @@ const CaptureWrapper = ({
         <button
           onClick={handleCaptureImage}
           disabled={isCapturing}
-          className="p-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-          title="บันทึกเป็นรูปภาพ"
+          className="p-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50"
+          title={!fontsLoaded ? "กำลังเตรียมฟอนต์..." : "บันทึกเป็นรูปภาพ"}
         >
           <Download size={18} />
         </button>
         <button
           onClick={handleCaptureClipboard}
           disabled={isCapturing}
-          className="p-1 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors"
-          title="คัดลอกไปยังคลิปบอร์ด"
+          className="p-1 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors disabled:opacity-50"
+          title={!fontsLoaded ? "กำลังเตรียมฟอนต์..." : "คัดลอกไปยังคลิปบอร์ด"}
         >
           <Copy size={18} />
         </button>
@@ -268,8 +404,13 @@ const CaptureWrapper = ({
           <div className="flex flex-col items-center">
             <Loader size={40} className="animate-spin text-blue-500" />
             <p className="mt-2 text-blue-600 font-medium">
-              กำลังสร้างรูปภาพ...
+              กำลังเตรียมฟอนต์และสร้างรูปภาพ...
             </p>
+            {fontLoadAttempts > 0 && (
+              <p className="text-xs text-gray-500">
+                ความพยายาม: {fontLoadAttempts}/3
+              </p>
+            )}
           </div>
         </div>
       )}
