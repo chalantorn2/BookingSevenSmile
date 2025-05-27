@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Camera, Download, Copy, Loader } from "lucide-react";
 import domtoimage from "dom-to-image";
 import { useNotification } from "../../hooks/useNotification";
@@ -41,95 +41,6 @@ const homeConfig = {
   hoverEffect: "transform hover:scale-105 transition-transform",
 };
 
-/**
- * ปรับปรุงการตรวจสอบและโหลด Font สำหรับ CaptureButtons
- */
-const ensureFontReady = async () => {
-  console.log("🔍 CaptureButtons: Ensuring font readiness...");
-
-  try {
-    // เพิ่ม font link ถ้ายังไม่มี
-    if (!document.getElementById("kanit-font")) {
-      console.log("📥 CaptureButtons: Adding Kanit font link...");
-      const link = document.createElement("link");
-      link.id = "kanit-font";
-      link.rel = "stylesheet";
-      link.href =
-        "https://fonts.googleapis.com/css2?family=Kanit:wght@400;700&display=swap";
-      document.head.appendChild(link);
-    }
-
-    // เพิ่ม preload hints
-    if (!document.getElementById("kanit-preload-400")) {
-      console.log("🚀 CaptureButtons: Adding font preload hints...");
-      const preload400 = document.createElement("link");
-      preload400.id = "kanit-preload-400";
-      preload400.rel = "preload";
-      preload400.as = "font";
-      preload400.type = "font/woff2";
-      preload400.href =
-        "https://fonts.gstatic.com/s/kanit/v12/nKKZ-Go6G5tXcraVGwCKd6xBDFs.woff2";
-      preload400.crossOrigin = "anonymous";
-      document.head.appendChild(preload400);
-
-      const preload700 = document.createElement("link");
-      preload700.id = "kanit-preload-700";
-      preload700.rel = "preload";
-      preload700.as = "font";
-      preload700.type = "font/woff2";
-      preload700.href =
-        "https://fonts.gstatic.com/s/kanit/v12/nKKb-Go6G5tXcraVOyMuVrHaP3KGFw.woff2";
-      preload700.crossOrigin = "anonymous";
-      document.head.appendChild(preload700);
-    }
-
-    // รอให้ DOM อัพเดท
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Force load fonts
-    if (document.fonts && document.fonts.load) {
-      console.log("⏳ CaptureButtons: Force loading fonts...");
-      await Promise.all([
-        document.fonts.load("400 16px 'Kanit'"),
-        document.fonts.load("700 16px 'Kanit'"),
-        document.fonts.load("400 12px 'Kanit'"),
-        document.fonts.load("700 12px 'Kanit'"),
-      ]);
-    }
-
-    // รอ document.fonts.ready
-    if (document.fonts && document.fonts.ready) {
-      console.log("⏳ CaptureButtons: Waiting for document.fonts.ready...");
-      await Promise.race([
-        document.fonts.ready,
-        new Promise((resolve) => setTimeout(resolve, 2000)),
-      ]);
-    }
-
-    // ตรวจสอบว่าฟอนต์โหลดแล้วหรือไม่
-    let fontReady = false;
-    if (document.fonts && document.fonts.check) {
-      fontReady =
-        document.fonts.check("400 16px 'Kanit'") &&
-        document.fonts.check("700 16px 'Kanit'");
-      console.log(`📊 CaptureButtons: Font ready status: ${fontReady}`);
-    }
-
-    if (!fontReady) {
-      console.log(
-        "⏳ CaptureButtons: Font not ready, waiting additional time..."
-      );
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-    }
-
-    console.log("✅ CaptureButtons: Font preparation completed");
-    return true;
-  } catch (error) {
-    console.error("💥 CaptureButtons: Font preparation error:", error);
-    return false;
-  }
-};
-
 const CaptureButtons = ({
   targetRef,
   filename = "captured-image",
@@ -145,196 +56,110 @@ const CaptureButtons = ({
 }) => {
   const { showSuccess, showError, showInfo } = useNotification();
   const [isCapturing, setIsCapturing] = useState(false);
-  const [fontReady, setFontReady] = useState(false);
 
   // เลือก config ตาม context
   const config = context === "bookingList" ? bookingListConfig : homeConfig;
 
-  // ตรวจสอบฟอนต์เมื่อ component mount
-  useEffect(() => {
-    const checkFont = async () => {
-      const ready = await ensureFontReady();
-      setFontReady(ready);
-    };
-    checkFont();
-  }, []);
-
   // แคปเป็นไฟล์รูปภาพ
-  const captureAsImage = async () => {
+  const captureAsImage = () => {
     if (!targetRef.current) {
       showError("ไม่พบองค์ประกอบสำหรับแคปภาพ");
       return;
     }
 
     setIsCapturing(true);
-    showInfo("กำลังเตรียมฟอนต์และสร้างรูปภาพ กรุณารอสักครู่...");
+    showInfo("กำลังสร้างรูปภาพ กรุณารอสักครู่...");
 
-    try {
-      // เตรียมฟอนต์อีกรอบก่อนแคป
-      await ensureFontReady();
+    const scale = options.scale || 2;
+    const style = {
+      transform: "scale(" + scale + ")",
+      transformOrigin: "top left",
+      width: targetRef.current.offsetWidth + "px",
+      height: "auto",
+      maxHeight: "none",
+      overflow: "visible",
+      backgroundColor: options.bgColor || "#ffffff",
+      ...options.styles,
+    };
 
-      // รอเพิ่มเติมให้ฟอนต์ render
-      await new Promise((resolve) => setTimeout(resolve, 500));
+    const param = {
+      height: targetRef.current.offsetHeight * scale,
+      width: targetRef.current.offsetWidth * scale,
+      quality: options.quality || 1,
+      style,
+      cacheBust: true,
+    };
 
-      const scale = options.scale || 2;
-
-      // บังคับใช้ฟอนต์ Kanit
-      const originalStyle = targetRef.current.style.cssText;
-      targetRef.current.style.fontFamily = "'Kanit', sans-serif";
-
-      // เพิ่ม CSS override ชั่วคราว
-      const styleOverride = document.createElement("style");
-      styleOverride.id = "temp-font-override";
-      styleOverride.textContent = `
-        * {
-          font-family: 'Kanit', sans-serif !important;
-          -webkit-font-smoothing: antialiased;
-          -moz-osx-font-smoothing: grayscale;
-        }
-      `;
-      document.head.appendChild(styleOverride);
-
-      const style = {
-        transform: "scale(" + scale + ")",
-        transformOrigin: "top left",
-        width: targetRef.current.offsetWidth + "px",
-        height: "auto",
-        maxHeight: "none",
-        overflow: "visible",
-        backgroundColor: options.bgColor || "#ffffff",
-        fontFamily: "'Kanit', sans-serif",
-        ...options.styles,
-      };
-
-      const param = {
-        height: targetRef.current.offsetHeight * scale,
-        width: targetRef.current.offsetWidth * scale,
-        quality: options.quality || 1,
-        style,
-        cacheBust: true,
-        // เพิ่ม font embedding
-        fontEmbedCSS: `
-          @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;700&display=swap');
-          * { 
-            font-family: 'Kanit', sans-serif !important;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-          }
-        `,
-      };
-
-      console.log("📸 CaptureButtons: Starting image capture...");
-      const blob = await domtoimage.toBlob(targetRef.current, param);
-
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.download = `${filename}.png`;
-      link.href = url;
-      link.click();
-      URL.revokeObjectURL(url);
-
-      // เคลียร์ style override
-      targetRef.current.style.cssText = originalStyle;
-      const tempStyle = document.getElementById("temp-font-override");
-      if (tempStyle) {
-        tempStyle.remove();
-      }
-
-      console.log("✅ CaptureButtons: Image saved successfully");
-      showSuccess("บันทึกภาพเรียบร้อยแล้ว");
-    } catch (error) {
-      console.error("💥 CaptureButtons: Image capture failed:", error);
-      showError("เกิดข้อผิดพลาดในการแคปภาพ");
-    } finally {
-      setIsCapturing(false);
-    }
+    domtoimage
+      .toBlob(targetRef.current, param)
+      .then(function (blob) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.download = `${filename}.png`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+        setIsCapturing(false);
+        showSuccess("บันทึกภาพเรียบร้อยแล้ว");
+      })
+      .catch(function (error) {
+        console.error("แคปภาพไม่สำเร็จ:", error);
+        setIsCapturing(false);
+        showError("เกิดข้อผิดพลาดในการแคปภาพ");
+      });
   };
 
   // คัดลอกภาพไปยัง clipboard
-  const copyToClipboard = async () => {
+  const copyToClipboard = () => {
     if (!targetRef.current) {
       showError("ไม่พบองค์ประกอบสำหรับแคปภาพ");
       return;
     }
 
     setIsCapturing(true);
-    showInfo("กำลังเตรียมฟอนต์และคัดลอกรูปภาพ กรุณารอสักครู่...");
+    showInfo("กำลังคัดลอกรูปภาพ กรุณารอสักครู่...");
 
-    try {
-      // เตรียมฟอนต์อีกรอบก่อนแคป
-      await ensureFontReady();
+    const scale = options.scale || 2;
+    const style = {
+      transform: "scale(" + scale + ")",
+      transformOrigin: "top left",
+      width: targetRef.current.offsetWidth + "px",
+      height: "auto",
+      maxHeight: "none",
+      overflow: "visible",
+      backgroundColor: options.bgColor || "#ffffff",
+      ...options.styles,
+    };
 
-      // รอเพิ่มเติมให้ฟอนต์ render
-      await new Promise((resolve) => setTimeout(resolve, 500));
+    const param = {
+      height: targetRef.current.offsetHeight * scale,
+      width: targetRef.current.offsetWidth * scale,
+      quality: options.quality || 1,
+      style,
+      cacheBust: true,
+    };
 
-      const scale = options.scale || 2;
-
-      // บังคับใช้ฟอนต์ Kanit
-      const originalStyle = targetRef.current.style.cssText;
-      targetRef.current.style.fontFamily = "'Kanit', sans-serif";
-
-      // เพิ่ม CSS override ชั่วคราว
-      const styleOverride = document.createElement("style");
-      styleOverride.id = "temp-font-override-clipboard";
-      styleOverride.textContent = `
-        * {
-          font-family: 'Kanit', sans-serif !important;
-          -webkit-font-smoothing: antialiased;
-          -moz-osx-font-smoothing: grayscale;
-        }
-      `;
-      document.head.appendChild(styleOverride);
-
-      const style = {
-        transform: "scale(" + scale + ")",
-        transformOrigin: "top left",
-        width: targetRef.current.offsetWidth + "px",
-        height: "auto",
-        maxHeight: "none",
-        overflow: "visible",
-        backgroundColor: options.bgColor || "#ffffff",
-        fontFamily: "'Kanit', sans-serif",
-        ...options.styles,
-      };
-
-      const param = {
-        height: targetRef.current.offsetHeight * scale,
-        width: targetRef.current.offsetWidth * scale,
-        quality: options.quality || 1,
-        style,
-        cacheBust: true,
-        // เพิ่ม font embedding
-        fontEmbedCSS: `
-          @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;700&display=swap');
-          * { 
-            font-family: 'Kanit', sans-serif !important;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-          }
-        `,
-      };
-
-      console.log("📋 CaptureButtons: Starting clipboard capture...");
-      const blob = await domtoimage.toBlob(targetRef.current, param);
-
-      const item = new ClipboardItem({ "image/png": blob });
-      await navigator.clipboard.write([item]);
-
-      // เคลียร์ style override
-      targetRef.current.style.cssText = originalStyle;
-      const tempStyle = document.getElementById("temp-font-override-clipboard");
-      if (tempStyle) {
-        tempStyle.remove();
-      }
-
-      console.log("✅ CaptureButtons: Copied to clipboard successfully");
-      showSuccess("คัดลอกรูปภาพไปยังคลิปบอร์ดแล้ว");
-    } catch (error) {
-      console.error("💥 CaptureButtons: Clipboard capture failed:", error);
-      showError("ไม่สามารถคัดลอกไปยังคลิปบอร์ดได้");
-    } finally {
-      setIsCapturing(false);
-    }
+    domtoimage
+      .toBlob(targetRef.current, param)
+      .then(function (blob) {
+        const item = new ClipboardItem({ "image/png": blob });
+        navigator.clipboard
+          .write([item])
+          .then(() => {
+            setIsCapturing(false);
+            showSuccess("คัดลอกรูปภาพไปยังคลิปบอร์ดแล้ว");
+          })
+          .catch((err) => {
+            console.error("คัดลอกไปยังคลิปบอร์ดไม่สำเร็จ:", err);
+            setIsCapturing(false);
+            showError("ไม่สามารถคัดลอกไปยังคลิปบอร์ดได้");
+          });
+      })
+      .catch(function (error) {
+        console.error("สร้างรูปภาพไม่สำเร็จ:", error);
+        setIsCapturing(false);
+        showError("เกิดข้อผิดพลาดในการสร้างรูปภาพ");
+      });
   };
 
   // เลือกฟังก์ชันหลักตาม primaryButton
@@ -395,7 +220,6 @@ const CaptureButtons = ({
         onClick={getPrimaryFunction()}
         disabled={isCapturing}
         className={`flex items-center justify-center rounded-md ${config.buttonSize[size]} ${config.primaryButtonStyle} ${config.hoverEffect}`}
-        title={!fontReady ? "กำลังเตรียมฟอนต์..." : ""}
       >
         {getPrimaryContent()}
       </button>
