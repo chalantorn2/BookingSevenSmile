@@ -984,7 +984,7 @@ table th:nth-child(8), table td:nth-child(8) { width: 40px; }  /* Fee */
        <div>
          <p style="font-weight: bold; margin-bottom: 5px;">PAYMENT TO SEVENSMILE</p>
          <p>KBank 255-2431-068</p>
-         <p>ACCT : SEVENSMILE CO., LTD.</p>
+         <p>ACCT : Janthawarath Loosathidkool</p>
        </div>
        <div style="text-align: right;">
          <p style="font-weight: bold; font-size: 14px;">GRAND TOTAL: ${formatNumberWithCommas(
