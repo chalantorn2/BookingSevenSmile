@@ -64,7 +64,12 @@ const Sidebar = () => {
       icon: <FileText size={20} />,
       permission: null,
     },
-
+    {
+      path: "/report",
+      label: "Report",
+      icon: <BarChart2 size={20} />,
+      permission: null,
+    },
     {
       path: "/information",
       label: "Information",
