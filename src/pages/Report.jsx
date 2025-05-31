@@ -782,8 +782,8 @@ const Report = () => {
   return (
     <div className="container mx-auto px-4 py-6 bg-gray-50 min-h-screen">
       <div className="text-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">รายงานการจอง</h1>
-        <p className="text-gray-600">สร้างรายงานและ Export ข้อมูลการจอง</p>
+        <h1 className="text-3xl font-bold text-gray-800">รายงาน</h1>
+        <p className="text-gray-600">สร้างรายงานและ Export ข้อมูล Bookings</p>
       </div>
 
       {/* Filter Section */}
