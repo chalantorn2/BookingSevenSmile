@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import supabase from "../config/supabaseClient";
 import { fetchPaymentByOrderId, savePayment } from "../services/paymentService";
 import { useAlertDialogContext } from "../contexts/AlertDialogContext";
+import { useNotification } from "./useNotification";
 
 /**
  * Custom hook for handling payment operations
  */
 const usePayments = () => {
   const showAlert = useAlertDialogContext();
+  const { showInfo } = useNotification();
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [tourBookings, setTourBookings] = useState([]);
   const [transferBookings, setTransferBookings] = useState([]);
