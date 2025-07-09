@@ -65,7 +65,8 @@ const Invoice = () => {
   const [isViewingExistingInvoice, setIsViewingExistingInvoice] =
     useState(false);
   const [invoiceName, setInvoiceName] = useState("");
-
+  const [deductionDescription, setDeductionDescription] = useState("");
+  const [deductionAmount, setDeductionAmount] = useState(0);
   // สำหรับการแก้ไข Invoice
   const [editablePaymentIds, setEditablePaymentIds] = useState([]);
   const [nonInvoicedPayments, setNonInvoicedPayments] = useState([]);
@@ -214,6 +215,9 @@ const Invoice = () => {
         total_cost: safeTotalCost.toString(),
         total_selling_price: safeTotalSellingPrice.toString(),
         total_profit: safeTotalProfit.toString(),
+        // ++ เพิ่ม 2 บรรทัดนี้ ++
+        deduction_description: "",
+        deduction_amount: "0",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -365,6 +369,8 @@ const Invoice = () => {
       setTotalCost(realTimeTotalCost);
       setTotalSellingPrice(realTimeTotalSellingPrice);
       setTotalProfit(realTimeTotalProfit);
+      setDeductionDescription(data.deduction_description || "");
+      setDeductionAmount(parseFloat(data.deduction_amount) || 0);
       // **จบส่วนที่เพิ่ม**
 
       setIsViewModalOpen(false);
@@ -707,6 +713,51 @@ const Invoice = () => {
     }
   };
 
+  // เพิ่มฟังก์ชันแก้ไข Deduction
+  const handleEditDeduction = async (type) => {
+    if (!invoiceId) {
+      setError("กรุณาเลือก Invoice ก่อนแก้ไข Deduction");
+      return;
+    }
+
+    if (type === "description") {
+      const newDescription = prompt(
+        "กรุณากรอกรายละเอียดการหัก:",
+        deductionDescription
+      );
+      if (newDescription !== null) {
+        setDeductionDescription(newDescription);
+        // Auto-save
+        try {
+          await updateInvoice(invoiceId, {
+            deduction_description: newDescription,
+          });
+          showSuccess("อัปเดตรายละเอียดการหัก เรียบร้อย");
+        } catch (error) {
+          setError("ไม่สามารถบันทึกรายละเอียดการหักได้");
+        }
+      }
+    } else if (type === "amount") {
+      const newAmount = prompt(
+        "กรุณากรอกจำนวนเงินที่หัก:",
+        deductionAmount.toString()
+      );
+      if (newAmount !== null) {
+        const numAmount = parseFloat(newAmount) || 0;
+        setDeductionAmount(numAmount);
+        // Auto-save
+        try {
+          await updateInvoice(invoiceId, {
+            deduction_amount: numAmount.toString(),
+          });
+          showSuccess("อัปเดตจำนวนเงินการหัก เรียบร้อย");
+        } catch (error) {
+          setError("ไม่สามารถบันทึกจำนวนเงินการหักได้");
+        }
+      }
+    }
+  };
+
   const handlePrint = () => {
     // สร้าง document ใหม่สำหรับการพิมพ์
     const printWindow = window.open("", "_blank");
@@ -1021,16 +1072,36 @@ const Invoice = () => {
 
       // Add grand total row
       if (grandTotal !== undefined && grandTotal !== null) {
+        // แถว SUB TOTAL
         printWindow.document.write(`
-         <tr class="grand-total-row">
-           <td colspan="${
-             showCostProfit ? 10 : 8
-           }" style="text-align: right; font-weight: bold;">GRAND TOTAL</td>
-           <td colspan="2" style="text-align: right; font-weight: bold;">${formatNumberWithCommas(
-             grandTotal
-           )}</td>
-         </tr>
-       `);
+ <tr class="sub-total-row" style="background-color: #f0fff4;">
+   <td colspan="${
+     showCostProfit ? 10 : 8
+   }" style="text-align: right; font-weight: bold;">SUB TOTAL</td>
+   <td colspan="2" style="text-align: right; font-weight: bold;">${formatNumberWithCommas(
+     grandTotal
+   )}</td>
+ </tr>
+`);
+
+        // แถว Deduction (ถ้ามี) - ไม่เป็นสีแดงตอนพิมพ์
+        if (
+          isViewingExistingInvoice &&
+          (deductionDescription || deductionAmount > 0)
+        ) {
+          printWindow.document.write(`
+   <tr class="deduction-row" style="background-color: #f8f9fa;">
+     <td colspan="${
+       showCostProfit ? 10 : 8
+     }" style="text-align: right; font-weight: bold;">${
+            deductionDescription || "Service Fee"
+          }</td>
+     <td colspan="2" style="text-align: right; font-weight: bold;">-${formatNumberWithCommas(
+       deductionAmount || 0
+     )}</td>
+   </tr>
+  `);
+        }
       }
     }
 
@@ -1045,11 +1116,11 @@ const Invoice = () => {
         <p>KBank 255-2431-068</p>
         <p>ACCT : Janthawarath Loosathidkool</p>
       </div>
-      <div style="text-align: right;">
-        <p style="font-weight: bold; font-size: 14px;">GRAND TOTAL: ${formatNumberWithCommas(
-          grandTotal || 0
-        )} THB</p>
-      </div>
+    <div style="text-align: right;">
+          <p style="font-weight: bold; font-size: 14px;">GRAND TOTAL: ${formatNumberWithCommas(
+            (grandTotal || 0) - (deductionAmount || 0)
+          )} THB</p>
+        </div>
     </div>
   `);
 
@@ -1696,11 +1767,16 @@ const Invoice = () => {
             grandTotal={grandTotal}
             loading={loading}
             formatNumberWithCommas={formatNumberWithCommas}
+            deductionDescription={deductionDescription}
+            deductionAmount={deductionAmount}
+            handleEditDeduction={handleEditDeduction}
+            isViewingExistingInvoice={isViewingExistingInvoice}
           />
 
           <InvoiceFooter
             grandTotal={grandTotal}
             formatNumberWithCommas={formatNumberWithCommas}
+            deductionAmount={deductionAmount}
           />
         </div>
 
