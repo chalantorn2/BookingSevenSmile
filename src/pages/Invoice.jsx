@@ -1661,12 +1661,12 @@ const Invoice = () => {
         <InvoiceStatusModal
           isOpen={isStatusModalOpen}
           onClose={() => setIsStatusModalOpen(false)}
+          grandTotal={grandTotal} // เพิ่มบรรทัดนี้
+          deductionAmount={deductionAmount} // เพิ่มบรรทัดนี้
           onInvoiceSelect={(invoice) => {
-            // จัดการเมื่อเลือก Invoice (ถ้าต้องการ)
             console.log("Selected invoice:", invoice);
           }}
         />
-
         {/* Invoice Controls - ซ่อนเมื่อพิมพ์ */}
         <div className="print:hidden text-center mb-4 space-x-2">
           {isViewingExistingInvoice && (
