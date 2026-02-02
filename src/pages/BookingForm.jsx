@@ -139,7 +139,7 @@ const BookingForm = () => {
         (transfer, index) => ({
           id: index + 1,
           data: transfer,
-        })
+        }),
       );
       setTransferForms(formattedTransfers);
     } else {
@@ -251,12 +251,12 @@ const BookingForm = () => {
 
       if (!mainFormData.agent) {
         throw new Error(
-          "กรุณากรอก Agent ก่อน เพื่อใช้เป็น prefix ของ Order ID"
+          "กรุณากรอก Agent ก่อน เพื่อใช้เป็น prefix ของ Order ID",
         );
       }
       if (tourForms.length === 0 && transferForms.length === 0) {
         throw new Error(
-          "กรุณาเพิ่มการจอง Tour หรือ Transfer อย่างน้อย 1 รายการ"
+          "กรุณาเพิ่มการจอง Tour หรือ Transfer อย่างน้อย 1 รายการ",
         );
       }
 
@@ -341,7 +341,7 @@ const BookingForm = () => {
       const formElements = document.forms[0].elements;
       console.log(
         "Form elements:",
-        Array.from(formElements).map((e) => ({ name: e.name, value: e.value }))
+        Array.from(formElements).map((e) => ({ name: e.name, value: e.value })),
       );
 
       const tourBookings = [];
@@ -476,7 +476,7 @@ const BookingForm = () => {
       }
 
       showSuccess(
-        `บันทึกข้อมูลสำเร็จ! Tour: ${tourBookings.length}, Transfer: ${transferBookings.length}`
+        `บันทึกข้อมูลสำเร็จ! Tour: ${tourBookings.length}, Transfer: ${transferBookings.length}`,
       );
       setStatus({ loading: false, error: "" });
       console.log("Submit success, message set: ");

@@ -17,7 +17,7 @@ const OrderSelector = forwardRef(
       selectedOrderId,
       onCancelCreate,
     },
-    ref
+    ref,
   ) => {
     const [orders, setOrders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -55,7 +55,7 @@ const OrderSelector = forwardRef(
         if (error) throw error;
 
         // ในกรณีที่มีข้อมูลมาก อาจดึงเฉพาะ orders ล่าสุด เช่น 50 รายการ
-        const recentOrders = data.slice(0, 50);
+        const recentOrders = data.slice(0, 100);
 
         // สร้าง array สำหรับเก็บ promises ของการนับ bookings
         const countPromises = recentOrders.map((order) => {
@@ -129,7 +129,7 @@ const OrderSelector = forwardRef(
             tourCount: option.tourCount || 0,
             transferCount: option.transferCount || 0,
           },
-          selectedOrder // ส่งข้อมูล order ทั้งหมด
+          selectedOrder, // ส่งข้อมูล order ทั้งหมด
         );
       } else {
         onOrderSelect(null, null, null);
@@ -192,7 +192,7 @@ const OrderSelector = forwardRef(
         </div>
       </div>
     );
-  }
+  },
 );
 
 export default OrderSelector;
