@@ -139,6 +139,7 @@ export const exportReportToExcel = async (
   }
 };
 
+
 const setupCombinedSheet = async (
   worksheet,
   tourBookings,
@@ -188,11 +189,11 @@ const setupCombinedSheet = async (
   };
   worksheet.getCell("A2").alignment = { horizontal: "center" };
 
-  worksheet.mergeCells("A1:P1");
-  worksheet.mergeCells("A2:P2");
+  worksheet.mergeCells("A1:S1");
+  worksheet.mergeCells("A2:S2");
 
   let currentRow = 4;
-  const columnWidths = Array(16).fill(10);
+  const columnWidths = Array(19).fill(10); // เพิ่มจาก 18 เป็น 19
 
   for (const dateKey of sortedDates) {
     let bookingsOfDate = groupedByDate[dateKey];
@@ -214,7 +215,7 @@ const setupCombinedSheet = async (
       pattern: "solid",
       fgColor: { argb: "FFE5E7EB" },
     };
-    worksheet.mergeCells(`A${currentRow}:P${currentRow}`);
+    worksheet.mergeCells(`A${currentRow}:S${currentRow}`); // เปลี่ยนจาก R เป็น S
     currentRow++;
 
     const headers = [
@@ -224,6 +225,8 @@ const setupCombinedSheet = async (
       "Customer Name",
       "Pax",
       "Pickup Time",
+      "Hotel",
+      "Details",
       "Pickup From",
       "Drop To",
       "Flight",
@@ -234,6 +237,7 @@ const setupCombinedSheet = async (
       "Cost",
       "Sell",
       "Profit",
+      "Note",
     ];
 
     headers.forEach((header, index) => {
@@ -248,7 +252,8 @@ const setupCombinedSheet = async (
         };
       }
       cell.alignment = { horizontal: "center", vertical: "middle" };
-      if (index !== 12) {
+      // คอลัมน์ O (index 14) ไม่มี border
+      if (index !== 14) {
         cell.border = {
           top: { style: "thin" },
           left: { style: "thin" },
@@ -266,7 +271,9 @@ const setupCombinedSheet = async (
         const cell = worksheet.getCell(currentRow, colIndex + 1);
         cell.value = value;
         cell.alignment = { vertical: "middle", wrapText: true };
-        if (colIndex !== 12) {
+
+        // คอลัมน์ O (index 14) ไม่มี border
+        if (colIndex !== 14) {
           cell.border = {
             top: { style: "thin" },
             left: { style: "thin" },
@@ -274,20 +281,39 @@ const setupCombinedSheet = async (
             right: { style: "thin" },
           };
         }
-        if (colIndex >= 13 && colIndex <= 15) {
+
+        // สี Cost, Sell, Profit (คอลัมน์ 15, 16, 17) - ข้อมูลชิดขวา
+        if (colIndex >= 15 && colIndex <= 17) {
           cell.fill = {
             type: "pattern",
             pattern: "solid",
             fgColor: { argb: "FFFED7AA" },
           };
+          cell.alignment = {
+            horizontal: "right",
+            vertical: "middle",
+            wrapText: true,
+          };
         }
-        if (index % 2 === 0 && colIndex < 13) {
+
+        // สี Note (คอลัมน์ 18) - สีส้มอ่อนกว่า
+        if (colIndex === 18) {
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFEED9" }, // สีส้มอ่อนกว่า
+          };
+        }
+
+        // สีสลับแถวสำหรับคอลัมน์อื่นๆ (ไม่รวม Cost, Sell, Profit, Note)
+        if (index % 2 === 0 && colIndex < 15) {
           cell.fill = {
             type: "pattern",
             pattern: "solid",
             fgColor: { argb: "FFF8F9FA" },
           };
         }
+
         columnWidths[colIndex] = Math.max(
           columnWidths[colIndex],
           String(value).length * 1.2
@@ -316,19 +342,27 @@ const setupCombinedSheet = async (
   );
   const totalProfit = totalSell - totalCost;
 
-  worksheet.getCell(currentRow, 1).value = "สรุป";
+  // แถว "สรุป" - merge จาก A ถึง N
+  worksheet.getCell(currentRow, 1).value = "Summary";
   worksheet.getCell(currentRow, 1).font = { bold: true };
   worksheet.getCell(currentRow, 1).alignment = {
     horizontal: "center",
     vertical: "middle",
   };
-  worksheet.mergeCells(`A${currentRow}:M${currentRow}`);
+  worksheet.getCell(currentRow, 1).border = {
+    top: { style: "thin" },
+    left: { style: "thin" },
+    bottom: { style: "thin" },
+    right: { style: "thin" },
+  };
+  worksheet.mergeCells(`A${currentRow}:N${currentRow}`); // merge A ถึง N
 
-  worksheet.getCell(currentRow, 14).value = totalCost.toLocaleString();
-  worksheet.getCell(currentRow, 15).value = totalSell.toLocaleString();
-  worksheet.getCell(currentRow, 16).value = totalProfit.toLocaleString();
+  // ข้อมูล totals ในตำแหน่งใหม่ - อยู่ตรงกลาง
+  worksheet.getCell(currentRow, 16).value = totalCost.toLocaleString(); // คอลัมน์ P
+  worksheet.getCell(currentRow, 17).value = totalSell.toLocaleString(); // คอลัมน์ Q
+  worksheet.getCell(currentRow, 18).value = totalProfit.toLocaleString(); // คอลัมน์ R
 
-  [14, 15, 16].forEach((colIndex) => {
+  [16, 17, 18].forEach((colIndex) => {
     const cell = worksheet.getCell(currentRow, colIndex);
     cell.fill = {
       type: "pattern",
@@ -342,7 +376,7 @@ const setupCombinedSheet = async (
       right: { style: "thin" },
     };
     cell.alignment = {
-      horizontal: "center",
+      horizontal: "center", // totals อยู่ตรงกลาง
       vertical: "middle",
     };
     cell.font = { bold: true };
@@ -383,11 +417,11 @@ const setupTransferSheet = async (
   };
   worksheet.getCell("A2").alignment = { horizontal: "center" };
 
-  worksheet.mergeCells("A1:O1");
-  worksheet.mergeCells("A2:O2");
+  worksheet.mergeCells("A1:P1");
+  worksheet.mergeCells("A2:P2");
 
   let currentRow = 4;
-  const columnWidths = Array(15).fill(10);
+  const columnWidths = Array(16).fill(10); // เพิ่มจาก 15 เป็น 16
 
   for (const dateKey of sortedDates) {
     let bookingsOfDate = groupedByDate[dateKey];
@@ -409,7 +443,7 @@ const setupTransferSheet = async (
       pattern: "solid",
       fgColor: { argb: "FFE5E7EB" },
     };
-    worksheet.mergeCells(`A${currentRow}:O${currentRow}`);
+    worksheet.mergeCells(`A${currentRow}:P${currentRow}`); // เปลี่ยนจาก O เป็น P
     currentRow++;
 
     const transferHeaders = [
@@ -428,6 +462,7 @@ const setupTransferSheet = async (
       "Cost",
       "Sell",
       "Profit",
+      "Note",
     ];
 
     transferHeaders.forEach((header, index) => {
@@ -442,6 +477,7 @@ const setupTransferSheet = async (
         };
       }
       cell.alignment = { horizontal: "center", vertical: "middle" };
+      // คอลัมน์ L (index 11) ไม่มี border
       if (index !== 11) {
         cell.border = {
           top: { style: "thin" },
@@ -460,6 +496,8 @@ const setupTransferSheet = async (
         const cell = worksheet.getCell(currentRow, colIndex + 1);
         cell.value = value;
         cell.alignment = { vertical: "middle", wrapText: true };
+
+        // คอลัมน์ L (index 11) ไม่มี border
         if (colIndex !== 11) {
           cell.border = {
             top: { style: "thin" },
@@ -468,13 +506,31 @@ const setupTransferSheet = async (
             right: { style: "thin" },
           };
         }
+
+        // สี Cost, Sell, Profit (คอลัมน์ 12, 13, 14) - ข้อมูลชิดขวา
         if (colIndex >= 12 && colIndex <= 14) {
           cell.fill = {
             type: "pattern",
             pattern: "solid",
             fgColor: { argb: "FFFED7AA" },
           };
+          cell.alignment = {
+            horizontal: "right",
+            vertical: "middle",
+            wrapText: true,
+          };
         }
+
+        // สี Note (คอลัมน์ 15) - สีส้มอ่อนกว่า
+        if (colIndex === 15) {
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFEED9" }, // สีส้มอ่อนกว่า
+          };
+        }
+
+        // สีสลับแถวสำหรับคอลัมน์อื่นๆ (ไม่รวม Cost, Sell, Profit, Note)
         if (index % 2 === 0 && colIndex < 12) {
           cell.fill = {
             type: "pattern",
@@ -482,6 +538,7 @@ const setupTransferSheet = async (
             fgColor: { argb: "FFF8F9FA" },
           };
         }
+
         columnWidths[colIndex] = Math.max(
           columnWidths[colIndex],
           String(value).length * 1.2
@@ -510,14 +567,22 @@ const setupTransferSheet = async (
   );
   const totalProfit = totalSell - totalCost;
 
-  worksheet.getCell(currentRow, 1).value = "สรุป";
+  // แถว "สรุป" - merge จาก A ถึง L และใส่ border
+  worksheet.getCell(currentRow, 1).value = "Summary";
   worksheet.getCell(currentRow, 1).font = { bold: true };
   worksheet.getCell(currentRow, 1).alignment = {
     horizontal: "center",
     vertical: "middle",
   };
-  worksheet.mergeCells(`A${currentRow}:L${currentRow}`);
+  worksheet.getCell(currentRow, 1).border = {
+    top: { style: "thin" },
+    left: { style: "thin" },
+    bottom: { style: "thin" },
+    right: { style: "thin" },
+  };
+  worksheet.mergeCells(`A${currentRow}:L${currentRow}`); // merge A ถึง L
 
+  // ข้อมูล totals - อยู่ตรงกลาง
   worksheet.getCell(currentRow, 13).value = totalCost.toLocaleString();
   worksheet.getCell(currentRow, 14).value = totalSell.toLocaleString();
   worksheet.getCell(currentRow, 15).value = totalProfit.toLocaleString();
@@ -536,7 +601,7 @@ const setupTransferSheet = async (
       right: { style: "thin" },
     };
     cell.alignment = {
-      horizontal: "center",
+      horizontal: "center", // totals อยู่ตรงกลาง
       vertical: "middle",
     };
     cell.font = { bold: true };
@@ -575,11 +640,11 @@ const setupTourSheet = async (
   };
   worksheet.getCell("A2").alignment = { horizontal: "center" };
 
-  worksheet.mergeCells("A1:M1");
-  worksheet.mergeCells("A2:M2");
+  worksheet.mergeCells("A1:N1");
+  worksheet.mergeCells("A2:N2");
 
   let currentRow = 4;
-  const columnWidths = Array(13).fill(10);
+  const columnWidths = Array(14).fill(10); // เพิ่มจาก 13 เป็น 14
 
   for (const dateKey of sortedDates) {
     let bookingsOfDate = groupedByDate[dateKey];
@@ -601,7 +666,7 @@ const setupTourSheet = async (
       pattern: "solid",
       fgColor: { argb: "FFE5E7EB" },
     };
-    worksheet.mergeCells(`A${currentRow}:M${currentRow}`);
+    worksheet.mergeCells(`A${currentRow}:N${currentRow}`); // เปลี่ยนจาก M เป็น N
     currentRow++;
 
     const tourHeaders = [
@@ -618,6 +683,7 @@ const setupTourSheet = async (
       "Cost",
       "Sell",
       "Profit",
+      "Note",
     ];
 
     tourHeaders.forEach((header, index) => {
@@ -632,6 +698,7 @@ const setupTourSheet = async (
         };
       }
       cell.alignment = { horizontal: "center", vertical: "middle" };
+      // คอลัมน์ J (index 9) ไม่มี border
       if (index !== 9) {
         cell.border = {
           top: { style: "thin" },
@@ -650,6 +717,8 @@ const setupTourSheet = async (
         const cell = worksheet.getCell(currentRow, colIndex + 1);
         cell.value = value;
         cell.alignment = { vertical: "middle", wrapText: true };
+
+        // คอลัมน์ J (index 9) ไม่มี border
         if (colIndex !== 9) {
           cell.border = {
             top: { style: "thin" },
@@ -658,13 +727,31 @@ const setupTourSheet = async (
             right: { style: "thin" },
           };
         }
+
+        // สี Cost, Sell, Profit (คอลัมน์ 10, 11, 12) - ข้อมูลชิดขวา
         if (colIndex >= 10 && colIndex <= 12) {
           cell.fill = {
             type: "pattern",
             pattern: "solid",
             fgColor: { argb: "FFFED7AA" },
           };
+          cell.alignment = {
+            horizontal: "right",
+            vertical: "middle",
+            wrapText: true,
+          };
         }
+
+        // สี Note (คอลัมน์ 13) - สีส้มอ่อนกว่า
+        if (colIndex === 13) {
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFEED9" }, // สีส้มอ่อนกว่า
+          };
+        }
+
+        // สีสลับแถวสำหรับคอลัมน์อื่นๆ (ไม่รวม Cost, Sell, Profit, Note)
         if (index % 2 === 0 && colIndex < 10) {
           cell.fill = {
             type: "pattern",
@@ -672,6 +759,7 @@ const setupTourSheet = async (
             fgColor: { argb: "FFF8F9FA" },
           };
         }
+
         columnWidths[colIndex] = Math.max(
           columnWidths[colIndex],
           String(value).length * 1.2
@@ -700,14 +788,22 @@ const setupTourSheet = async (
   );
   const totalProfit = totalSell - totalCost;
 
-  worksheet.getCell(currentRow, 1).value = "สรุป";
+  // แถว "สรุป" - merge จาก A ถึง J และใส่ border
+  worksheet.getCell(currentRow, 1).value = "Summary";
   worksheet.getCell(currentRow, 1).font = { bold: true };
   worksheet.getCell(currentRow, 1).alignment = {
     horizontal: "center",
     vertical: "middle",
   };
-  worksheet.mergeCells(`A${currentRow}:J${currentRow}`);
+  worksheet.getCell(currentRow, 1).border = {
+    top: { style: "thin" },
+    left: { style: "thin" },
+    bottom: { style: "thin" },
+    right: { style: "thin" },
+  };
+  worksheet.mergeCells(`A${currentRow}:J${currentRow}`); // merge A ถึง J
 
+  // ข้อมูล totals - อยู่ตรงกลาง
   worksheet.getCell(currentRow, 11).value = totalCost.toLocaleString();
   worksheet.getCell(currentRow, 12).value = totalSell.toLocaleString();
   worksheet.getCell(currentRow, 13).value = totalProfit.toLocaleString();
@@ -726,7 +822,7 @@ const setupTourSheet = async (
       right: { style: "thin" },
     };
     cell.alignment = {
-      horizontal: "center",
+      horizontal: "center", // totals อยู่ตรงกลาง
       vertical: "middle",
     };
     cell.font = { bold: true };
@@ -736,7 +832,7 @@ const setupTourSheet = async (
 const prepareCombinedRowData = (booking, index) => {
   const firstName = booking.orders?.first_name || "";
   const lastName = booking.orders?.last_name || "";
-  const customerName = `${firstName} ${lastName}`.trim() || "ไม่มีชื่อ";
+  const customerName = `${firstName} ${lastName}`.trim() || "No Name";
 
   const formatPax = () => {
     if (booking.orders) {
@@ -758,17 +854,22 @@ const prepareCombinedRowData = (booking, index) => {
   const sell = parseFloat(booking.selling_price) || 0;
   const profit = sell - cost;
 
-  let detail1, detail2, flight, flightTime, time;
+  // แยกข้อมูลให้ชัดเจน
+  let hotel, details, pickupFrom, dropTo, flight, flightTime, time;
 
   if (booking.type === "tour") {
-    detail1 = booking.tour_hotel || "-";
-    detail2 = booking.tour_detail || "-";
+    hotel = booking.tour_hotel || "-";
+    details = booking.tour_detail || "-";
+    pickupFrom = "-"; // Tour ไม่มีจุดรับ
+    dropTo = "-"; // Tour ไม่มีจุดส่ง
     flight = "-";
     flightTime = "-";
     time = booking.tour_pickup_time || "-";
   } else {
-    detail1 = booking.pickup_location || "-";
-    detail2 = booking.drop_location || "-";
+    hotel = "-"; // Transfer ไม่มีโรงแรม
+    details = "-"; // Transfer ไม่มีรายละเอียดทัวร์
+    pickupFrom = booking.pickup_location || "-";
+    dropTo = booking.drop_location || "-";
     flight = booking.transfer_flight || "-";
     flightTime = booking.transfer_ftime || "-";
     time = booking.transfer_time || "-";
@@ -777,12 +878,14 @@ const prepareCombinedRowData = (booking, index) => {
   return [
     index,
     booking.type === "tour" ? "Tour" : "Transfer",
-    booking.orders?.agent_name || "ไม่ระบุ Agent",
+    booking.orders?.agent_name || "No Agent",
     customerName,
     formatPax(),
     time,
-    detail1,
-    detail2,
+    hotel, // โรงแรม (เฉพาะ Tour)
+    details, // รายละเอียด (เฉพาะ Tour)
+    pickupFrom, // รับจาก (เฉพาะ Transfer)
+    dropTo, // ส่งที่ (เฉพาะ Transfer)
     flight,
     flightTime,
     booking.send_to || "-",
@@ -791,13 +894,14 @@ const prepareCombinedRowData = (booking, index) => {
     cost.toLocaleString(),
     sell.toLocaleString(),
     profit.toLocaleString(),
+    booking.payment_note || "-", // เพิ่ม payment_note
   ];
 };
 
 const prepareTourRowData = (booking, index) => {
   const firstName = booking.orders?.first_name || "";
   const lastName = booking.orders?.last_name || "";
-  const customerName = `${firstName} ${lastName}`.trim() || "ไม่มีชื่อ";
+  const customerName = `${firstName} ${lastName}`.trim() || "No Name";
 
   const formatPax = () => {
     if (booking.orders) {
@@ -821,7 +925,7 @@ const prepareTourRowData = (booking, index) => {
 
   return [
     index,
-    booking.orders?.agent_name || "ไม่ระบุ Agent",
+    booking.orders?.agent_name || "No Agent",
     customerName,
     formatPax(),
     booking.tour_pickup_time || "-",
@@ -833,13 +937,14 @@ const prepareTourRowData = (booking, index) => {
     cost.toLocaleString(),
     sell.toLocaleString(),
     profit.toLocaleString(),
+    booking.payment_note || "-", // เพิ่ม payment_note
   ];
 };
 
 const prepareTransferRowData = (booking, index) => {
   const firstName = booking.orders?.first_name || "";
   const lastName = booking.orders?.last_name || "";
-  const customerName = `${firstName} ${lastName}`.trim() || "ไม่มีชื่อ";
+  const customerName = `${firstName} ${lastName}`.trim() || "No Name";
 
   const formatPax = () => {
     if (booking.orders) {
@@ -863,7 +968,7 @@ const prepareTransferRowData = (booking, index) => {
 
   return [
     index,
-    booking.orders?.agent_name || "ไม่ระบุ Agent",
+    booking.orders?.agent_name || "No Agent",
     customerName,
     formatPax(),
     booking.transfer_time || "-",
@@ -877,5 +982,6 @@ const prepareTransferRowData = (booking, index) => {
     cost.toLocaleString(),
     sell.toLocaleString(),
     profit.toLocaleString(),
+    booking.payment_note || "-", // เพิ่ม payment_note
   ];
 };
