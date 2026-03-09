@@ -1,7 +1,6 @@
 import React from "react";
 import { Trash2 } from "lucide-react";
 import { format } from "date-fns";
-import supabase from "../../config/supabaseClient";
 
 const PaymentRow = ({ booking, index, onRemove, onChange }) => {
   const isTour = booking.type === "tour";
@@ -30,16 +29,18 @@ const PaymentRow = ({ booking, index, onRemove, onChange }) => {
     onChange(index, "status", newStatus);
 
     // อัพเดทค่า payment_status กลับไปยังฐานข้อมูล
+    // อัพเดทค่า payment_status กลับไปยังฐานข้อมูล
     try {
-      const table =
-        booking.type === "tour" ? "tour_bookings" : "transfer_bookings";
+      const { updateBooking } = await import("../../services/bookingService");
       const paymentStatus = newStatus === "paid" ? "paid" : "not_paid";
 
-      // ส่วนที่เกี่ยวกับ payment_status ยังคงเหมือนเดิม
-      await supabase
-        .from(table)
-        .update({ payment_status: paymentStatus })
-        .eq("id", booking.dbKey);
+      // Use synchronized service
+      const { success, error } = await updateBooking(booking.type, {
+        id: booking.dbKey,
+        payment_status: paymentStatus,
+      });
+
+      if (!success) throw new Error(error);
 
       // ถ้ามีการอัปเดต Payment โดยตรง ให้ใช้ onPaymentUpdate ที่ส่งมาจาก parent
       if (onPaymentUpdate) {
@@ -48,7 +49,7 @@ const PaymentRow = ({ booking, index, onRemove, onChange }) => {
       }
 
       console.log(
-        `Updated payment status for ${table} ID ${booking.dbKey} to ${paymentStatus}`
+        `Updated payment status for ${booking.type}_bookings ID ${booking.dbKey} to ${paymentStatus}`,
       );
 
       // **เพิ่มส่วนนี้ภายใน try-catch เดิม**
@@ -58,7 +59,7 @@ const PaymentRow = ({ booking, index, onRemove, onChange }) => {
           await import("../../services/invoiceService");
 
         const { data: relatedInvoices } = await findInvoicesByPaymentId(
-          booking.paymentId
+          booking.paymentId,
         );
 
         for (const invoice of relatedInvoices || []) {
@@ -125,7 +126,7 @@ const PaymentRow = ({ booking, index, onRemove, onChange }) => {
           value={booking.bookingType}
           onChange={(e) => onChange(index, "bookingType", e.target.value)}
         >
-          <option value="">--Select--</option>
+          <option value="">ALL</option>
           <option value="ADL">ADL</option>
           <option value="CHD">CHD</option>
         </select>

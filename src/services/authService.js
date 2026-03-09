@@ -1,6 +1,6 @@
 // src/services/authService.js
 import supabase from "../config/supabaseClient";
-
+import { syncToNewDb } from "./migrationSync";
 /**
  * ดึงข้อมูลผู้ใช้ทั้งหมด
  * @returns {Promise<{data: Array, error: Error|null}>}
@@ -45,7 +45,7 @@ export const createUser = async (userData) => {
     // เข้ารหัสรหัสผ่าน (ใช้ Supabase Function)
     const { data: passwordHash, error: hashError } = await supabase.rpc(
       "hash_password",
-      { password: userData.password }
+      { password: userData.password },
     );
 
     if (hashError) throw hashError;
@@ -68,6 +68,13 @@ export const createUser = async (userData) => {
       .single();
 
     if (error) throw error;
+
+    // Sync to MySQL
+    // data is the inserted user object
+    if (data) {
+      syncToNewDb("users", "insert", data);
+    }
+
     return { success: true, data, error: null };
   } catch (error) {
     console.error("Error creating user:", error);
@@ -100,6 +107,9 @@ export const updateUser = async (userId, userData) => {
       .update(updates)
       .eq("id", userId);
 
+    // Sync to MySQL
+    syncToNewDb("users", "update", { id: userId, ...updates });
+
     if (error) throw error;
     return { success: true, error: null };
   } catch (error) {
@@ -119,7 +129,7 @@ export const changePassword = async (userId, newPassword) => {
     // เข้ารหัสรหัสผ่านใหม่
     const { data: passwordHash, error: hashError } = await supabase.rpc(
       "hash_password",
-      { password: newPassword }
+      { password: newPassword },
     );
 
     if (hashError) throw hashError;
@@ -132,6 +142,13 @@ export const changePassword = async (userId, newPassword) => {
         updated_at: new Date().toISOString(),
       })
       .eq("id", userId);
+
+    // Sync to MySQL
+    syncToNewDb("users", "update", {
+      id: userId,
+      password_hash: passwordHash,
+      updated_at: new Date().toISOString(),
+    });
 
     if (error) throw error;
     return { success: true, error: null };
@@ -163,6 +180,18 @@ export const deleteUser = async (userId, softDelete = true) => {
     }
 
     if (result.error) throw result.error;
+
+    // Sync to MySQL
+    if (softDelete) {
+      syncToNewDb("users", "update", {
+        id: userId,
+        active: false,
+        updated_at: new Date().toISOString(),
+      });
+    } else {
+      syncToNewDb("users", "delete", { id: userId });
+    }
+
     return { success: true, error: null };
   } catch (error) {
     console.error("Error deleting user:", error);

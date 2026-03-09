@@ -22,6 +22,7 @@ import { useNotification } from "../../hooks/useNotification";
 import OrderVoucherList from "./OrderVoucherList";
 import OrderStatusBadge from "./OrderStatusBadge";
 import { deleteBooking } from "../../services/bookingService";
+import { deleteOrder } from "../../services/orderService";
 
 const OrderDetails = ({
   order,
@@ -159,10 +160,10 @@ const OrderDetails = ({
         pax_chd,
         pax_inf,
         tourBookings: orderData.tourBookings.filter(
-          (b) => !deletedBookings.tourBookings.includes(b.id)
+          (b) => !deletedBookings.tourBookings.includes(b.id),
         ),
         transferBookings: orderData.transferBookings.filter(
-          (b) => !deletedBookings.transferBookings.includes(b.id)
+          (b) => !deletedBookings.transferBookings.includes(b.id),
         ),
       };
 
@@ -211,12 +212,9 @@ const OrderDetails = ({
     if (confirmed) {
       try {
         setIsSubmitting(true);
-        const { error } = await supabase
-          .from("orders")
-          .delete()
-          .eq("id", order.id);
+        const { success, error } = await deleteOrder(order.id);
 
-        if (error) throw error;
+        if (!success) throw new Error(error);
 
         setStatusMessage({ type: "success", message: "ลบ Order สำเร็จ" });
         onOrderDeleted();
@@ -242,7 +240,7 @@ const OrderDetails = ({
       const result = await onSave(updatedData);
       if (result.success) {
         showSuccess(
-          `ปรับสถานะเป็น${newStatus ? "เรียบร้อย" : "ยังไม่เรียบร้อย"}แล้ว`
+          `ปรับสถานะเป็น${newStatus ? "เรียบร้อย" : "ยังไม่เรียบร้อย"}แล้ว`,
         );
       } else {
         throw new Error(result.error || "ไม่สามารถปรับสถานะได้");
@@ -278,7 +276,7 @@ const OrderDetails = ({
       in_progress: "กำลังดำเนินการ",
       completed: "เสร็จสมบูรณ์",
       cancelled: "ยกเลิก",
-    }[status] || status);
+    })[status] || status;
 
   const getStatusClass = (status) =>
     ({
@@ -287,7 +285,7 @@ const OrderDetails = ({
       in_progress: "bg-yellow-100 text-yellow-800",
       completed: "bg-green-100 text-green-800",
       cancelled: "bg-red-100 text-red-800",
-    }[status] || "bg-gray-100 text-gray-800");
+    })[status] || "bg-gray-100 text-gray-800";
 
   const renderStatusDropdown = (booking, bookingType) => (
     <select
@@ -302,7 +300,7 @@ const OrderDetails = ({
           <option key={status} value={status}>
             {getStatusText(status)}
           </option>
-        )
+        ),
       )}
     </select>
   );
@@ -814,8 +812,8 @@ const OrderDetails = ({
                 statusMessage.type === "success"
                   ? "bg-green-100 text-green-700"
                   : statusMessage.type === "error"
-                  ? "bg-red-100 text-red-700"
-                  : "bg-blue-100 text-blue-700"
+                    ? "bg-red-100 text-red-700"
+                    : "bg-blue-100 text-blue-700"
               }`}
             >
               {statusMessage.message}

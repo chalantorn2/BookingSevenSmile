@@ -12,6 +12,8 @@ import {
 import supabase from "../../config/supabaseClient";
 import { formatDate } from "../../utils/dateUtils";
 import { useAlertDialogContext } from "../../contexts/AlertDialogContext";
+import { updateBookingsPaxByOrderId } from "../../services/bookingService";
+import { updateOrder, fetchOrderById } from "../../services/orderService";
 
 const BookingDetailModal = ({
   booking,
@@ -56,7 +58,7 @@ const BookingDetailModal = ({
       // ตรวจสอบว่าควรแสดงฟิลด์เพิ่มเติมหรือไม่ตามสถานะ
       const status = booking.status || "pending";
       setShowAdditionalFields(
-        ["booked", "in_progress", "completed"].includes(status)
+        ["booked", "in_progress", "completed"].includes(status),
       );
 
       // ดึงข้อมูล order เพื่อแสดงเป็นข้อมูลเพิ่มเติมเท่านั้น
@@ -69,15 +71,11 @@ const BookingDetailModal = ({
   // ดึงข้อมูล order จาก Supabase
   const fetchOrderData = async (orderId) => {
     try {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("id", orderId)
-        .single();
+      const { order, error } = await fetchOrderById(orderId);
 
       if (error) throw error;
 
-      setOrderData(data);
+      setOrderData(order);
     } catch (error) {
       console.error("Error fetching order data:", error);
     }
@@ -91,7 +89,7 @@ const BookingDetailModal = ({
     // เปิด/ปิดฟิลด์เพิ่มเติมสำหรับ transfer bookings ตามสถานะ
     if (name === "status" && bookingType === "transfer") {
       setShowAdditionalFields(
-        ["booked", "in_progress", "completed"].includes(value)
+        ["booked", "in_progress", "completed"].includes(value),
       );
     }
   };
@@ -101,7 +99,7 @@ const BookingDetailModal = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setStatusMessage({ type: "info", message: "กำลังบันทึกข้อมูล..." });
+    setStatusMessage({ type: "info", message: "Saving data..." });
 
     try {
       // สร้างข้อมูลใหม่โดยไม่รวมฟิลด์ orders (ถ้ามี)
@@ -130,42 +128,26 @@ const BookingDetailModal = ({
       // ถ้ามีการเปลี่ยนแปลง pax และมี order_id
       if (hasPaxChanged && bookingDataToSave.order_id) {
         // 1. อัปเดตตาราง orders
-        const { error: orderError } = await supabase
-          .from("orders")
-          .update(paxData)
-          .eq("id", bookingDataToSave.order_id);
+        const { error: orderError } = await updateOrder(
+          bookingDataToSave.order_id,
+          paxData,
+        );
 
         if (orderError) {
           console.error("Error updating orders:", orderError);
-          throw new Error(
-            `ไม่สามารถอัปเดตข้อมูลใน orders: ${orderError.message}`
-          );
+          throw new Error(`Unable to update orders: ${orderError}`);
         }
 
-        // 2. อัปเดตตาราง tour_bookings ที่มี order_id เดียวกัน
-        const { error: tourError } = await supabase
-          .from("tour_bookings")
-          .update(paxData)
-          .eq("order_id", bookingDataToSave.order_id);
+        // 2. อัปเดตตาราง tour_bookings และ transfer_bookings ที่มี order_id เดียวกัน
+        // ใช้ service ที่เตรียมไว้เพื่อรองรับ Sync
+        const { error: bookingsError } = await updateBookingsPaxByOrderId(
+          bookingDataToSave.order_id,
+          paxData,
+        );
 
-        if (tourError) {
-          console.error("Error updating tour_bookings:", tourError);
-          throw new Error(
-            `ไม่สามารถอัปเดตข้อมูลใน tour_bookings: ${tourError.message}`
-          );
-        }
-
-        // 3. อัปเดตตาราง transfer_bookings ที่มี order_id เดียวกัน
-        const { error: transferError } = await supabase
-          .from("transfer_bookings")
-          .update(paxData)
-          .eq("order_id", bookingDataToSave.order_id);
-
-        if (transferError) {
-          console.error("Error updating transfer_bookings:", transferError);
-          throw new Error(
-            `ไม่สามารถอัปเดตข้อมูลใน transfer_bookings: ${transferError.message}`
-          );
+        if (bookingsError) {
+          console.error("Error updating bookings pax:", bookingsError);
+          throw new Error(`Unable to update bookings: ${bookingsError}`);
         }
       }
 
@@ -173,7 +155,10 @@ const BookingDetailModal = ({
       const result = await onSave(bookingDataToSave);
 
       if (result.success) {
-        setStatusMessage({ type: "success", message: "บันทึกข้อมูลสำเร็จ" });
+        setStatusMessage({
+          type: "success",
+          message: "Data saved successfully",
+        });
 
         // ปิด modal หลังจากบันทึกสำเร็จ
         setTimeout(() => {
@@ -182,15 +167,13 @@ const BookingDetailModal = ({
       } else {
         setStatusMessage({
           type: "error",
-          message: `เกิดข้อผิดพลาด: ${
-            result.error || "ไม่สามารถบันทึกข้อมูลได้"
-          }`,
+          message: `Error: ${result.error || "Unable to save data"}`,
         });
       }
     } catch (error) {
       setStatusMessage({
         type: "error",
-        message: `เกิดข้อผิดพลาด: ${error.message}`,
+        message: `Error: ${error.message}`,
       });
     } finally {
       setIsSubmitting(false);
@@ -702,7 +685,7 @@ const BookingDetailModal = ({
             {booking.status && (
               <span
                 className={`text-xs px-2 py-1 rounded-md ${getStatusBadgeClass(
-                  booking.status
+                  booking.status,
                 )}`}
               >
                 {getStatusText(booking.status)}
@@ -746,7 +729,7 @@ const BookingDetailModal = ({
                       </label>
                       {renderField(field)}
                     </div>
-                  )
+                  ),
                 )}
               </div>
             </div>
@@ -759,8 +742,8 @@ const BookingDetailModal = ({
                 statusMessage.type === "success"
                   ? "bg-green-100 text-green-700"
                   : statusMessage.type === "error"
-                  ? "bg-red-100 text-red-700"
-                  : "bg-blue-100 text-blue-700"
+                    ? "bg-red-100 text-red-700"
+                    : "bg-blue-100 text-blue-700"
               }`}
             >
               {statusMessage.message}

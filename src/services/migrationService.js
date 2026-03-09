@@ -1,4 +1,5 @@
 import supabase from "../config/supabaseClient";
+import { syncToNewDb } from "./migrationSync";
 
 /**
  * ดึงข้อมูลทั้งหมดใน category เพื่อให้เลือก master และ duplicates
@@ -32,7 +33,7 @@ export const previewMergeImpact = async (masterId, duplicateIds) => {
   try {
     console.log(
       `🔍 Previewing merge impact - Master: ${masterId}, Duplicates:`,
-      duplicateIds
+      duplicateIds,
     );
 
     // ดึงข้อมูล master และ duplicates
@@ -150,12 +151,12 @@ export const previewMergeImpact = async (masterId, duplicateIds) => {
 export const mergeInformationRecords = async (
   masterId,
   duplicateIds,
-  resolvedConflicts = {}
+  resolvedConflicts = {},
 ) => {
   try {
     console.log(
       `🔍 Starting merge process - Master: ${masterId}, Duplicates:`,
-      duplicateIds
+      duplicateIds,
     );
 
     // ดึงข้อมูลทั้งหมด
@@ -177,7 +178,7 @@ export const mergeInformationRecords = async (
     console.log(
       `📝 Duplicate records: ${duplicates
         .map((d) => `${d.value} (ID: ${d.id})`)
-        .join(", ")}`
+        .join(", ")}`,
     );
 
     // รวมข้อมูลเพิ่มเติม
@@ -209,6 +210,14 @@ export const mergeInformationRecords = async (
 
     if (updateError) throw updateError;
 
+    // Dual-write master update
+    syncToNewDb("information", "update", {
+      id: masterId,
+      description: mergedData.description,
+      phone: mergedData.phone,
+      updated_at: new Date().toISOString(),
+    });
+
     // อัพเดท references ในตารางอื่น ⭐ ส่วนที่สำคัญที่แก้ไข
     console.log(`🔄 Updating references in other tables...`);
     await updateReferences(master, duplicates);
@@ -221,6 +230,11 @@ export const mergeInformationRecords = async (
       .in("id", duplicateIds);
 
     if (deleteError) throw deleteError;
+
+    // Dual-write duplicate deletes
+    duplicateIds.forEach((id) => {
+      syncToNewDb("information", "delete", { id });
+    });
 
     console.log(`✅ Merge completed successfully`);
     return { success: true, error: null };
@@ -261,7 +275,7 @@ const updateReferences = async (master, duplicates) => {
 
     console.log(`🔄 Updating references for category: ${master.category}`);
     console.log(
-      `🔄 Duplicate values to replace: ${duplicateValues.join(", ")}`
+      `🔄 Duplicate values to replace: ${duplicateValues.join(", ")}`,
     );
     console.log(`🔄 Replace with master value: ${master.value}`);
 
@@ -283,8 +297,16 @@ const updateReferences = async (master, duplicates) => {
           throw ordersIdError;
         }
         console.log(
-          `✅ Updated ${ordersUpdated?.length || 0} orders.agent_id records`
+          `✅ Updated ${ordersUpdated?.length || 0} orders.agent_id records`,
         );
+
+        // Sync orders agent_id updates
+        ordersUpdated?.forEach((order) => {
+          syncToNewDb("orders", "update", {
+            id: order.id,
+            agent_id: master.id,
+          });
+        });
       }
 
       // 2. อัพเดท agent_name ใน orders (Text Field)
@@ -300,15 +322,23 @@ const updateReferences = async (master, duplicates) => {
         if (ordersNameError) {
           console.error(
             "❌ Error updating orders.agent_name:",
-            ordersNameError
+            ordersNameError,
           );
           throw ordersNameError;
         }
         console.log(
           `✅ Updated ${
             ordersNameUpdated?.length || 0
-          } orders.agent_name records`
+          } orders.agent_name records`,
         );
+
+        // Sync orders agent_name updates
+        ordersNameUpdated?.forEach((order) => {
+          syncToNewDb("orders", "update", {
+            id: order.id,
+            agent_name: master.value,
+          });
+        });
 
         // 3. อัพเดท agent_name ใน payments
         console.log(`🔄 Updating payments.agent_name...`);
@@ -321,15 +351,23 @@ const updateReferences = async (master, duplicates) => {
         if (paymentsError) {
           console.error(
             "❌ Error updating payments.agent_name:",
-            paymentsError
+            paymentsError,
           );
           throw paymentsError;
         }
         console.log(
           `✅ Updated ${
             paymentsUpdated?.length || 0
-          } payments.agent_name records`
+          } payments.agent_name records`,
         );
+
+        // Sync payments agent_name updates
+        paymentsUpdated?.forEach((payment) => {
+          syncToNewDb("payments", "update", {
+            id: payment.id,
+            agent_name: master.value,
+          });
+        });
       }
     }
 
@@ -337,7 +375,7 @@ const updateReferences = async (master, duplicates) => {
     const tourFields = getTourFieldsByCategory(master.category);
     if (tourFields.length > 0 && duplicateValues.length > 0) {
       console.log(
-        `🔄 Processing tour booking fields: ${tourFields.join(", ")}`
+        `🔄 Processing tour booking fields: ${tourFields.join(", ")}`,
       );
 
       for (const field of tourFields) {
@@ -355,8 +393,16 @@ const updateReferences = async (master, duplicates) => {
         console.log(
           `✅ Updated ${
             tourUpdated?.length || 0
-          } tour_bookings.${field} records`
+          } tour_bookings.${field} records`,
         );
+
+        // Sync tour_bookings updates
+        tourUpdated?.forEach((booking) => {
+          syncToNewDb("tour_bookings", "update", {
+            id: booking.id,
+            [field]: master.value,
+          });
+        });
       }
     }
 
@@ -364,7 +410,7 @@ const updateReferences = async (master, duplicates) => {
     const transferFields = getTransferFieldsByCategory(master.category);
     if (transferFields.length > 0 && duplicateValues.length > 0) {
       console.log(
-        `🔄 Processing transfer booking fields: ${transferFields.join(", ")}`
+        `🔄 Processing transfer booking fields: ${transferFields.join(", ")}`,
       );
 
       for (const field of transferFields) {
@@ -378,15 +424,23 @@ const updateReferences = async (master, duplicates) => {
         if (transferError) {
           console.error(
             `❌ Error updating transfer_bookings.${field}:`,
-            transferError
+            transferError,
           );
           throw transferError;
         }
         console.log(
           `✅ Updated ${
             transferUpdated?.length || 0
-          } transfer_bookings.${field} records`
+          } transfer_bookings.${field} records`,
         );
+
+        // Sync transfer_bookings updates
+        transferUpdated?.forEach((booking) => {
+          syncToNewDb("transfer_bookings", "update", {
+            id: booking.id,
+            [field]: master.value,
+          });
+        });
       }
     }
 

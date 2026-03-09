@@ -5,6 +5,7 @@ import supabase from "../config/supabaseClient";
 import { useInformation } from "../contexts/InformationContext";
 import AutocompleteInput from "../components/common/AutocompleteInput";
 import BookingDetailModal from "../components/booking/BookingDetailModal";
+import { updateBooking, deleteBooking } from "../services/bookingService";
 import { useNotification } from "../hooks/useNotification";
 import { useAlertDialogContext } from "../contexts/AlertDialogContext";
 
@@ -14,10 +15,10 @@ const ViewPayment = () => {
   const [selectedType, setSelectedType] = useState("tour"); // 'tour' หรือ 'transfer'
   const [selectedRecipient, setSelectedRecipient] = useState("");
   const [startDate, setStartDate] = useState(
-    format(startOfMonth(new Date()), "yyyy-MM-dd")
+    format(startOfMonth(new Date()), "yyyy-MM-dd"),
   );
   const [endDate, setEndDate] = useState(
-    format(endOfMonth(new Date()), "yyyy-MM-dd")
+    format(endOfMonth(new Date()), "yyyy-MM-dd"),
   );
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -72,7 +73,7 @@ const ViewPayment = () => {
           last_name,
           reference_id
         )
-      `
+      `,
         )
         .ilike("send_to", selectedRecipient) // เปลี่ยนจาก .eq เป็น .ilike
         .gte(dateField, startDate)
@@ -96,47 +97,37 @@ const ViewPayment = () => {
   // เปลี่ยนสถานะการจ่ายเงิน
   const handlePaymentStatusChange = async (bookingId, status) => {
     try {
-      const table =
-        selectedType === "tour" ? "tour_bookings" : "transfer_bookings";
+      const { success, error } = await updateBooking(selectedType, {
+        id: bookingId,
+        payment_status: status,
+        payment_date: status === "paid" ? new Date().toISOString() : null,
+      });
 
-      const { error } = await supabase
-        .from(table)
-        .update({
-          payment_status: status,
-          payment_date: status === "paid" ? new Date().toISOString() : null,
-        })
-        .eq("id", bookingId);
-
-      if (error) throw error;
+      if (!success) throw new Error(error);
 
       // รีเฟรชข้อมูล
       fetchBookings(currentPage);
     } catch (error) {
       console.error("Error updating payment status:", error);
-      showError("ไม่สามารถอัพเดทสถานะได้");
+      showError("Unable to update status");
     }
   };
 
   // เพิ่มฟังก์ชันอัพเดทหมายเหตุ
   const handleNoteChange = async (bookingId, note) => {
     try {
-      const table =
-        selectedType === "tour" ? "tour_bookings" : "transfer_bookings";
+      const { success, error } = await updateBooking(selectedType, {
+        id: bookingId,
+        payment_note: note,
+      });
 
-      const { error } = await supabase
-        .from(table)
-        .update({
-          payment_note: note,
-        })
-        .eq("id", bookingId);
-
-      if (error) throw error;
+      if (!success) throw new Error(error);
 
       // รีเฟรชข้อมูล
       fetchBookings(currentPage);
     } catch (error) {
       console.error("Error updating payment note:", error);
-      showError("ไม่สามารถอัพเดทหมายเหตุได้");
+      showError("Unable to update note");
     }
   };
 
@@ -471,23 +462,21 @@ const ViewPayment = () => {
           onSave={async (updatedBooking) => {
             try {
               // เรียกใช้ API เพื่ออัพเดทข้อมูลใน database
-              const table =
-                selectedType === "tour" ? "tour_bookings" : "transfer_bookings";
-              const { error } = await supabase
-                .from(table)
-                .update(updatedBooking)
-                .eq("id", updatedBooking.id);
+              const { success, error } = await updateBooking(
+                selectedType,
+                updatedBooking,
+              );
 
-              if (error) throw error;
+              if (!success) throw new Error(error);
 
               // รีเฟรชข้อมูลและปิด modal
               await fetchBookings(currentPage);
               setIsModalOpen(false);
-              showSuccess("อัพเดทข้อมูลเรียบร้อย");
+              showSuccess("Data updated successfully");
               return { success: true };
             } catch (error) {
               console.error("Error updating booking:", error);
-              showError("ไม่สามารถอัพเดทข้อมูลได้");
+              showError("Unable to update data");
               return { success: false, error: error.message };
             }
           }}
@@ -495,32 +484,27 @@ const ViewPayment = () => {
             // ถ้าคุณต้องการให้ลบได้ด้วย ให้แก้ไขส่วนนี้เป็น:
             try {
               const confirmed = await showAlert({
-                title: "ยืนยันการลบ",
-                description: "คุณต้องการลบรายการนี้ใช่หรือไม่?",
-                confirmText: "ลบ",
-                cancelText: "ยกเลิก",
+                title: "Confirm Delete",
+                description: "Do you want to delete this item?",
+                confirmText: "Delete",
+                cancelText: "Cancel",
                 actionVariant: "destructive",
               });
 
               if (!confirmed) return { success: false };
 
-              const table =
-                selectedType === "tour" ? "tour_bookings" : "transfer_bookings";
-              const { error } = await supabase
-                .from(table)
-                .delete()
-                .eq("id", id);
+              const { success, error } = await deleteBooking(selectedType, id);
 
-              if (error) throw error;
+              if (!success) throw new Error(error);
 
               // รีเฟรชข้อมูลและปิด modal
               await fetchBookings(currentPage);
               setIsModalOpen(false);
-              showSuccess("ลบข้อมูลเรียบร้อย");
+              showSuccess("Data deleted successfully");
               return { success: true };
             } catch (error) {
               console.error("Error deleting booking:", error);
-              showError("ไม่สามารถลบข้อมูลได้");
+              showError("Unable to delete data");
               return { success: false, error: error.message };
             }
           }}

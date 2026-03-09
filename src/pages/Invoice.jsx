@@ -9,6 +9,9 @@ import {
   updatePaymentsInvoiceStatus,
   fetchInvoiceById,
   deleteInvoice,
+  updatePaymentRef,
+  updatePaymentBookings,
+  fetchNonInvoicedPayments,
 } from "../services/invoiceService";
 import "../styles/invoice.css";
 import HeaderInvoice from "../components/invoice/HeaderInvoice";
@@ -63,7 +66,7 @@ const Invoice = () => {
   const [allPaymentsData, setAllPaymentsData] = useState([]);
   const [selectedPaymentIds, setSelectedPaymentIds] = useState([]);
   const [invoiceDate, setInvoiceDate] = useState(
-    format(new Date(), "dd/MM/yyyy")
+    format(new Date(), "dd/MM/yyyy"),
   );
   const [invoiceId, setInvoiceId] = useState("");
   const [showCostProfit, setShowCostProfit] = useState(false);
@@ -148,7 +151,7 @@ const Invoice = () => {
         } else {
           // ถ้าเป็นคนละวัน
           dateRangeStr = ` |  ${formatDateShort(startDate)} - ${formatDateShort(
-            endDate
+            endDate,
           )}`;
         }
       }
@@ -210,7 +213,7 @@ const Invoice = () => {
       const safeGrandTotal = Number(Number(grandTotal).toFixed(2));
       const safeTotalCost = Number(Number(totalCost).toFixed(2));
       const safeTotalSellingPrice = Number(
-        Number(totalSellingPrice).toFixed(2)
+        Number(totalSellingPrice).toFixed(2),
       );
       const safeTotalProfit = Number(Number(totalProfit).toFixed(2));
 
@@ -224,9 +227,16 @@ const Invoice = () => {
         throw new Error("ตัวเลขมีค่าสูงเกินไป ไม่สามารถบันทึกได้");
       }
 
+      // Convert date from dd/MM/yyyy to YYYY-MM-DD for database
+      let formattedDate = invoiceDate;
+      if (invoiceDate && invoiceDate.includes("/")) {
+        const [day, month, year] = invoiceDate.split("/");
+        formattedDate = `${year}-${month}-${day}`;
+      }
+
       const invoiceData = {
         invoice_name: promptedInvoiceName,
-        invoice_date: invoiceDate,
+        invoice_date: formattedDate,
         payment_ids: selectedPaymentIds,
         total_amount: safeGrandTotal.toString(),
         total_cost: safeTotalCost.toString(),
@@ -239,22 +249,19 @@ const Invoice = () => {
         updated_at: new Date().toISOString(),
       };
 
-      const { data, error } = await supabase
-        .from("invoices")
-        .insert(invoiceData)
-        .select()
-        .single();
+      // Use service instead of direct Supabase call
+      const { data, error } = await createInvoice(invoiceData);
 
-      if (error) throw error;
+      if (error) throw new Error(error);
 
-      for (const paymentId of selectedPaymentIds) {
-        const { error: updateError } = await supabase
-          .from("payments")
-          .update({ invoiced: true })
-          .eq("id", paymentId);
-        if (updateError)
-          console.error(`Failed to update payment ${paymentId}:`, updateError);
-      }
+      // Status update is now handled in createInvoice (via syncToNewDb)
+      // AND we might still need to update local payment status or re-fetch
+      // But let's keep the explicit update for safety if the service doesn't do it for ALL payments
+      // (Actually createInvoice in service DOES NOT update payment status, only creates invoice)
+      // Wait, let's check invoiceService.js...
+      // createInvoice in service ONLY inserts invoice.
+      // So we DO need updatePaymentsInvoiceStatus.
+      await updatePaymentsInvoiceStatus(selectedPaymentIds, true);
 
       showSuccess(`บันทึก Invoice เรียบร้อย! Invoice: ${promptedInvoiceName}`);
       setSelectedPaymentIds([]);
@@ -358,7 +365,7 @@ const Invoice = () => {
 
       if (data.payment_ids && data.payment_ids.length > 0) {
         const relatedPayments = allPaymentsData.filter((p) =>
-          data.payment_ids.includes(p.id)
+          data.payment_ids.includes(p.id),
         );
 
         relatedPayments.forEach((payment) => {
@@ -415,7 +422,7 @@ const Invoice = () => {
 
       // ดึงข้อมูล Payment ที่ยังไม่ได้ออก Invoice
       const { data: nonInvoicedPaymentsData, error: nonInvoicedError } =
-        await supabase.from("payments").select("*").eq("invoiced", false);
+        await fetchNonInvoicedPayments();
 
       if (nonInvoicedError) throw nonInvoicedError;
 
@@ -425,7 +432,7 @@ const Invoice = () => {
     } catch (error) {
       console.error("Error preparing to edit invoice:", error);
       setError(
-        `ไม่สามารถเตรียมข้อมูลสำหรับแก้ไข Invoice ได้: ${error.message}`
+        `ไม่สามารถเตรียมข้อมูลสำหรับแก้ไข Invoice ได้: ${error.message}`,
       );
     } finally {
       setLoading(false);
@@ -455,7 +462,7 @@ const Invoice = () => {
 
       // ดึงข้อมูล Payment ที่เลือกทั้งหมด
       const selectedPayments = allPaymentsData.filter((p) =>
-        editablePaymentIds.includes(p.id)
+        editablePaymentIds.includes(p.id),
       );
 
       selectedPayments.forEach((payment) => {
@@ -490,7 +497,7 @@ const Invoice = () => {
       // อัพเดท Invoice
       const { error: updateError } = await updateInvoice(
         editingInvoiceId,
-        updatedInvoiceData
+        updatedInvoiceData,
       );
 
       if (updateError) throw updateError;
@@ -500,7 +507,7 @@ const Invoice = () => {
 
       // Payment ที่ถูกนำออกจาก Invoice
       const removedPaymentIds = currentPaymentIds.filter(
-        (id) => !editablePaymentIds.includes(id)
+        (id) => !editablePaymentIds.includes(id),
       );
       if (removedPaymentIds.length > 0) {
         await updatePaymentsInvoiceStatus(removedPaymentIds, false);
@@ -508,7 +515,7 @@ const Invoice = () => {
 
       // Payment ที่ถูกเพิ่มเข้ามาใน Invoice
       const addedPaymentIds = editablePaymentIds.filter(
-        (id) => !currentPaymentIds.includes(id)
+        (id) => !currentPaymentIds.includes(id),
       );
       if (addedPaymentIds.length > 0) {
         await updatePaymentsInvoiceStatus(addedPaymentIds, true);
@@ -688,7 +695,7 @@ const Invoice = () => {
         for (let j = 0; j < table.rows[i].cells.length; j++) {
           let text = table.rows[i].cells[j].innerText.replace(
             /(\r\n|\n|\r)/gm,
-            " "
+            " ",
           );
           text = text.replace(/"/g, '""');
           row.push(`"${text}"`);
@@ -750,17 +757,16 @@ const Invoice = () => {
       }
       const bookingsCopy = JSON.parse(JSON.stringify(payment.bookings));
       bookingsCopy[bookingIndex].fee = parseFloat(newFeeValue) || 0;
-      const { error } = await supabase
-        .from("payments")
-        .update({ bookings: bookingsCopy })
-        .eq("id", paymentId);
-      if (error) throw error;
-      showSuccess("อัปเดต Fee เรียบร้อย");
+
+      const { error } = await updatePaymentBookings(paymentId, bookingsCopy);
+      if (error) throw new Error(error);
+
+      showSuccess("Fee updated successfully");
       await loadInitialData();
       buildInvoiceTable();
     } catch (error) {
       console.error("Error updating fee:", error);
-      setError("ไม่สามารถอัปเดต Fee ได้");
+      setError("Cannot update fee");
     } finally {
       setLoading(false);
     }
@@ -792,7 +798,7 @@ const Invoice = () => {
     if (type === "description") {
       const newDescription = prompt(
         "กรุณากรอกรายละเอียดการหัก:",
-        deductionDescription
+        deductionDescription,
       );
       if (newDescription !== null) {
         setDeductionDescription(newDescription);
@@ -809,7 +815,7 @@ const Invoice = () => {
     } else if (type === "amount") {
       const newAmount = prompt(
         "กรุณากรอกจำนวนเงินที่หัก:",
-        deductionAmount.toString()
+        deductionAmount.toString(),
       );
       if (newAmount !== null) {
         const numAmount = parseFloat(newAmount) || 0;
@@ -1077,30 +1083,30 @@ const Invoice = () => {
           if (showCostProfit) {
             printWindow.document.write(`
              <td style="text-align: right;">${formatNumberWithCommas(
-               costVal
+               costVal,
              )}</td>
              <td style="text-align: right;">${formatNumberWithCommas(
-               priceVal
+               priceVal,
              )}</td>
              <td style="text-align: right;">${formatNumberWithCommas(
-               profitVal
+               profitVal,
              )}</td>
            `);
           } else {
             printWindow.document.write(`
              <td style="text-align: right;">${formatNumberWithCommas(
-               priceVal
+               priceVal,
              )}</td>
            `);
           }
 
           printWindow.document.write(`
            <td style="text-align: center;">${formatNumberWithCommas(
-             feeVal
+             feeVal,
            )}</td>
            <td style="text-align: center;">${unitVal}</td>
            <td style="text-align: right;">${formatNumberWithCommas(
-             rowTotal
+             rowTotal,
            )}</td>
          `);
 
@@ -1113,13 +1119,13 @@ const Invoice = () => {
            <tr class="total-row">
              <td colspan="6" style="text-align: right; font-weight: bold;">Sub-Total (Cost/Price/Profit)</td>
              <td style="text-align: right; font-weight: bold;">${formatNumberWithCommas(
-               paymentCostTotal
+               paymentCostTotal,
              )}</td>
              <td style="text-align: right; font-weight: bold;">${formatNumberWithCommas(
-               paymentRowTotal
+               paymentRowTotal,
              )}</td>
              <td style="text-align: right; font-weight: bold;">${formatNumberWithCommas(
-               paymentProfitTotal
+               paymentProfitTotal,
              )}</td>
              <td colspan="3"></td>
            </tr>
@@ -1133,7 +1139,7 @@ const Invoice = () => {
              showCostProfit ? 10 : 8
            }" style="text-align: right; font-weight: bold;">Total Amount</td>
            <td colspan="2" style="text-align: right; font-weight: bold;">${formatNumberWithCommas(
-             paymentRowTotal
+             paymentRowTotal,
            )}</td>
          </tr>
        `);
@@ -1148,7 +1154,7 @@ const Invoice = () => {
      showCostProfit ? 10 : 8
    }" style="text-align: right; font-weight: bold;">SUB TOTAL</td>
    <td colspan="2" style="text-align: right; font-weight: bold;">${formatNumberWithCommas(
-     grandTotal
+     grandTotal,
    )}</td>
  </tr>
 `);
@@ -1163,10 +1169,10 @@ const Invoice = () => {
      <td colspan="${
        showCostProfit ? 10 : 8
      }" style="text-align: right; font-weight: bold;">${
-            deductionDescription || "Service Fee"
-          }</td>
+       deductionDescription || "Service Fee"
+     }</td>
      <td colspan="2" style="text-align: right; font-weight: bold;">-${formatNumberWithCommas(
-       deductionAmount || 0
+       deductionAmount || 0,
      )}</td>
    </tr>
   `);
@@ -1187,7 +1193,7 @@ const Invoice = () => {
       </div>
     <div style="text-align: right;">
           <p style="font-weight: bold; font-size: 14px;">GRAND TOTAL: ${formatNumberWithCommas(
-            (grandTotal || 0) - (deductionAmount || 0)
+            (grandTotal || 0) - (deductionAmount || 0),
           )} THB</p>
         </div>
     </div>
@@ -1264,8 +1270,8 @@ const Invoice = () => {
                               } else {
                                 setSelectedPaymentIds(
                                   selectedPaymentIds.filter(
-                                    (id) => id !== payment.id
-                                  )
+                                    (id) => id !== payment.id,
+                                  ),
                                 );
                               }
                             }}
@@ -1318,7 +1324,7 @@ const Invoice = () => {
             (invoice.invoice_name || "")
               .toLowerCase()
               .includes(searchInvoiceQuery.toLowerCase()) ||
-            (invoice.invoice_date || "").includes(searchInvoiceQuery)
+            (invoice.invoice_date || "").includes(searchInvoiceQuery),
         );
         setFilteredInvoices(filtered);
         setShowSearchResults(true);
@@ -1493,7 +1499,7 @@ const Invoice = () => {
         dateRangeText = `${formatDateDisplay(startDate)}`;
       } else {
         dateRangeText = `${formatDateDisplay(startDate)} - ${formatDateDisplay(
-          endDate
+          endDate,
         )}`;
       }
     }
@@ -1547,7 +1553,7 @@ const Invoice = () => {
       useSensor(PointerSensor),
       useSensor(KeyboardSensor, {
         coordinateGetter: sortableKeyboardCoordinates,
-      })
+      }),
     );
 
     const handleDragEnd = (event) => {
@@ -1558,7 +1564,7 @@ const Invoice = () => {
         const newIndex = editablePaymentIds.indexOf(over.id);
 
         setEditablePaymentIds(
-          arrayMove(editablePaymentIds, oldIndex, newIndex)
+          arrayMove(editablePaymentIds, oldIndex, newIndex),
         );
       }
     };
@@ -1619,7 +1625,7 @@ const Invoice = () => {
                       <div className="space-y-2">
                         {editablePaymentIds.map((paymentId, index) => {
                           const payment = allPaymentsData.find(
-                            (p) => p.id === paymentId
+                            (p) => p.id === paymentId,
                           );
                           if (!payment) return null;
 
@@ -1686,7 +1692,7 @@ const Invoice = () => {
                           dateRangeText = `${formatDateDisplay(startDate)}`;
                         } else {
                           dateRangeText = `${formatDateDisplay(
-                            startDate
+                            startDate,
                           )} - ${formatDateDisplay(endDate)}`;
                         }
                       }
