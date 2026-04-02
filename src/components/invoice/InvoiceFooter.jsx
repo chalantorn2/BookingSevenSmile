@@ -16,7 +16,7 @@ const InvoiceFooter = ({
       <div className="w-full md:w-1/2 text-right">
         <div className="text-xl font-bold text-gray-800" id="grandTotalDisplay">
           GRAND TOTAL:{" "}
-          {formatNumberWithCommas((grandTotal || 0) - (deductionAmount || 0))}{" "}
+          {formatNumberWithCommas((grandTotal || 0) + (deductionAmount || 0))}{" "}
           THB
         </div>
       </div>

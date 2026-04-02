@@ -394,7 +394,16 @@ const Invoice = () => {
       setTotalSellingPrice(realTimeTotalSellingPrice);
       setTotalProfit(realTimeTotalProfit);
       setDeductionDescription(data.deduction_description || "");
-      setDeductionAmount(parseFloat(data.deduction_amount) || 0);
+      // แยกรูปแบบ: "+500" = บวกเพิ่ม, "-500" = หัก, "500" (ไม่มี sign = ข้อมูลเก่า = หัก)
+      const rawStr = (data.deduction_amount || "0").toString();
+      if (rawStr.startsWith("+")) {
+        setDeductionAmount(parseFloat(rawStr));
+      } else if (rawStr.startsWith("-")) {
+        setDeductionAmount(parseFloat(rawStr));
+      } else {
+        const val = parseFloat(rawStr) || 0;
+        setDeductionAmount(val > 0 ? -val : val);
+      }
       // **จบส่วนที่เพิ่ม**
 
       setIsViewModalOpen(false);
@@ -813,17 +822,30 @@ const Invoice = () => {
         }
       }
     } else if (type === "amount") {
+      // แสดงค่าปัจจุบันในรูปแบบที่ user กรอก: บวก = +xxx, หัก = xxx
+      const displayValue =
+        deductionAmount > 0
+          ? `+${Math.abs(deductionAmount)}`
+          : deductionAmount === 0
+            ? ""
+            : Math.abs(deductionAmount).toString();
       const newAmount = prompt(
-        "กรุณากรอกจำนวนเงินที่หัก:",
-        deductionAmount.toString(),
+        "กรุณากรอกจำนวนเงิน:\n• กรอกตัวเลข เช่น 500 = หักออก\n• ใส่ + นำหน้า เช่น +500 = บวกเพิ่ม",
+        displayValue,
       );
-      if (newAmount !== null) {
-        const numAmount = parseFloat(newAmount) || 0;
-        setDeductionAmount(numAmount);
+      if (newAmount !== null && newAmount.trim() !== "") {
+        const trimmed = newAmount.trim();
+        const isAddition = trimmed.startsWith("+");
+        const numAmount = parseFloat(trimmed) || 0;
+        // ไม่มี + = หัก (เก็บเป็นลบ), มี + = บวก (เก็บเป็นบวก)
+        const finalAmount = isAddition ? Math.abs(numAmount) : -Math.abs(numAmount);
+        setDeductionAmount(finalAmount);
         // Auto-save
         try {
           await updateInvoice(invoiceId, {
-            deduction_amount: numAmount.toString(),
+            deduction_amount: isAddition
+              ? `+${Math.abs(finalAmount)}`
+              : finalAmount.toString(),
           });
           showSuccess("อัปเดตจำนวนเงินการหัก เรียบร้อย");
         } catch (error) {
@@ -1159,11 +1181,12 @@ const Invoice = () => {
  </tr>
 `);
 
-        // แถว Deduction (ถ้ามี) - ไม่เป็นสีแดงตอนพิมพ์
+        // แถว Deduction/Addition (ถ้ามี)
         if (
           isViewingExistingInvoice &&
-          (deductionDescription || deductionAmount > 0)
+          (deductionDescription || deductionAmount !== 0)
         ) {
+          const displaySign = deductionAmount > 0 ? "+" : "-";
           printWindow.document.write(`
    <tr class="deduction-row" style="background-color: #f8f9fa;">
      <td colspan="${
@@ -1171,8 +1194,8 @@ const Invoice = () => {
      }" style="text-align: right; font-weight: bold;">${
        deductionDescription || "Service Fee"
      }</td>
-     <td colspan="2" style="text-align: right; font-weight: bold;">-${formatNumberWithCommas(
-       deductionAmount || 0,
+     <td colspan="2" style="text-align: right; font-weight: bold;">${displaySign}${formatNumberWithCommas(
+       Math.abs(deductionAmount) || 0,
      )}</td>
    </tr>
   `);
@@ -1193,7 +1216,7 @@ const Invoice = () => {
       </div>
     <div style="text-align: right;">
           <p style="font-weight: bold; font-size: 14px;">GRAND TOTAL: ${formatNumberWithCommas(
-            (grandTotal || 0) - (deductionAmount || 0),
+            (grandTotal || 0) + (deductionAmount || 0),
           )} THB</p>
         </div>
     </div>

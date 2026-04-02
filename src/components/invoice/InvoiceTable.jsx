@@ -235,13 +235,17 @@ const InvoiceTable = ({
       );
       tableRows.push(subTotalRow);
 
-      // 🆕 เพิ่มแถว Deduction (แสดงเฉพาะเมื่อดู Invoice ที่มีอยู่แล้ว)
+      // แถว Deduction/Addition (แสดงเฉพาะเมื่อดู Invoice ที่มีอยู่แล้ว)
       if (isViewingExistingInvoice) {
+        const isAddition = deductionAmount > 0;
+        const displaySign = isAddition ? "+" : "-";
+        const colorClass = isAddition ? "text-green-600" : "text-red-600";
+        const bgClass = isAddition ? "bg-green-50" : "bg-red-50";
         const deductionRow = (
-          <tr key="deduction" className="bg-red-50 border-b">
+          <tr key="deduction" className={`${bgClass} border-b`}>
             <td
               colSpan={showCostProfit ? 10 : 8}
-              className="px-2 py-2 text-right font-bold text-red-600 cursor-pointer"
+              className={`px-2 py-2 text-right font-bold ${colorClass} cursor-pointer`}
               onClick={() => handleEditDeduction("description")}
               title="คลิกเพื่อแก้ไขรายละเอียด"
             >
@@ -249,11 +253,13 @@ const InvoiceTable = ({
             </td>
             <td
               colSpan={2}
-              className="px-2 py-2 font-bold text-red-600 text-right cursor-pointer"
+              className={`px-2 py-2 font-bold ${colorClass} text-right cursor-pointer`}
               onClick={() => handleEditDeduction("amount")}
               title="คลิกเพื่อแก้ไขจำนวนเงิน"
             >
-              -{formatNumberWithCommas(deductionAmount || 0)}
+              {deductionAmount !== 0
+                ? `${displaySign}${formatNumberWithCommas(Math.abs(deductionAmount))}`
+                : formatNumberWithCommas(0)}
             </td>
           </tr>
         );
