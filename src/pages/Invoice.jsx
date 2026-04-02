@@ -394,16 +394,8 @@ const Invoice = () => {
       setTotalSellingPrice(realTimeTotalSellingPrice);
       setTotalProfit(realTimeTotalProfit);
       setDeductionDescription(data.deduction_description || "");
-      // แยกรูปแบบ: "+500" = บวกเพิ่ม, "-500" = หัก, "500" (ไม่มี sign = ข้อมูลเก่า = หัก)
-      const rawStr = (data.deduction_amount || "0").toString();
-      if (rawStr.startsWith("+")) {
-        setDeductionAmount(parseFloat(rawStr));
-      } else if (rawStr.startsWith("-")) {
-        setDeductionAmount(parseFloat(rawStr));
-      } else {
-        const val = parseFloat(rawStr) || 0;
-        setDeductionAmount(val > 0 ? -val : val);
-      }
+      // ค่าลบ = หัก, ค่าบวก = เพิ่ม
+      setDeductionAmount(parseFloat(data.deduction_amount) || 0);
       // **จบส่วนที่เพิ่ม**
 
       setIsViewModalOpen(false);
@@ -843,9 +835,7 @@ const Invoice = () => {
         // Auto-save
         try {
           await updateInvoice(invoiceId, {
-            deduction_amount: isAddition
-              ? `+${Math.abs(finalAmount)}`
-              : finalAmount.toString(),
+            deduction_amount: finalAmount.toString(),
           });
           showSuccess("อัปเดตจำนวนเงินการหัก เรียบร้อย");
         } catch (error) {
