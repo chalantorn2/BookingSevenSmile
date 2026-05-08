@@ -29,7 +29,9 @@ const BookingDetailModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAdditionalFields, setShowAdditionalFields] = useState(false);
   const [orderData, setOrderData] = useState(null);
-   const [priceDetails, setPriceDetails] = useState([{ cost: '', sell: '', type: 'all', remark: '' }]);
+  const [priceDetails, setPriceDetails] = useState([
+    { cost: "", sell: "", type: "all", remark: "" },
+  ]);
 
   // เพิ่ม Effect สำหรับการกดปุ่ม ESC
   useEffect(() => {
@@ -58,17 +60,26 @@ const BookingDetailModal = ({
       });
 
       // Initialize price details
-      if (booking.price_details && Array.isArray(booking.price_details) && booking.price_details.length > 0) {
+      if (
+        booking.price_details &&
+        Array.isArray(booking.price_details) &&
+        booking.price_details.length > 0
+      ) {
         setPriceDetails(booking.price_details);
-      } else if (parseFloat(booking.cost_price) > 0 || parseFloat(booking.selling_price) > 0) {
-        setPriceDetails([{
-          cost: booking.cost_price || '',
-          sell: booking.selling_price || '',
-          type: 'all',
-          remark: ''
-        }]);
+      } else if (
+        parseFloat(booking.cost_price) > 0 ||
+        parseFloat(booking.selling_price) > 0
+      ) {
+        setPriceDetails([
+          {
+            cost: booking.cost_price || "",
+            sell: booking.selling_price || "",
+            type: "all",
+            remark: "",
+          },
+        ]);
       } else {
-        setPriceDetails([{ cost: '', sell: '', type: 'all', remark: '' }]);
+        setPriceDetails([{ cost: "", sell: "", type: "all", remark: "" }]);
       }
 
       // ตรวจสอบว่าควรแสดงฟิลด์เพิ่มเติมหรือไม่ตามสถานะ
@@ -110,15 +121,21 @@ const BookingDetailModal = ({
     }
   };
 
-  
   // Price Details functions
   const addPriceRow = () => {
-    setPriceDetails([...priceDetails, { cost: '', sell: '', type: 'all', remark: '' }]);
+    setPriceDetails([
+      ...priceDetails,
+      { cost: "", sell: "", type: "all", remark: "" },
+    ]);
   };
 
   const removePriceRow = (index) => {
     const updated = priceDetails.filter((_, i) => i !== index);
-    setPriceDetails(updated.length > 0 ? updated : [{ cost: '', sell: '', type: 'all', remark: '' }]);
+    setPriceDetails(
+      updated.length > 0
+        ? updated
+        : [{ cost: "", sell: "", type: "all", remark: "" }],
+    );
   };
 
   const updatePriceRow = (index, field, value) => {
@@ -134,15 +151,19 @@ const BookingDetailModal = ({
     const totalPax = paxAdt + paxChd + paxInf;
 
     switch (type) {
-      case 'adt': return paxAdt;
-      case 'chd': return paxChd;
-      case 'all': return totalPax || 1;
-      default: return 1;
+      case "adt":
+        return paxAdt;
+      case "chd":
+        return paxChd;
+      case "all":
+        return totalPax || 1;
+      default:
+        return 1;
     }
   };
 
-    const getEffectivePax = (detail) => {
-    if (detail.pax !== undefined && detail.pax !== '' && detail.pax !== null) {
+  const getEffectivePax = (detail) => {
+    if (detail.pax !== undefined && detail.pax !== "" && detail.pax !== null) {
       return parseInt(detail.pax) || 0;
     }
     return getPaxByType(detail.type);
@@ -151,7 +172,7 @@ const BookingDetailModal = ({
   const calculatePriceTotals = () => {
     let totalCost = 0;
     let totalSelling = 0;
-    priceDetails.forEach(detail => {
+    priceDetails.forEach((detail) => {
       const paxCount = getEffectivePax(detail);
       totalCost += (parseFloat(detail.cost) || 0) * paxCount;
       totalSelling += (parseFloat(detail.sell) || 0) * paxCount;
@@ -174,13 +195,13 @@ const BookingDetailModal = ({
         "pax_chd" in bookingDataToSave ||
         "pax_inf" in bookingDataToSave;
 
-    // คำนวณค่า pax รวม (แปลงเป็น integer เพื่อป้องกัน empty string ส่งไป DB)
+      // คำนวณค่า pax รวม (แปลงเป็น integer เพื่อป้องกัน empty string ส่งไป DB)
       const pax_adt = parseInt(bookingDataToSave.pax_adt) || 0;
       const pax_chd = parseInt(bookingDataToSave.pax_chd) || 0;
       const pax_inf = parseInt(bookingDataToSave.pax_inf) || 0;
       const totalPax = pax_adt + pax_chd + pax_inf;
 
-          // เขียนค่า parsed integers กลับเข้า bookingDataToSave
+      // เขียนค่า parsed integers กลับเข้า bookingDataToSave
       bookingDataToSave.pax_adt = pax_adt;
       bookingDataToSave.pax_chd = pax_chd;
       bookingDataToSave.pax_inf = pax_inf;
@@ -219,19 +240,22 @@ const BookingDetailModal = ({
         }
       }
 
-         // คำนวณราคาจาก price details และบันทึก
-      const priceDetailsToSave = priceDetails.map(d => ({
+      // คำนวณราคาจาก price details และบันทึก
+      const priceDetailsToSave = priceDetails.map((d) => ({
         cost: parseFloat(d.cost) || 0,
         sell: parseFloat(d.sell) || 0,
         type: d.type,
-            pax: d.pax !== undefined && d.pax !== '' && d.pax !== null ? parseInt(d.pax) : null,
-        remark: d.remark || ''
+        pax:
+          d.pax !== undefined && d.pax !== "" && d.pax !== null
+            ? parseInt(d.pax)
+            : null,
+        remark: d.remark || "",
       }));
-      const { totalCost: calcTotalCost, totalSelling: calcTotalSelling } = calculatePriceTotals();
+      const { totalCost: calcTotalCost, totalSelling: calcTotalSelling } =
+        calculatePriceTotals();
       bookingDataToSave.price_details = priceDetailsToSave;
       bookingDataToSave.cost_price = calcTotalCost;
       bookingDataToSave.selling_price = calcTotalSelling;
-
 
       // 4. อัปเดตข้อมูลของ booking ที่กำลังแก้ไข
       const result = await onSave(bookingDataToSave);
@@ -474,7 +498,7 @@ const BookingDetailModal = ({
             },
           ],
         },
-             ];
+      ];
     } else {
       return [
         {
@@ -628,7 +652,7 @@ const BookingDetailModal = ({
             { name: "phone_number", label: "เบอร์โทร" },
           ],
         },
-       ];
+      ];
     }
   };
 
@@ -714,7 +738,6 @@ const BookingDetailModal = ({
     return statusMap[status] || status;
   };
 
-  
   // Render Price Details Section
   const renderPriceDetailsSection = () => {
     const isTour = bookingType === "tour";
@@ -723,20 +746,23 @@ const BookingDetailModal = ({
     return (
       <div className="mb-6">
         <h4 className="text-lg font-medium mb-3 pb-2 border-b border-gray-200 flex items-center">
-          <FileText size={18} className={`mr-2 ${isTour ? "text-green-600" : "text-blue-600"}`} />
+          <FileText
+            size={18}
+            className={`mr-2 ${isTour ? "text-green-600" : "text-blue-600"}`}
+          />
           Price Details
         </h4>
         <div className="overflow-x-auto">
           <table className="w-full text-sm border border-gray-200 rounded table-fixed">
             <colgroup>
-              <col style={{ width: '100px' }} />
-              <col style={{ width: '100px' }} />
-              <col style={{ width: '80px' }} />
-              <col style={{ width: '75px' }} />
-              <col style={{ width: '110px' }} />
-              <col style={{ width: '110px' }} />
+              <col style={{ width: "100px" }} />
+              <col style={{ width: "100px" }} />
+              <col style={{ width: "80px" }} />
+              <col style={{ width: "75px" }} />
+              <col style={{ width: "110px" }} />
+              <col style={{ width: "110px" }} />
               <col />
-              <col style={{ width: '40px' }} />
+              <col style={{ width: "40px" }} />
             </colgroup>
             <thead>
               <tr className="bg-gray-50 text-gray-600">
@@ -744,16 +770,19 @@ const BookingDetailModal = ({
                 <th className="px-2 py-2 text-left font-medium">Sell</th>
                 <th className="px-2 py-2 text-left font-medium">Type</th>
                 <th className="px-2 py-2 text-center font-medium">Pax</th>
-                <th className="px-2 py-2 text-right font-medium">Subtotal Cost</th>
-                <th className="px-2 py-2 text-right font-medium">Subtotal Sell</th>
+                <th className="px-2 py-2 text-right font-medium">
+                  Subtotal Cost
+                </th>
+                <th className="px-2 py-2 text-right font-medium">
+                  Subtotal Sell
+                </th>
                 <th className="px-2 py-2 text-left font-medium">Remark</th>
                 <th className="px-2 py-2"></th>
               </tr>
             </thead>
             <tbody>
-
               {priceDetails.map((detail, index) => {
-                  const autoPax = getPaxByType(detail.type);
+                const autoPax = getPaxByType(detail.type);
                 const paxCount = getEffectivePax(detail);
                 const subtotalCost = (parseFloat(detail.cost) || 0) * paxCount;
                 const subtotalSell = (parseFloat(detail.sell) || 0) * paxCount;
@@ -763,8 +792,10 @@ const BookingDetailModal = ({
                     <td className="px-2 py-1.5">
                       <input
                         type="number"
-                        value={detail.cost || ''}
-                        onChange={(e) => updatePriceRow(index, 'cost', e.target.value)}
+                        value={detail.cost || ""}
+                        onChange={(e) =>
+                          updatePriceRow(index, "cost", e.target.value)
+                        }
                         onWheel={(e) => e.target.blur()}
                         className="w-full border border-gray-300 rounded p-1.5 text-right focus:border-blue-500 focus:ring focus:ring-blue-200"
                         placeholder="0"
@@ -774,8 +805,10 @@ const BookingDetailModal = ({
                     <td className="px-2 py-1.5">
                       <input
                         type="number"
-                        value={detail.sell || ''}
-                        onChange={(e) => updatePriceRow(index, 'sell', e.target.value)}
+                        value={detail.sell || ""}
+                        onChange={(e) =>
+                          updatePriceRow(index, "sell", e.target.value)
+                        }
                         onWheel={(e) => e.target.blur()}
                         className="w-full border border-gray-300 rounded p-1.5 text-right focus:border-blue-500 focus:ring focus:ring-blue-200"
                         placeholder="0"
@@ -785,7 +818,9 @@ const BookingDetailModal = ({
                     <td className="px-2 py-1.5">
                       <select
                         value={detail.type}
-                        onChange={(e) => updatePriceRow(index, 'type', e.target.value)}
+                        onChange={(e) =>
+                          updatePriceRow(index, "type", e.target.value)
+                        }
                         className="w-full border border-gray-300 rounded p-1.5 focus:border-blue-500 focus:ring focus:ring-blue-200"
                       >
                         <option value="all">ALL</option>
@@ -793,12 +828,20 @@ const BookingDetailModal = ({
                         <option value="chd">CHD</option>
                       </select>
                     </td>
-                 
+
                     <td className="px-2 py-1.5">
                       <input
                         type="number"
-                        value={detail.pax !== undefined && detail.pax !== '' && detail.pax !== null ? detail.pax : ''}
-                        onChange={(e) => updatePriceRow(index, 'pax', e.target.value)}
+                        value={
+                          detail.pax !== undefined &&
+                          detail.pax !== "" &&
+                          detail.pax !== null
+                            ? detail.pax
+                            : ""
+                        }
+                        onChange={(e) =>
+                          updatePriceRow(index, "pax", e.target.value)
+                        }
                         onWheel={(e) => e.target.blur()}
                         className="w-full border border-gray-300 rounded p-1.5 text-center focus:border-blue-500 focus:ring focus:ring-blue-200"
                         placeholder={autoPax}
@@ -814,8 +857,10 @@ const BookingDetailModal = ({
                     <td className="px-2 py-1.5">
                       <input
                         type="text"
-                        value={detail.remark || ''}
-                        onChange={(e) => updatePriceRow(index, 'remark', e.target.value)}
+                        value={detail.remark || ""}
+                        onChange={(e) =>
+                          updatePriceRow(index, "remark", e.target.value)
+                        }
                         className="w-full border border-gray-300 rounded p-1.5 focus:border-blue-500 focus:ring focus:ring-blue-200"
                         placeholder="Remark"
                       />
@@ -837,7 +882,10 @@ const BookingDetailModal = ({
             </tbody>
             <tfoot>
               <tr className="bg-gray-50 border-t border-gray-200">
-                <td colSpan="4" className="px-3 py-2 text-right font-semibold text-gray-700">
+                <td
+                  colSpan="4"
+                  className="px-3 py-2 text-right font-semibold text-gray-700"
+                >
                   Total:
                 </td>
                 <td className="px-2 py-2 text-right font-bold text-gray-800">
@@ -846,7 +894,18 @@ const BookingDetailModal = ({
                 <td className="px-2 py-2 text-right font-bold text-gray-800">
                   {totalSelling.toLocaleString()}
                 </td>
-                <td colSpan="2"></td>
+                <td className="px-2 py-2 text-center font-bold whitespace-nowrap">
+                  <span
+                    className={
+                      totalSelling - totalCost >= 0
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }
+                  >
+                    {(totalSelling - totalCost).toLocaleString()}
+                  </span>
+                </td>
+                <td></td>
               </tr>
             </tfoot>
           </table>
@@ -867,7 +926,9 @@ const BookingDetailModal = ({
           </label>
           <textarea
             name={bookingType === "tour" ? "note" : "payment_note"}
-            value={formData[bookingType === "tour" ? "note" : "payment_note"] || ''}
+            value={
+              formData[bookingType === "tour" ? "note" : "payment_note"] || ""
+            }
             onChange={handleChange}
             className="w-full rounded-md p-2 border border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200"
             rows={3}
@@ -962,7 +1023,7 @@ const BookingDetailModal = ({
             </div>
           ))}
 
-                {/* Price Details Section */}
+          {/* Price Details Section */}
           {renderPriceDetailsSection()}
 
           {/* แสดงข้อความสถานะ */}
